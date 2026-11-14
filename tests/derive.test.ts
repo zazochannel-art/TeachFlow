@@ -58,6 +58,10 @@ describe("notifications and tasks", () => {
     expect(ids).not.toContain("t-link");
     expect(ids).toContain("t-pay");
   });
+  it("sends an expired subscription to the billing page", () => {
+    const ws = emptyWorkspace({ subscription: { plan_code: "pro", status: "expired", current_period_end: "2026-11-01T00:00:00Z" } });
+    expect(notifications(ws, NOW).find(n => n.id === "n-sub")?.href).toBe("/billing");
+  });
   it("returns nothing for an empty account", () => {
     expect(tasks(emptyWorkspace(), NOW)).toEqual([]);
     expect(notifications(emptyWorkspace(), NOW)).toEqual([]);

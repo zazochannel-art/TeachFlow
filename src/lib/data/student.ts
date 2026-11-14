@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TZ } from "@/lib/time";
 import { buildDemoWorkspace } from "./demo";
+import { oldestFirst } from "./rows";
 import { getT } from "@/lib/i18n/server";
 import { pendingInviteToken } from "@/lib/invite-token";
 import type { Course, Homework, Lesson, Message, Payment } from "@/types/database";
@@ -45,7 +46,7 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title"),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").gte("starts_at", since).order("starts_at").limit(500),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }).limit(300),
-    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at").limit(1000),
+    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at", { ascending: false }).limit(1000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false }).limit(300)
   ]);
 
@@ -74,7 +75,7 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     courses: (courses.data as Course[] | null) ?? [],
     lessons: (lessons.data as Lesson[] | null) ?? [],
     homework: (homework.data as Homework[] | null) ?? [],
-    messages: (messages.data as Message[] | null) ?? [],
+    messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(x => ({ ...x, amount: Number(x.amount) }))
   };
 });

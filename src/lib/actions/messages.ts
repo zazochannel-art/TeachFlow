@@ -16,7 +16,9 @@ export async function addMessage(_: FormState, formData: FormData): Promise<Form
   if ("error" in parsed) return parsed;
   const v = parsed.data;
   const { error } = await ctx.supabase.from("messages").insert({
-    ...v, teacher_id: ctx.userId, read_at: v.direction === "outgoing" ? new Date().toISOString() : null
+    // read_at of an outgoing message means "read by the student" (student portal badge), so it starts empty.
+    // An incoming message the teacher logs by hand is already read by the teacher.
+    ...v, teacher_id: ctx.userId, read_at: v.direction === "incoming" ? new Date().toISOString() : null
   });
   if (error) return { error: error.message };
   refresh();

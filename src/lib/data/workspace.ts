@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TZ } from "@/lib/time";
 import { buildDemoWorkspace } from "./demo";
+import { oldestFirst } from "./rows";
 import { pendingInviteToken } from "@/lib/invite-token";
 import type { Course, Enrollment, Homework, Lesson, Message, Payment, Profile, Student, Subscription, TeacherProfile } from "@/types/database";
 
@@ -95,12 +96,12 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     ),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at"),
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at").limit(2000),
+    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
     withFallback(
       () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
       () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
     ),
-    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at").limit(3000),
+    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
 
@@ -132,9 +133,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     students: (students.data as Student[] | null) ?? [],
     courses: (courses.data as Course[] | null) ?? [],
     enrollments: (enrollments.data as Enrollment[] | null) ?? [],
-    lessons: (lessons.data as Lesson[] | null) ?? [],
+    // Loaded newest first so the cap drops the oldest rows, then put back in chronological order.
+    lessons: oldestFirst(lessons.data as Lesson[] | null),
     homework: (homework.data as Homework[] | null) ?? [],
-    messages: (messages.data as Message[] | null) ?? [],
+    messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
     missingTables
   };
