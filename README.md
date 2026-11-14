@@ -18,11 +18,14 @@ Open http://localhost:3000.
 1. Create a project in Supabase.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Project URL and publishable key from the Supabase project Connect/API settings.
-4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, `0002_homework_messages_payments.sql`, `0003_student_portal.sql`, `0004_email_reminders.sql`, then `0005_manual_billing.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing. Until 0003 is applied, student invitations show a notice and the rest of the app keeps working.
+4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, `0002_homework_messages_payments.sql`, `0003_student_portal.sql`, `0004_email_reminders.sql`, `0005_manual_billing.sql`, then `0006_lesson_whiteboard.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing. Until 0003 is applied, student invitations show a notice and the rest of the app keeps working. Until 0006 is applied, the lesson whiteboard works locally but is neither saved nor shared.
 5. Configure the Auth email provider. Under Authentication → URL Configuration set the Site URL to your production domain and add redirect URLs for `http://localhost:3000/**` and `https://<your-domain>/**`. Email links land on `/auth/callback`, which signs the user in and continues to the dashboard (or to `/reset-password` for password recovery).
 6. Restart the dev server.
 
 Without Supabase environment variables, the dashboard displays clearly marked demo data. Authentication actions require Supabase configuration.
+
+## Mobile app
+The native Android/iOS app lives in [`mobile/`](mobile/README.md) (Expo / React Native). It uses the same Supabase project, so accounts and data are shared with the web app. See `mobile/README.md` for running it on a phone with Expo Go, building an APK, and publishing to the stores.
 
 ## Commands
 ```bash

@@ -30,7 +30,7 @@ export function Sidebar({ badges = {}, admin = false }: { badges?: Record<string
   return (
     <>
       {/* Desktop / tablet rail */}
-      <aside className="hidden w-[92px] shrink-0 flex-col items-center bg-navy py-7 text-white md:flex md:rounded-l-[30px]">
+      <aside className="sticky top-0 hidden h-dvh w-[92px] shrink-0 flex-col items-center overflow-y-auto [scrollbar-width:none] bg-navy py-7 text-white md:flex">
         <Link href="/dashboard" aria-label="TeachFlow" className="mb-8 text-primary">
           <GraduationCap className="h-9 w-9" fill="rgba(82,105,232,.3)" strokeWidth={1.8} />
         </Link>
