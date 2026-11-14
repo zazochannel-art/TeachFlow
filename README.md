@@ -18,7 +18,7 @@ Open http://localhost:3000.
 1. Create a project in Supabase.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Project URL and publishable key from the Supabase project Connect/API settings.
-4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, `0002_homework_messages_payments.sql`, then `0003_student_portal.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing. Until 0003 is applied, student invitations show a notice and the rest of the app keeps working.
+4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, `0002_homework_messages_payments.sql`, `0003_student_portal.sql`, then `0004_email_reminders.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing. Until 0003 is applied, student invitations show a notice and the rest of the app keeps working.
 5. Configure the Auth email provider. Under Authentication → URL Configuration set the Site URL to your production domain and add redirect URLs for `http://localhost:3000/**` and `https://<your-domain>/**`. Email links land on `/auth/callback`, which signs the user in and continues to the dashboard (or to `/reset-password` for password recovery).
 6. Restart the dev server.
 
@@ -34,6 +34,15 @@ npm run i18n:check   # every UI string has ru + en translations
 ```
 
 GitHub Actions runs the same checks on every pull request and on pushes to `main` (`.github/workflows/ci.yml`).
+
+## Email reminders
+Every morning (05:00 UTC, `vercel.json`) Vercel Cron calls `/api/cron/reminders`. Each teacher with reminders on gets one email listing tomorrow's lessons, homework to review and overdue payments. Nothing is sent on quiet days, and `reminder_log` prevents duplicates. Teachers turn it off in Settings. To enable:
+1. Apply `supabase/migrations/0004_email_reminders.sql`.
+2. Create a [Resend](https://resend.com) account, verify a sending domain and create an API key.
+3. In Vercel → Project → Settings → Environment Variables (Production) add `SUPABASE_SECRET_KEY` (Supabase → Project Settings → API Keys → secret key), `RESEND_API_KEY`, `REMINDER_FROM` (e.g. `TeachFlow <noreply@yourdomain.md>`), `CRON_SECRET` (a long random string) and optionally `APP_URL`. These are server-only; never prefix them with `NEXT_PUBLIC_`.
+4. Redeploy. Test with `curl -H "Authorization: Bearer $CRON_SECRET" "https://<app>/api/cron/reminders?dry=1"`, which builds the digests without sending.
+
+Without these variables the endpoint answers 503 and sends nothing.
 
 ## Languages
 The UI is in Romanian, Russian and English. Romanian text in the code is the translation key: `t("Elevi")` on the server (`getT()` from `src/lib/i18n/server.ts`) or in client components (`useT()` from `src/lib/i18n/client.tsx`). Translations live in `src/lib/i18n/ru.ts` and `en.ts`; plurals use `t.n("{n} elev|{n} elevi|{n} de elevi", n)`. The language comes from the signed-in user's profile, then the `tf_lang` cookie (RO/RU/EN switch on the login and student pages), then the browser. `npm run i18n:check` fails when a string has no translation.
