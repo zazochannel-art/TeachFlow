@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Expand, GripHorizontal, Loader2, Maximize2, Mic, MicOff, PhoneOff, Shrink, Video, VideoOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Expand, GripHorizontal, Loader2, Maximize2, Mic, MicOff, PhoneOff, Shrink, Video, VideoOff, WifiOff } from "lucide-react";
 import { ICE_SERVERS, sanitizeCallSignal, userOfKey, type CallMeta, type CallSignal } from "@/lib/board/rtc";
 import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
 import { newId } from "@/lib/board/model";
@@ -15,7 +15,7 @@ interface Props {
   teacherId: string;
 }
 
-interface Peer extends CallMeta { key: string; stream: MediaStream | null; connected: boolean }
+interface Peer extends CallMeta { key: string; stream: MediaStream | null; connected: boolean; failed?: boolean }
 
 const MAX_PEERS = 7;
 const MEDIA: MediaStreamConstraints = {
@@ -69,22 +69,47 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
     setPeers(list => list.filter(p => p.key !== key));
   }, []);
 
-  /** Peer connection to `key` carrying our camera and microphone. */
-  const connect = useCallback((key: string) => {
+  const restartsRef = useRef(new Map<string, number>());
+
+  /**
+   * Peer connection to `key` carrying our camera and microphone. The offerer always asks for both
+   * audio and video, so the other side can send its camera even when we have none (and vice versa).
+   */
+  const connect = useCallback((key: string, offerer: boolean) => {
     const old = pcsRef.current.get(key);
     if (old) { old.onconnectionstatechange = null; old.close(); }
     const pc = new RTCPeerConnection({ iceServers: iceRef.current });
     pcsRef.current.set(key, pc);
     const stream = streamRef.current;
     if (stream) for (const track of stream.getTracks()) pc.addTrack(track, stream);
+    if (offerer) {
+      for (const kind of ["audio", "video"] as const) {
+        if (!stream || stream.getTracks().every(tr => tr.kind !== kind)) pc.addTransceiver(kind, { direction: "recvonly" });
+      }
+    }
     pc.onicecandidate = e => { if (e.candidate) send({ type: "ice", from: keyRef.current, to: key, candidate: e.candidate.toJSON() }); };
-    pc.ontrack = e => upsertPeer(key, { stream: e.streams[0] ?? new MediaStream([e.track]) });
+    pc.ontrack = e => {
+      const remote = e.streams[0] ?? new MediaStream([e.track]);
+      upsertPeer(key, { stream: remote });
+    };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") upsertPeer(key, { connected: true });
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") dropPeer(key);
+      if (pc.connectionState === "connected") { restartsRef.current.delete(key); upsertPeer(key, { connected: true, failed: false }); }
+      if (pc.connectionState === "failed") {
+        // Usually a strict NAT/firewall: retry once with an ICE restart, then show the problem.
+        const tries = restartsRef.current.get(key) ?? 0;
+        if (offerer && tries < 1) {
+          restartsRef.current.set(key, tries + 1);
+          void pc.createOffer({ iceRestart: true }).then(async offer => {
+            await pc.setLocalDescription(offer);
+            send({ type: "offer", from: keyRef.current, to: key, sdp: offer.sdp ?? "", name: me.name, role: me.role, ...stateRef.current });
+          }).catch(() => {});
+        } else {
+          upsertPeer(key, { connected: false, failed: true });
+        }
+      }
     };
     return pc;
-  }, [send, upsertPeer, dropPeer]);
+  }, [send, upsertPeer, me.name, me.role]);
 
   const flushIce = async (key: string, pc: RTCPeerConnection) => {
     const queued = iceQueueRef.current.get(key) ?? [];
@@ -129,15 +154,18 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
           }
           if (msg.type === "here" && pcs.has(from)) return;
           if (!pcs.has(from) && pcs.size >= MAX_PEERS) return;
-          const pc = connect(from);
+          const pc = connect(from, true);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           send({ type: "offer", from: keyRef.current, to: from, sdp: offer.sdp ?? "", ...myMeta() });
           break;
         }
         case "offer": {
-          upsertPeer(from, { name: msg.name, role: roleOf(from), mic: msg.mic, cam: msg.cam });
-          const pc = connect(from);
+          upsertPeer(from, { name: msg.name, role: roleOf(from), mic: msg.mic, cam: msg.cam, failed: false });
+          // An ICE restart renegotiates on the existing connection; a new offer otherwise starts fresh.
+          const existing = pcs.get(from);
+          const sameSession = existing?.signalingState === "stable" && !!existing.remoteDescription && fingerprint(existing.remoteDescription?.sdp) === fingerprint(msg.sdp);
+          const pc = existing && sameSession ? existing : connect(from, false);
           await pc.setRemoteDescription({ type: "offer", sdp: msg.sdp });
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
@@ -163,7 +191,7 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
           break;
         }
         case "state":
-          upsertPeer(from, { mic: msg.mic, cam: msg.cam });
+          if (pcs.has(from)) upsertPeer(from, { mic: msg.mic, cam: msg.cam });
           break;
         case "bye":
           dropPeer(from);
@@ -196,6 +224,7 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
   const join = async () => {
     setError(null);
     setJoining(true);
+    if (live) iceRef.current = await getIceServers();
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia(MEDIA);
@@ -360,7 +389,7 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
         >
           <Tile className={tileW} stream={local} name={t("Tu")} muted mirror mic={mic} cam={cam && hasCamera} label={me.role === "teacher" ? t("Profesor") : undefined} />
           {peers.map(p => (
-            <Tile key={p.key} className={tileW} stream={p.stream} name={p.name || t("Participant")} mic={p.mic} cam={p.cam} connecting={!p.connected} label={p.role === "teacher" ? t("Profesor") : undefined} />
+            <Tile key={p.key} className={tileW} stream={p.stream} name={p.name || t("Participant")} mic={p.mic} cam={p.cam} connecting={!p.connected && !p.failed} failed={p.failed} label={p.role === "teacher" ? t("Profesor") : undefined} />
           ))}
         </div>
         {!live && <p className="mt-1 max-w-[260px] px-1 text-[10px] leading-snug text-white/65">{t("Mod local: vezi doar camera ta. Apelul cu elevii pornește după configurarea Supabase.")}</p>}
@@ -377,6 +406,11 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
       </div>
     </div>
   );
+}
+
+/** DTLS fingerprint of an SDP: unchanged for an ICE restart, new for a brand-new connection. */
+function fingerprint(sdp: string | undefined) {
+  return sdp?.match(/^a=fingerprint:(.+)$/m)?.[1]?.trim() ?? null;
 }
 
 interface PanelView { pos: { x: number; y: number } | null; large: boolean; min: boolean }
@@ -428,9 +462,10 @@ function CallButton({ onClick, active, disabled, label, icon: Icon }: { onClick:
   );
 }
 
-function Tile({ stream, name, muted, mirror, mic, cam, connecting, label, className = "" }: {
-  stream: MediaStream | null; name: string; muted?: boolean; mirror?: boolean; mic: boolean; cam: boolean; connecting?: boolean; label?: string; className?: string;
+function Tile({ stream, name, muted, mirror, mic, cam, connecting, failed, label, className = "" }: {
+  stream: MediaStream | null; name: string; muted?: boolean; mirror?: boolean; mic: boolean; cam: boolean; connecting?: boolean; failed?: boolean; label?: string; className?: string;
 }) {
+  const t = useT();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = ref.current;
@@ -447,6 +482,12 @@ function Tile({ stream, name, muted, mirror, mic, cam, connecting, label, classN
         </span>
       )}
       {connecting && <span className="absolute inset-0 grid place-items-center bg-black/30"><Loader2 className="h-5 w-5 animate-spin text-white" /></span>}
+      {failed && (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 px-2 text-center text-[10px] font-bold leading-tight text-white" title={t("Rețeaua blochează conexiunea directă. Încercați din nou sau configurați un server TURN.")}>
+          <WifiOff className="h-4 w-4 text-[#ff8b8b]" />
+          {t("Nu se poate conecta")}
+        </span>
+      )}
       <span className="absolute bottom-1 left-1 flex max-w-[90%] items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
         {!mic && <MicOff className="h-2.5 w-2.5 shrink-0 text-[#ff8b8b]" />}
         <span className="truncate">{name}</span>
