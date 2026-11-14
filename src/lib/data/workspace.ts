@@ -10,6 +10,7 @@ export interface Workspace {
   mode: "live" | "demo";
   userId: string | null;
   email: string | null;
+  isAdmin: boolean;
   timezone: string;
   profile: Pick<Profile, "full_name" | "avatar_url" | "preferred_language" | "timezone"> | null;
   teacherProfile: TeacherProfile | null;
@@ -31,7 +32,7 @@ export interface Workspace {
  */
 export const requireTeacher = cache(async () => {
   const supabase = await createClient();
-  if (!supabase) return { supabase: null, userId: null, email: null } as const;
+  if (!supabase) return { supabase: null, userId: null, email: null, isAdmin: false } as const;
 
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -47,7 +48,7 @@ export const requireTeacher = cache(async () => {
   if (!roleRecord || !["teacher", "admin"].includes(roleRecord.role)) redirect("/login?error=no_teacher_role");
 
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  return { supabase, userId, email } as const;
+  return { supabase, userId, email, isAdmin: roleRecord.role === "admin" } as const;
 });
 
 /**
@@ -61,7 +62,7 @@ async function withFallback<T extends { error: unknown }>(query: () => PromiseLi
 
 /** Loads the signed-in teacher's data. RLS limits every query to rows owned by the teacher. */
 export const loadWorkspace = cache(async (): Promise<Workspace> => {
-  const { supabase, userId, email } = await requireTeacher();
+  const { supabase, userId, email, isAdmin } = await requireTeacher();
   if (!supabase || !userId) return buildDemoWorkspace();
 
   const [profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
@@ -96,6 +97,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     mode: "live",
     userId,
     email,
+    isAdmin,
     timezone: p?.timezone || DEFAULT_TZ,
     profile: p,
     teacherProfile: (teacherProfile.data as TeacherProfile | null) ?? null,

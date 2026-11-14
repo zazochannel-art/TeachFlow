@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Avatar, Card, DemoNotice, PageHeader, SectionTitle } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
@@ -43,6 +44,7 @@ export default async function SettingsPage() {
             <span className="text-[12px] font-bold text-muted">{t("Limba")}</span>
             <LanguageSwitcher />
           </div>
+          <Link href="/billing" className="tf-btn-ghost mt-4 w-full">{t("Abonament TeachFlow")}</Link>
           {ws.mode === "live" && (
             <form action={signOut} className="mt-5">
               <button className="tf-btn-ghost w-full"><LogOut className="h-4 w-4" /> {t("Deconectare")}</button>
