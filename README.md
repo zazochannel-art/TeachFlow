@@ -28,8 +28,11 @@ Without Supabase environment variables, the dashboard displays clearly marked de
 ```bash
 npm run typecheck
 npm run lint
+npm test        # unit tests (Vitest)
 npm run build
 ```
+
+GitHub Actions runs the same four checks on every pull request and on pushes to `main` (`.github/workflows/ci.yml`).
 
 ## Security notes
 - Do not put a Supabase secret/service-role key in a `NEXT_PUBLIC_` variable.

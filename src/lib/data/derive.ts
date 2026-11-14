@@ -87,7 +87,7 @@ export function lessonsBetween(ws: Workspace, start: Date, end: Date) {
   return ws.lessons.filter(l => {
     const s = new Date(l.starts_at);
     return s >= start && s < end;
-  });
+  }).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 }
 
 /** Lessons of one day. The lesson in progress (or, if none, the next one today) is highlighted. */
