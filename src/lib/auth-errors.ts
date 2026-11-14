@@ -1,4 +1,6 @@
-/** Maps Supabase auth error messages to Romanian copy shown in the UI. */
+import { makeT, type T } from "@/lib/i18n/core";
+
+/** Maps Supabase auth error messages to friendly copy (Romanian source text, translated with `t`). */
 const MESSAGES: [RegExp, string][] = [
   [/^no_teacher_role$/, "Acest cont nu are acces de profesor."],
   [/invalid login credentials/i, "Email sau parolă greșită."],
@@ -12,10 +14,10 @@ const MESSAGES: [RegExp, string][] = [
   [/session.*missing|not authenticated/i, "Sesiunea a expirat. Deschide din nou linkul din email."],
 ];
 
-export function authErrorMessage(message?: string | null): string {
-  if (!message) return "A apărut o eroare. Încearcă din nou.";
-  for (const [re, text] of MESSAGES) if (re.test(message)) return text;
-  return message;
+export function authErrorMessage(message?: string | null, t: T = makeT("ro")): string {
+  if (!message) return t("A apărut o eroare. Încearcă din nou.");
+  for (const [re, text] of MESSAGES) if (re.test(message)) return t(text);
+  return t(message);
 }
 
 /** Only allow same-site relative paths as post-auth redirect targets. */

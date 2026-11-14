@@ -12,6 +12,7 @@ import {
   textFontSize, type BoardEvent, type Stroke, type Tool
 } from "@/lib/board/model";
 import { drawGrid, drawStroke } from "@/lib/board/draw";
+import { useT } from "@/lib/i18n/client";
 
 type ToolOrEraser = Tool | "eraser";
 type HistoryEntry = { kind: "add" | "remove"; strokes: Stroke[] };
@@ -57,6 +58,7 @@ interface Props {
  * Supabase Realtime channel and the full board is saved to `lesson_boards` (debounced).
  */
 export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
+  const t = useT();
   const [strokes, setStrokes] = useState<Stroke[]>(() => sanitizeBoard(initial));
   const [tool, setTool] = useState<ToolOrEraser>("pen");
   const [color, setColor] = useState(COLORS[0].value);
@@ -328,7 +330,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   const clearBoard = () => {
     const all = strokesRef.current;
     if (all.length === 0) return;
-    if (!window.confirm("Ștergi tot de pe tablă? Poți reveni cu „Anulează”.")) return;
+    if (!window.confirm(t("Ștergi tot de pe tablă? Poți reveni cu „Anulează”."))) return;
     commit({ type: "clear" });
     pushHistory({ kind: "remove", strokes: all });
   };
@@ -480,16 +482,16 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   return (
     <div ref={frameRef} className={`flex flex-col gap-3 ${fullscreen ? "h-screen bg-canvas p-4" : ""}`}>
       <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-line/70 bg-white p-2 shadow-card">
-        <div role="toolbar" aria-label="Instrumente" className="flex flex-wrap items-center gap-1">
-          {TOOL_BUTTONS.map(({ tool: t, label, icon: Icon, key }) => (
+        <div role="toolbar" aria-label={t("Instrumente")} className="flex flex-wrap items-center gap-1">
+          {TOOL_BUTTONS.map(({ tool: tb, label, icon: Icon, key }) => (
             <button
-              key={t}
+              key={tb}
               type="button"
-              onClick={() => { if (textDraft) commitText(); setTool(t); }}
-              aria-pressed={tool === t}
-              title={`${label} (${key.toUpperCase()})`}
-              aria-label={label}
-              className={`grid h-9 w-9 cursor-pointer place-items-center rounded-xl transition-colors ${tool === t ? "bg-primary text-white shadow-md" : "text-ink hover:bg-soft"}`}
+              onClick={() => { if (textDraft) commitText(); setTool(tb); }}
+              aria-pressed={tool === tb}
+              title={`${t(label)} (${key.toUpperCase()})`}
+              aria-label={t(label)}
+              className={`grid h-9 w-9 cursor-pointer place-items-center rounded-xl transition-colors ${tool === tb ? "bg-primary text-white shadow-md" : "text-ink hover:bg-soft"}`}
             >
               <Icon className="h-[17px] w-[17px]" strokeWidth={2.2} />
             </button>
@@ -498,15 +500,15 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
 
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
-        <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Culoare">
+        <div className="flex items-center gap-1.5" role="radiogroup" aria-label={t("Culoare")}>
           {COLORS.map(c => (
             <button
               key={c.value}
               type="button"
               role="radio"
               aria-checked={color === c.value}
-              aria-label={c.label}
-              title={c.label}
+              aria-label={t(c.label)}
+              title={t(c.label)}
               onClick={() => setColor(c.value)}
               className={`h-7 w-7 cursor-pointer rounded-full border-2 transition-transform ${color === c.value ? "scale-110 border-white ring-2 ring-primary" : "border-white ring-1 ring-line hover:scale-105"}`}
               style={{ background: c.value }}
@@ -516,15 +518,15 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
 
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Grosime">
+        <div className="flex items-center gap-1" role="radiogroup" aria-label={t("Grosime")}>
           {SIZES.map(s => (
             <button
               key={s.value}
               type="button"
               role="radio"
               aria-checked={size === s.value}
-              aria-label={s.label}
-              title={s.label}
+              aria-label={t(s.label)}
+              title={t(s.label)}
               onClick={() => setSize(s.value)}
               className={`grid h-9 w-9 cursor-pointer place-items-center rounded-xl ${size === s.value ? "bg-tint" : "hover:bg-soft"}`}
             >
@@ -536,12 +538,12 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
         <div className="flex items-center gap-1">
-          <IconButton label="Anulează (Ctrl+Z)" icon={Undo2} onClick={undo} disabled={undoStack.length === 0} />
-          <IconButton label="Refă (Ctrl+Y)" icon={Redo2} onClick={redo} disabled={redoStack.length === 0} />
-          <IconButton label="Caroiaj" icon={Grid3x3} onClick={() => setGrid(g => !g)} pressed={grid} />
-          {me.role === "teacher" && <IconButton label="Șterge tabla" icon={Trash2} onClick={clearBoard} disabled={strokes.length === 0} />}
-          <IconButton label="Descarcă PNG" icon={Download} onClick={download} />
-          <IconButton label={fullscreen ? "Ieși din ecran complet" : "Ecran complet"} icon={fullscreen ? Minimize2 : Maximize2} onClick={toggleFullscreen} />
+          <IconButton label={t("Anulează (Ctrl+Z)")} icon={Undo2} onClick={undo} disabled={undoStack.length === 0} />
+          <IconButton label={t("Refă (Ctrl+Y)")} icon={Redo2} onClick={redo} disabled={redoStack.length === 0} />
+          <IconButton label={t("Caroiaj")} icon={Grid3x3} onClick={() => setGrid(g => !g)} pressed={grid} />
+          {me.role === "teacher" && <IconButton label={t("Șterge tabla")} icon={Trash2} onClick={clearBoard} disabled={strokes.length === 0} />}
+          <IconButton label={t("Descarcă PNG")} icon={Download} onClick={download} />
+          <IconButton label={fullscreen ? t("Ieși din ecran complet") : t("Ecran complet")} icon={fullscreen ? Minimize2 : Maximize2} onClick={toggleFullscreen} />
         </div>
 
         <div className="ml-auto flex items-center gap-3 px-2 text-[11px] font-bold">
@@ -555,7 +557,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
           <canvas
             ref={canvasRef}
             role="img"
-            aria-label={`Tabla lecției ${title}`}
+            aria-label={`${t("Tabla lecției")} ${title}`}
             data-strokes={strokes.length}
             className="block h-full w-full touch-none select-none"
             style={{ cursor }}
@@ -575,8 +577,8 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
                 if (e.key === "Escape") { draftRef.current = null; setTextDraft(null); }
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
               }}
-              placeholder="Scrie aici…"
-              aria-label="Text pe tablă"
+              placeholder={t("Scrie aici…")}
+              aria-label={t("Text pe tablă")}
               className="absolute z-10 min-w-[140px] resize-none rounded-md border border-dashed border-primary bg-white/80 p-0 font-bold outline-none"
               rows={Math.max(1, textDraft.value.split("\n").length)}
               style={{
@@ -591,7 +593,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
           )}
         </div>
       </div>
-      {!live && <p className="text-[11px] text-muted">Mod demo: tabla funcționează, dar nu se salvează și nu se partajează.</p>}
+      {!live && <p className="text-[11px] text-muted">{t("Mod demo: tabla funcționează, dar nu se salvează și nu se partajează.")}</p>}
     </div>
   );
 }
@@ -613,8 +615,9 @@ function IconButton({ label, icon: Icon, onClick, disabled, pressed }: { label: 
 }
 
 function PeersBadge({ peers }: { peers: BoardPeer[] }) {
+  const t = useT();
   if (peers.length === 0) return null;
-  const names = peers.map(p => p.name || (p.role === "teacher" ? "Profesor" : "Elev"));
+  const names = peers.map(p => p.name || (p.role === "teacher" ? t("Profesor") : t("Elev")));
   return (
     <span className="flex items-center gap-1.5 text-primary-2" title={names.join(", ")}>
       <span className="flex -space-x-1.5">
@@ -624,20 +627,21 @@ function PeersBadge({ peers }: { peers: BoardPeer[] }) {
           </span>
         ))}
       </span>
-      <span className="hidden md:inline">{names.length === 1 ? names[0] : `${names.length} participanți`}</span>
+      <span className="hidden md:inline">{names.length === 1 ? names[0] : t.n("{n} participant|{n} participanți|{n} de participanți", names.length)}</span>
     </span>
   );
 }
 
 function StatusDot({ conn, save }: { conn: Conn; save: SaveState }) {
+  const t = useT();
   const map = {
-    live: { dot: "bg-emerald-500", text: save === "saving" ? "Se salvează…" : save === "error" ? "Nu s-a salvat" : "Live" },
-    connecting: { dot: "bg-amber-400", text: "Se conectează…" },
-    error: { dot: "bg-red-500", text: "Fără conexiune live" },
-    offline: { dot: "bg-slate-300", text: "Local" }
+    live: { dot: "bg-emerald-500", text: save === "saving" ? t("Se salvează…") : save === "error" ? t("Nu s-a salvat") : "Live" },
+    connecting: { dot: "bg-amber-400", text: t("Se conectează…") },
+    error: { dot: "bg-red-500", text: t("Fără conexiune live") },
+    offline: { dot: "bg-slate-300", text: t("Local") }
   } as const;
   const m = map[conn];
-  const text = conn !== "live" && save === "error" ? "Nu s-a salvat" : m.text;
+  const text = conn !== "live" && save === "error" ? t("Nu s-a salvat") : m.text;
   return (
     <span className="flex items-center gap-1.5 text-muted" aria-live="polite">
       <span className={`h-2 w-2 rounded-full ${save === "error" ? "bg-red-500" : m.dot}`} />

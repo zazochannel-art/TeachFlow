@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
 import type { Workspace } from "@/lib/data/workspace";
+import { getT } from "@/lib/i18n/server";
 
 interface Step { id: string; title: string; text: string; href: string; done: boolean }
 
-/** First-run checklist built from the teacher's real data. Hidden once every step is done. */
+/** First-run checklist built from the teacher's real data. Hidden once every step is done. Titles are Romanian source text. */
 export function gettingStartedSteps(ws: Workspace, now = new Date()): Step[] {
   const firstStudent = ws.students[0];
   const upcoming = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.ends_at) >= now);
@@ -19,7 +20,8 @@ export function gettingStartedSteps(ws: Workspace, now = new Date()): Step[] {
   ];
 }
 
-export function GettingStarted({ steps }: { steps: Step[] }) {
+export async function GettingStarted({ steps }: { steps: Step[] }) {
+  const t = await getT();
   const done = steps.filter(s => s.done).length;
   if (done === steps.length) return null;
   const next = steps.find(s => !s.done)!;
@@ -29,14 +31,14 @@ export function GettingStarted({ steps }: { steps: Step[] }) {
     <section aria-labelledby="getting-started" className="mb-7 rounded-[24px] bg-navy p-5 text-white md:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="getting-started" className="text-[16px] font-extrabold tracking-tight">Primii pași în TeachFlow</h2>
-          <p className="mt-1 text-[12px] text-white/70">{done} din {steps.length} pași gata. Următorul: {next.title.toLowerCase()}.</p>
+          <h2 id="getting-started" className="text-[16px] font-extrabold tracking-tight">{t("Primii pași în TeachFlow")}</h2>
+          <p className="mt-1 text-[12px] text-white/70">{t("{done} din {total} pași gata. Următorul: {next}.", { done, total: steps.length, next: t(next.title).toLowerCase() })}</p>
         </div>
         <Link href={next.href} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-[12px] font-bold hover:bg-primary-2">
-          Continuă <ChevronRight className="h-3.5 w-3.5" />
+          {t("Continuă")} <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progres">
+      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Progres")}>
         <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
       <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -47,8 +49,8 @@ export function GettingStarted({ steps }: { steps: Step[] }) {
                 {s.done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
               </span>
               <span className="min-w-0">
-                <span className={`block text-[12.5px] font-bold ${s.done ? "line-through decoration-white/40" : ""}`}>{s.title}</span>
-                {!s.done && <span className="mt-0.5 block text-[11px] leading-snug text-white/65">{s.text}</span>}
+                <span className={`block text-[12.5px] font-bold ${s.done ? "line-through decoration-white/40" : ""}`}>{t(s.title)}</span>
+                {!s.done && <span className="mt-0.5 block text-[11px] leading-snug text-white/65">{t(s.text)}</span>}
               </span>
             </Link>
           </li>

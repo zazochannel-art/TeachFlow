@@ -4,10 +4,12 @@ import { Avatar } from "@/components/ui";
 import { loadStudentPortal } from "@/lib/data/student";
 import { studentSignOut } from "@/lib/actions/student";
 import { StudentNav } from "./StudentNav";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getT } from "@/lib/i18n/server";
 
 /** Student portal shell: full-screen like the teacher app, with a navy top navigation. */
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const portal = await loadStudentPortal();
+  const [portal, t] = await Promise.all([loadStudentPortal(), getT()]);
   const unread = portal.messages.filter(m => m.direction === "outgoing" && !m.read_at).length;
 
   return (
@@ -19,10 +21,11 @@ export default async function StudentLayout({ children }: { children: React.Reac
           </Link>
           <StudentNav unread={unread} />
           <div className="ml-auto flex items-center gap-3">
+            <LanguageSwitcher dark />
             <Avatar name={portal.name} size={34} />
             <span className="hidden text-[13px] font-bold sm:inline">{portal.name}</span>
             <form action={studentSignOut}>
-              <button aria-label="Ieși din cont" title="Ieși din cont" className="grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-white/10 hover:bg-white/20"><LogOut className="h-4 w-4" /></button>
+              <button aria-label={t("Ieși din cont")} title={t("Ieși din cont")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-white/10 hover:bg-white/20"><LogOut className="h-4 w-4" /></button>
             </form>
           </div>
         </header>

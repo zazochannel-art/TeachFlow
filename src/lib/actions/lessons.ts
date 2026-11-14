@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addDays, zonedToUtc } from "@/lib/time";
+import { getT } from "@/lib/i18n/server";
 import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
 
 const lessonSchema = z.object({
@@ -34,7 +35,7 @@ export async function saveLesson(_: FormState, formData: FormData): Promise<Form
   }
   if (!title && v.student_id) {
     const { data } = await ctx.supabase.from("students").select("full_name").eq("id", v.student_id).maybeSingle();
-    title = data ? `Lecție · ${data.full_name}` : null;
+    title = data ? (await getT())("Lecție · {name}", { name: data.full_name }) : null;
   }
   if (!title) return { error: "Adaugă un titlu lecției." };
 

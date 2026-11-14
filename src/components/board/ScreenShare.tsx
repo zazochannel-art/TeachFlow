@@ -6,6 +6,7 @@ import { Maximize2, MonitorUp, MonitorX, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ICE_SERVERS, sanitizeSignal, userOfKey, type RtcSignal } from "@/lib/board/rtc";
 import { newId } from "@/lib/board/model";
+import { useT } from "@/lib/i18n/client";
 
 interface Props {
   lessonId: string;
@@ -25,6 +26,7 @@ const hasDisplayMedia = () => !!navigator.mediaDevices?.getDisplayMedia;
  * per student); the offer/answer/ICE messages travel over the private channel "screen:<lesson>".
  */
 export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
+  const t = useT();
   const isTeacher = me.role === "teacher";
   const canShare = useSyncExternalStore(noopSubscribe, hasDisplayMedia, () => true);
   const [status, setStatus] = useState<Status>("idle");
@@ -125,7 +127,7 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
     } catch (e) {
       setStatus("idle");
       if (!(e instanceof DOMException && e.name === "NotAllowedError")) {
-        setError("Nu am putut porni partajarea ecranului.");
+        setError(t("Nu am putut porni partajarea ecranului."));
         setStatus("error");
       }
     }
@@ -222,8 +224,8 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
     return (
       <section className="mb-5 overflow-hidden rounded-[20px] border border-line/70 bg-navy shadow-card">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-white">
-          <p className="flex items-center gap-2 text-[13px] font-extrabold"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Ecranul profesorului</p>
-          <button type="button" onClick={fullscreen} aria-label="Ecran complet" title="Ecran complet" className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg bg-white/10 hover:bg-white/20"><Maximize2 className="h-4 w-4" /></button>
+          <p className="flex items-center gap-2 text-[13px] font-extrabold"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t("Ecranul profesorului")}</p>
+          <button type="button" onClick={fullscreen} aria-label={t("Ecran complet")} title={t("Ecran complet")} className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg bg-white/10 hover:bg-white/20"><Maximize2 className="h-4 w-4" /></button>
         </div>
         <video ref={videoRef} autoPlay playsInline muted controls className="block aspect-video max-h-[70vh] w-full bg-black object-contain" />
       </section>
@@ -234,23 +236,23 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
     <section className="mb-5">
       <div className="flex flex-wrap items-center gap-3">
         {status === "sharing" ? (
-          <button type="button" onClick={stopSharing} className="tf-btn bg-[#e5484d] hover:bg-[#c93a3f]"><MonitorX className="h-4 w-4" /> Oprește partajarea</button>
+          <button type="button" onClick={stopSharing} className="tf-btn bg-[#e5484d] hover:bg-[#c93a3f]"><MonitorX className="h-4 w-4" /> {t("Oprește partajarea")}</button>
         ) : (
           <button type="button" onClick={startSharing} disabled={!canShare || status === "starting"} className="tf-btn-ghost disabled:cursor-not-allowed disabled:opacity-50">
-            <MonitorUp className="h-4 w-4 text-primary" /> {status === "starting" ? "Se pornește…" : "Partajează ecranul"}
+            <MonitorUp className="h-4 w-4 text-primary" /> {status === "starting" ? t("Se pornește…") : t("Partajează ecranul")}
           </button>
         )}
         {status === "sharing" && (
           <span className="flex items-center gap-1.5 text-[12px] font-bold text-muted">
-            <Users className="h-3.5 w-3.5" /> {live ? (viewers === 1 ? "1 elev vede ecranul" : `${viewers} elevi văd ecranul`) : "Doar previzualizare (mod local)"}
+            <Users className="h-3.5 w-3.5" /> {live ? t.n("{n} elev vede ecranul|{n} elevi văd ecranul|{n} de elevi văd ecranul", viewers) : t("Doar previzualizare (mod local)")}
           </span>
         )}
-        {!canShare && <span className="text-[12px] text-muted">Browserul acesta nu permite partajarea ecranului (pe telefon nu e disponibilă).</span>}
+        {!canShare && <span className="text-[12px] text-muted">{t("Browserul acesta nu permite partajarea ecranului (pe telefon nu e disponibilă).")}</span>}
         {error && <span className="text-[12px] font-bold text-[#c03a3a]">{error}</span>}
       </div>
       {localStream && (
         <div className="mt-3 w-full max-w-[360px] overflow-hidden rounded-[16px] border border-line/70 bg-black shadow-card">
-          <video ref={videoRef} autoPlay playsInline muted className="block aspect-video w-full object-contain" aria-label="Previzualizarea ecranului partajat" />
+          <video ref={videoRef} autoPlay playsInline muted className="block aspect-video w-full object-contain" aria-label={t("Previzualizarea ecranului partajat")} />
         </div>
       )}
     </section>

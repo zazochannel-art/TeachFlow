@@ -6,6 +6,7 @@ import { LessonForm } from "@/components/LessonForm";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, lessonsBetween, toSlot } from "@/lib/data/derive";
 import { deleteLesson, setLessonStatus } from "@/lib/actions/lessons";
+import { getT } from "@/lib/i18n/server";
 import { addDays, dateKey, dayRange, formatDayHeading, formatShortDay, formatTime, isDateKey, startOfWeek } from "@/lib/time";
 
 const statusLabel = { scheduled: "Programată", completed: "Finalizată", cancelled: "Anulată", no_show: "Absent" } as const;
@@ -14,7 +15,7 @@ const statusTone = { scheduled: "blue", completed: "green", cancelled: "gray", n
 type Params = { date?: string; new?: string; lesson?: string; course?: string; back?: string };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Params> }) {
-  const ws = await loadWorkspace();
+  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
   const sp = await searchParams;
   const now = new Date();
   const today = dateKey(now, ws.timezone);
@@ -26,37 +27,37 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const live = ws.mode === "live";
   const back = sp.back?.startsWith("/") ? sp.back : undefined;
   const self = `/calendar${key === today ? "" : `?date=${key}`}`;
-  const weekLabel = `${formatDayHeading(monday).rest.replace(/ \d{4}$/, "")} – ${formatDayHeading(addDays(monday, 6)).rest}`;
+  const weekLabel = `${formatDayHeading(monday, t.locale).rest.replace(/ \d{4}$/, "")} – ${formatDayHeading(addDays(monday, 6), t.locale).rest}`;
 
   return (
     <div>
-      <PageHeader title="Calendar" subtitle={weekLabel}
+      <PageHeader title={t("Calendar")} subtitle={weekLabel}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/calendar?date=${addDays(monday, -7)}`} aria-label="Săptămâna anterioară" className="tf-btn-ghost px-3"><ChevronLeft className="h-4 w-4" /></Link>
-            <Link href="/calendar" className="tf-btn-ghost">Astăzi</Link>
-            <Link href={`/calendar?date=${addDays(monday, 7)}`} aria-label="Săptămâna următoare" className="tf-btn-ghost px-3"><ChevronRight className="h-4 w-4" /></Link>
-            <Link href={`/calendar?new=1&date=${key}`} className="tf-btn"><Plus className="h-4 w-4" /> Lecție nouă</Link>
+            <Link href={`/calendar?date=${addDays(monday, -7)}`} aria-label={t("Săptămâna anterioară")} className="tf-btn-ghost px-3"><ChevronLeft className="h-4 w-4" /></Link>
+            <Link href="/calendar" className="tf-btn-ghost">{t("Astăzi")}</Link>
+            <Link href={`/calendar?date=${addDays(monday, 7)}`} aria-label={t("Săptămâna următoare")} className="tf-btn-ghost px-3"><ChevronRight className="h-4 w-4" /></Link>
+            <Link href={`/calendar?new=1&date=${key}`} className="tf-btn"><Plus className="h-4 w-4" /> {t("Lecție nouă")}</Link>
           </div>
         } />
 
       {sp.new && (
-        <Panel title="Programează o lecție" closeHref={self}>
+        <Panel title={t("Programează o lecție")} closeHref={self}>
           <LessonForm ws={ws} date={key < today ? today : key} courseId={sp.course} back={back} />
         </Panel>
       )}
       {selected && (
-        <Panel title={`${selected.title} · ${formatTime(selected.starts_at, ws.timezone)}`} closeHref={back ?? self} aside={
-          <form action={deleteLesson}><input type="hidden" name="id" value={selected.id} /><ConfirmSubmit label="Șterge" confirm="Șterge lecția" className="py-1.5" /></form>
+        <Panel title={`${selected.title} · ${formatTime(selected.starts_at, ws.timezone, t.locale)}`} closeHref={back ?? self} aside={
+          <form action={deleteLesson}><input type="hidden" name="id" value={selected.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Șterge lecția")} className="py-1.5" /></form>
         }>
           <div className="mb-5 flex flex-wrap items-center gap-2">
-            <span className="text-[12px] font-bold text-muted">Status:</span>
-            {!live && <Pill tone={statusTone[selected.status]}>{statusLabel[selected.status]}</Pill>}
+            <span className="text-[12px] font-bold text-muted">{t("Status")}:</span>
+            {!live && <Pill tone={statusTone[selected.status]}>{t(statusLabel[selected.status])}</Pill>}
             {live && (["scheduled", "completed", "no_show", "cancelled"] as const).map(st => (
               <form key={st} action={setLessonStatus}>
                 <input type="hidden" name="id" value={selected.id} />
                 <input type="hidden" name="status" value={st} />
-                <SubmitButton className={`rounded-xl px-3 py-1.5 text-[12px] font-bold ${selected.status === st ? "bg-primary text-white" : "bg-soft text-ink hover:bg-tint"}`}>{statusLabel[st]}</SubmitButton>
+                <SubmitButton className={`rounded-xl px-3 py-1.5 text-[12px] font-bold ${selected.status === st ? "bg-primary text-white" : "bg-soft text-ink hover:bg-tint"}`}>{t(statusLabel[st])}</SubmitButton>
               </form>
             ))}
           </div>
@@ -67,8 +68,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <div className="tf-scroll grid gap-3 overflow-x-auto pb-2 lg:grid-cols-7">
         {days.map(day => {
           const { start, end } = dayRange(day, ws.timezone);
-          const slots = lessonsBetween(ws, start, end).map(l => toSlot(ws, l, now, cur?.id ?? null));
-          const { weekday, day: num } = formatShortDay(day);
+          const slots = lessonsBetween(ws, start, end).map(l => toSlot(ws, l, now, cur?.id ?? null, t));
+          const { weekday, day: num } = formatShortDay(day, t.locale);
           const isToday = day === today;
           return (
             <div key={day} className="min-w-0 rounded-[20px] bg-soft p-3">
@@ -88,21 +89,21 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                         {s.subtitle && <div className={`truncate ${active ? "text-white/80" : "text-muted"}`}>{s.subtitle}</div>}
                       </Link>
                       <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3">
-                        {s.status !== "scheduled" && <Pill tone={statusTone[s.status]}>{statusLabel[s.status]}</Pill>}
-                        {active && s.meetingUrl && <a href={s.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/80 px-2 py-1 font-bold"><Video className="h-3 w-3" /> Începe</a>}
+                        {s.status !== "scheduled" && <Pill tone={statusTone[s.status]}>{t(statusLabel[s.status])}</Pill>}
+                        {active && s.meetingUrl && <a href={s.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/80 px-2 py-1 font-bold"><Video className="h-3 w-3" /> {t("Începe")}</a>}
                         {needsStatus && live && (
                           <form action={setLessonStatus}>
                             <input type="hidden" name="id" value={s.id} />
                             <input type="hidden" name="status" value="completed" />
-                            <SubmitButton className="inline-flex items-center gap-1 rounded-lg bg-tint px-2 py-1 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3 w-3" /> Finalizată</SubmitButton>
+                            <SubmitButton className="inline-flex items-center gap-1 rounded-lg bg-tint px-2 py-1 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3 w-3" /> {t("Finalizată")}</SubmitButton>
                           </form>
                         )}
-                        {needsStatus && !live && <Pill tone="amber">Fără status</Pill>}
+                        {needsStatus && !live && <Pill tone="amber">{t("Fără status")}</Pill>}
                       </div>
                     </div>
                   );
                 })}
-                <Link href={`/calendar?new=1&date=${day}`} aria-label={`Adaugă lecție ${weekday} ${num}`}
+                <Link href={`/calendar?new=1&date=${day}`} aria-label={t("Adaugă lecție · {day}", { day: `${weekday} ${num}` })}
                   className="flex items-center justify-center rounded-2xl border border-dashed border-[#d5d9ef] py-2 text-muted hover:border-primary hover:text-primary">
                   <Plus className="h-3.5 w-3.5" />
                 </Link>

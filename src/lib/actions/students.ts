@@ -2,6 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getT } from "@/lib/i18n/server";
+import { requireTeacher } from "@/lib/data/workspace";
+import { effectivePlan, overStudentLimit } from "@/lib/plans";
 import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx } from "./common";
 
 const studentSchema = z.object({
@@ -21,6 +24,21 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
   if ("error" in parsed) return parsed;
   const { id, course_id, ...fields } = parsed.data;
 
+  // Plan limit: only when a student becomes active (new, or re-activated). Admins are exempt.
+  if (fields.status === "active" && !(await requireTeacher()).isAdmin) {
+    const wasActive = id ? (await ctx.supabase.from("students").select("status").eq("id", id).maybeSingle()).data?.status === "active" : false;
+    if (!wasActive) {
+      const [{ data: sub }, { count }] = await Promise.all([
+        ctx.supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", ctx.userId).maybeSingle(),
+        ctx.supabase.from("students").select("id", { count: "exact", head: true }).eq("teacher_id", ctx.userId).eq("status", "active")
+      ]);
+      const plan = effectivePlan(sub);
+      if (overStudentLimit(plan, count ?? 0)) {
+        return { error: (await getT())("Planul {plan} permite {n} elevi activi. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv.", { plan: plan.name, n: plan.studentLimit ?? 0 }) };
+      }
+    }
+  }
+
   if (id) {
     const { error } = await ctx.supabase.from("students").update(fields).eq("id", id).eq("teacher_id", ctx.userId);
     if (error) return { error: error.message };
@@ -29,7 +47,7 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
     if (error) return { error: error.message };
     if (course_id) {
       const enr = await ctx.supabase.from("course_enrollments").insert({ teacher_id: ctx.userId, course_id, student_id: data.id });
-      if (enr.error) return { error: `Elevul a fost adăugat, dar nu și înscris: ${enr.error.message}` };
+      if (enr.error) return { error: (await getT())("Elevul a fost adăugat, dar nu și înscris: {reason}", { reason: enr.error.message }) };
     }
   }
   refresh();

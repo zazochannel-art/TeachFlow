@@ -10,6 +10,7 @@ export interface Workspace {
   mode: "live" | "demo";
   userId: string | null;
   email: string | null;
+  isAdmin: boolean;
   timezone: string;
   profile: Pick<Profile, "full_name" | "avatar_url" | "preferred_language" | "timezone"> | null;
   teacherProfile: TeacherProfile | null;
@@ -55,9 +56,10 @@ const loadRole = async (supabase: NonNullable<Awaited<ReturnType<typeof createCl
  */
 export const requireTeacher = cache(async () => {
   const session = await getSession();
-  if (!session.supabase || !session.userId) return session;
-  enforceTeacherRole(await loadRole(session.supabase, session.userId));
-  return session;
+  if (!session.supabase || !session.userId) return { ...session, isAdmin: false } as const;
+  const role = await loadRole(session.supabase, session.userId);
+  enforceTeacherRole(role);
+  return { ...session, isAdmin: role === "admin" } as const;
 });
 
 /**
@@ -81,7 +83,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
-    supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle(),
+    withFallback(
+      () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders").eq("user_id", userId).maybeSingle(),
+      () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle()
+    ),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
     withFallback(
       () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name"),
@@ -110,6 +115,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     mode: "live",
     userId,
     email,
+    isAdmin: role === "admin",
     timezone: p?.timezone || DEFAULT_TZ,
     profile: p,
     teacherProfile: (teacherProfile.data as TeacherProfile | null) ?? null,

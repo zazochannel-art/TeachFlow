@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "i18n:check": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

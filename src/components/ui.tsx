@@ -1,21 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import {
-  BookOpen, Calculator, ClipboardCheck, ClipboardList, Code, FlaskConical, Languages,
-  Music, Palette, Plus, TrendingUp, UserRound, Video, Wallet, type LucideIcon
-} from "lucide-react";
-import type { CourseCard, FeedItem, SubjectKind } from "@/lib/data/derive";
+import { BookOpen, ClipboardCheck, ClipboardList, UserRound, Video, Wallet, type LucideIcon } from "lucide-react";
+import type { FeedItem } from "@/lib/data/derive";
 import { initials } from "@/lib/time";
+import { Card, SubjectIcon } from "./ui-base";
 
-const subjectIcons: Record<SubjectKind, LucideIcon> = {
-  language: Languages, math: Calculator, music: Music, art: Palette,
-  science: FlaskConical, code: Code, other: BookOpen
-};
-
-export function SubjectIcon({ kind, className }: { kind: SubjectKind; className?: string }) {
-  const Icon = subjectIcons[kind];
-  return <Icon className={className} strokeWidth={2.2} />;
-}
+export { Card, SubjectIcon } from "./ui-base";
+export { CourseTile, CreateCourseTile, DemoNotice, MigrationNotice, Panel } from "./ui-text";
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
@@ -38,60 +29,12 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[20px] border border-line/70 bg-white shadow-card ${className}`}>{children}</div>;
-}
-
 export function Avatar({ name, src, size = 32, className = "" }: { name: string; src?: string | null; size?: number; className?: string }) {
   const style = { width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.34)) };
   if (src) {
     return <span role="img" aria-label={name} className={`inline-block shrink-0 rounded-full bg-tint bg-cover bg-center ${className}`} style={{ ...style, backgroundImage: `url(${JSON.stringify(src)})` }} />;
   }
   return <span aria-hidden className={`inline-grid shrink-0 place-items-center rounded-full bg-tint font-extrabold text-primary-2 ${className}`} style={style}>{initials(name)}</span>;
-}
-
-const tileColors = ["bg-course-1", "bg-course-2", "bg-course-3", "bg-course-4"];
-
-/** Compact blue course/group card, as in the reference "classes" row. */
-export function CourseTile({ card, index }: { card: CourseCard; index: number }) {
-  return (
-    <Link
-      href={`/courses#${card.id}`}
-      className={`${tileColors[index % tileColors.length]} flex h-[138px] min-w-0 flex-col justify-between rounded-[20px] p-4 text-white shadow-md transition-transform hover:-translate-y-0.5`}
-    >
-      <div className="line-clamp-2 text-[16px] font-extrabold leading-[1.15]" title={card.title}>{card.title}</div>
-
-      <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-white/90">
-        <span className="flex min-w-0 items-center gap-1.5" title={`${card.lessonsDone} din ${card.lessonsTotal} lecții ținute`}>
-          <SubjectIcon kind={card.subject} className="h-3.5 w-3.5 shrink-0" /> {card.lessonsDone}/{card.lessonsTotal}
-        </span>
-        <span className="flex items-center gap-1.5" title="Progresul cursului">
-          <TrendingUp className="h-3.5 w-3.5" /> {card.progress == null ? "—" : `${card.progress}%`}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex -space-x-1.5">
-          {card.avatars.length ? card.avatars.map((a, i) => (
-            <span key={i} className="grid h-7 w-7 place-items-center rounded-full bg-white text-[9px] font-extrabold text-primary-2 ring-2 ring-white/25">{a}</span>
-          )) : <span className="text-[10px] text-white/70">Fără elevi</span>}
-        </div>
-        <div className="text-right text-[10px] leading-tight text-white/85">
-          <strong className="block text-[11px] font-extrabold text-white">{card.studentCount}</strong>
-          {card.studentCount === 1 ? "elev" : "elevi"}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-export function CreateCourseTile({ label = "Creează un curs\nsau o grupă nouă" }: { label?: string }) {
-  return (
-    <Link href="/courses/new" className="flex h-[138px] flex-col items-center justify-center rounded-[20px] bg-tint p-4 text-ink transition-colors hover:bg-[#dfe4fb]">
-      <Plus className="mb-2 h-5 w-5" strokeWidth={2.4} />
-      <span className="whitespace-pre-line text-center text-[11px] font-bold leading-snug text-[#3b4268]">{label}</span>
-    </Link>
-  );
 }
 
 const kindIcons: Record<FeedItem["kind"], LucideIcon> = {
@@ -152,36 +95,11 @@ export function Pill({ children, tone = "blue" }: { children: ReactNode; tone?: 
   return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-extrabold ${tones[tone]}`}>{children}</span>;
 }
 
-export function DemoNotice() {
-  return <p className="mt-6 text-[11px] text-muted">Mod demonstrativ · Supabase nu este configurat, iar datele afișate sunt exemple. Configurează <code>.env.local</code> pentru datele tale reale.</p>;
-}
-
-/** Inline editor panel opened via a URL parameter (?new=1, ?edit=id), closed by a link. */
-export function Panel({ title, closeHref, children, aside }: { title: string; closeHref: string; children: ReactNode; aside?: ReactNode }) {
-  return (
-    <Card className="mb-6 p-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-extrabold text-ink">{title}</h2>
-        <div className="flex items-center gap-2">{aside}<Link href={closeHref} className="tf-btn-ghost px-3 py-1.5 text-[12px]">Închide</Link></div>
-      </div>
-      {children}
-    </Card>
-  );
-}
-
 export function Field({ label, htmlFor, children, wide = false }: { label: string; htmlFor?: string; children: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
       <label className="tf-label" htmlFor={htmlFor}>{label}</label>
       {children}
-    </div>
-  );
-}
-
-export function MigrationNotice({ table }: { table: string }) {
-  return (
-    <div className="mb-6 rounded-[20px] border border-[#f3dfb3] bg-[#fff8e8] p-4 text-[12px] text-[#7a5410]">
-      Tabelul <code>{table}</code> nu există încă în baza ta de date. Aplică <code>supabase/migrations/0002_homework_messages_payments.sql</code> în Supabase SQL Editor pentru a activa această pagină.
     </div>
   );
 }

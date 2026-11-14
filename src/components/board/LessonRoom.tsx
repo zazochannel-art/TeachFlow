@@ -5,9 +5,11 @@ import { ScreenShare } from "./ScreenShare";
 import { DemoNotice } from "@/components/ui";
 import type { BoardRoom } from "@/lib/data/board";
 import { formatDate, formatTime } from "@/lib/time";
+import { getT } from "@/lib/i18n/server";
 
 /** Lesson room: lesson header with the video link, and the shared whiteboard below. */
-export function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; backHref: string; backLabel: string }) {
+export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; backHref: string; backLabel: string }) {
+  const t = await getT();
   const { lesson, timezone: tz } = room;
   const isTeacher = room.me.role === "teacher";
   const live = room.mode === "live" && room.boardReady;
@@ -22,26 +24,26 @@ export function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; bac
           <div className="min-w-0">
             <h1 className="truncate text-[22px] font-extrabold tracking-tight text-ink">{lesson.title}</h1>
             <p className="truncate text-[13px] text-muted">
-              {formatDate(lesson.starts_at, tz)} · {formatTime(lesson.starts_at, tz)} - {formatTime(lesson.ends_at, tz)}{room.subtitle ? ` · ${room.subtitle}` : ""}
+              {formatDate(lesson.starts_at, tz, t.locale)} · {formatTime(lesson.starts_at, tz, t.locale)} - {formatTime(lesson.ends_at, tz, t.locale)}{room.subtitle ? ` · ${room.subtitle}` : ""}
             </p>
           </div>
         </div>
         {lesson.meeting_url ? (
           <a href={lesson.meeting_url} target="_blank" rel="noopener noreferrer" className="tf-btn">
-            <Video className="h-4 w-4" fill="currentColor" /> {isTeacher ? "Pornește video" : "Intră în video"}
+            <Video className="h-4 w-4" fill="currentColor" /> {isTeacher ? t("Pornește video") : t("Intră în video")}
           </a>
         ) : isTeacher ? (
-          <Link href={`/calendar?lesson=${lesson.id}&back=/classroom/${lesson.id}`} className="tf-btn-ghost">Adaugă linkul video</Link>
+          <Link href={`/calendar?lesson=${lesson.id}&back=/classroom/${lesson.id}`} className="tf-btn-ghost">{t("Adaugă linkul video")}</Link>
         ) : (
-          <span className="rounded-xl bg-soft px-4 py-2 text-[12px] font-bold text-muted">Linkul video apare aici înainte de lecție</span>
+          <span className="rounded-xl bg-soft px-4 py-2 text-[12px] font-bold text-muted">{t("Linkul video apare aici înainte de lecție")}</span>
         )}
       </div>
 
       {room.mode === "live" && !room.boardReady && (
         <p className="mb-4 rounded-[16px] border border-dashed border-[#f0c46b] bg-[#fff8e8] p-4 text-[12px] text-[#7a5208]">
           {isTeacher
-            ? <>Tabla partajată nu este activă încă: aplică migrarea <code>supabase/migrations/0006_lesson_whiteboard.sql</code> în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează, iar elevul nu vede nici tabla, nici ecranul partajat.</>
-            : <>Tabla partajată nu este activă încă. Poți desena, dar profesorul nu vede desenul.</>}
+            ? <>{t("Tabla partajată nu este activă încă: aplică migrarea")} <code>supabase/migrations/0006_lesson_whiteboard.sql</code> {t("în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează, iar elevul nu vede nici tabla, nici ecranul partajat.")}</>
+            : t("Tabla partajată nu este activă încă. Poți desena, dar profesorul nu vede desenul.")}
         </p>
       )}
 
@@ -51,8 +53,8 @@ export function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; bac
 
       <p className="mt-3 text-[11px] text-muted">
         {isTeacher
-          ? "Elevii lecției văd tabla în timp real din portalul lor și pot desena și ei. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei, în pagina lor de lecție. Apelul video se deschide într-o filă nouă."
-          : "Tabla este comună cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei."}
+          ? t("Elevii lecției văd tabla în timp real din portalul lor și pot desena și ei. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei, în pagina lor de lecție. Apelul video se deschide într-o filă nouă.")
+          : t("Tabla este comună cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")}
       </p>
       {room.mode === "demo" && <DemoNotice />}
     </div>

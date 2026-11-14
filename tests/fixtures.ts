@@ -3,7 +3,7 @@ import type { Course, Lesson, Payment, Student } from "@/types/database";
 
 export function emptyWorkspace(over: Partial<Workspace> = {}): Workspace {
   return {
-    mode: "live", userId: "u1", email: "t@example.com", timezone: "Europe/Chisinau",
+    mode: "live", userId: "u1", email: "t@example.com", isAdmin: false, timezone: "Europe/Chisinau",
     profile: { full_name: "Profesor Test", avatar_url: null, preferred_language: "ro", timezone: "Europe/Chisinau" },
     teacherProfile: null, subscription: null,
     students: [], courses: [], enrollments: [], lessons: [], homework: [], messages: [], payments: [],
