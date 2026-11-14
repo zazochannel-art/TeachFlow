@@ -6,8 +6,10 @@ import { badges, currentLesson, notifications } from "@/lib/data/derive";
 import { dateKey, formatTime } from "@/lib/time";
 
 /**
- * App shell from the reference: pale lavender canvas, one large rounded white panel,
- * dark indigo rail on the left and the top bar spanning the main content.
+ * Full-screen app shell: dark indigo rail pinned to the left edge, white workspace filling
+ * the rest of the viewport, top bar spanning the main content.
+ * The layout stays mounted between pages (only the page segment re-renders), and
+ * loading.tsx next to it shows a skeleton instantly while the next page loads.
  * The auth/role guard runs inside loadWorkspace() for every page.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,21 +26,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const name = ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor";
 
   return (
-    <div className="flex min-h-screen justify-center bg-canvas md:p-5 lg:p-7 xl:p-9">
-      <div className="flex w-full max-w-[1440px] overflow-hidden bg-white shadow-[0_24px_60px_-20px_rgba(17,16,79,0.18)] md:min-h-[calc(100vh-40px)] md:rounded-[34px] lg:min-h-[calc(100vh-56px)] xl:min-h-[min(calc(100vh-72px),900px)]">
-        <Sidebar badges={badges(ws)} />
-        <div className="flex min-w-0 flex-1 flex-col px-4 pb-28 pt-5 md:px-8 md:pb-7 md:pt-7 xl:px-9">
-          <Suspense fallback={<div className="mb-7 h-[54px]" />}>
-            <TopBar
-              todayKey={dateKey(now, ws.timezone)}
-              name={name}
-              avatarUrl={ws.profile?.avatar_url ?? null}
-              current={current}
-              unread={notifications(ws, now).length}
-            />
-          </Suspense>
-          {children}
-        </div>
+    <div className="flex min-h-dvh w-full bg-white">
+      <Sidebar badges={badges(ws)} />
+      <div className="flex min-w-0 flex-1 flex-col px-4 pb-28 pt-5 md:px-8 md:pb-7 md:pt-7 xl:px-10 2xl:px-12">
+        <Suspense fallback={<div className="mb-7 h-[54px]" />}>
+          <TopBar
+            todayKey={dateKey(now, ws.timezone)}
+            name={name}
+            avatarUrl={ws.profile?.avatar_url ?? null}
+            current={current}
+            unread={notifications(ws, now).length}
+          />
+        </Suspense>
+        {children}
       </div>
     </div>
   );

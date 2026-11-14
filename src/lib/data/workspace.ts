@@ -25,11 +25,8 @@ export interface Workspace {
   missingTables: Array<"homework" | "messages" | "payments">;
 }
 
-/**
- * Auth + role guard shared by every page in the app shell.
- * Same rules as the original dashboard page: signed-in user with role teacher/admin.
- */
-export const requireTeacher = cache(async () => {
+/** Verified session claims for this request (deduplicated per render with React cache). */
+const getSession = cache(async () => {
   const supabase = await createClient();
   if (!supabase) return { supabase: null, userId: null, email: null } as const;
 
@@ -37,17 +34,30 @@ export const requireTeacher = cache(async () => {
   const userId = data?.claims?.sub;
   if (error || !userId) redirect("/login");
 
-  const { data: roleRecord } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (roleRecord?.role === "student") redirect("/student");
-  if (!roleRecord || !["teacher", "admin"].includes(roleRecord.role)) redirect("/login?error=no_teacher_role");
-
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
   return { supabase, userId, email } as const;
+});
+
+/** Same rules as the original dashboard page: students go to their portal, others to login. */
+function enforceTeacherRole(role: string | undefined | null) {
+  if (role === "student") redirect("/student");
+  if (!role || !["teacher", "admin"].includes(role)) redirect("/login?error=no_teacher_role");
+}
+
+const loadRole = async (supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>, userId: string) => {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle();
+  return (data?.role as string | undefined) ?? null;
+};
+
+/**
+ * Auth + role guard used by server actions.
+ * Same rules as the original dashboard page: signed-in user with role teacher/admin.
+ */
+export const requireTeacher = cache(async () => {
+  const session = await getSession();
+  if (!session.supabase || !session.userId) return session;
+  enforceTeacherRole(await loadRole(session.supabase, session.userId));
+  return session;
 });
 
 /**
@@ -59,12 +69,17 @@ async function withFallback<T extends { error: unknown }>(query: () => PromiseLi
   return first.error ? fallback() : first;
 }
 
-/** Loads the signed-in teacher's data. RLS limits every query to rows owned by the teacher. */
+/**
+ * Loads the signed-in teacher's data. RLS limits every query to rows owned by the teacher.
+ * The role lookup runs in the same parallel batch as the data queries (one database round
+ * trip instead of two); the role is enforced before anything is returned.
+ */
 export const loadWorkspace = cache(async (): Promise<Workspace> => {
-  const { supabase, userId, email } = await requireTeacher();
+  const { supabase, userId, email } = await getSession();
   if (!supabase || !userId) return buildDemoWorkspace();
 
-  const [profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
+  const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
+    loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
     supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle(),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
@@ -82,6 +97,8 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at").limit(3000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
+
+  enforceTeacherRole(role);
 
   const missingTables: Workspace["missingTables"] = [];
   if (homework.error) missingTables.push("homework");
