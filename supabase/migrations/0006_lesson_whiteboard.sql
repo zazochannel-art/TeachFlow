@@ -2,8 +2,9 @@
 --
 -- One board per lesson. The teacher who owns the lesson and the students of that lesson
 -- (individual lesson, or group lesson of a course they are enrolled in) can read and draw.
--- Live drawing travels over a private Supabase Realtime channel `board:<lesson_id>`;
--- the policies on realtime.messages below limit who may join it.
+-- Live drawing travels over a private Supabase Realtime channel `board:<lesson_id>`, and the
+-- teacher's screen share is negotiated (WebRTC signalling) on `screen:<lesson_id>`;
+-- the policies on realtime.messages below limit who may join them.
 
 -- 1. Who may use a lesson's board (SECURITY DEFINER avoids RLS recursion on lessons).
 create or replace function private.can_use_lesson_board(p_lesson_id uuid)
@@ -25,14 +26,17 @@ as $$
   )
 $$;
 
--- Same check from a Realtime topic name ("board:<uuid>"); malformed topics are refused.
+-- Same check from a Realtime topic name: "board:<uuid>" (whiteboard) or "screen:<uuid>"
+-- (screen-share signalling). Malformed topics are refused.
 create or replace function private.can_use_board_topic(p_topic text)
 returns boolean
 language plpgsql stable security definer set search_path = ''
 as $$
 begin
-  if p_topic is null or p_topic !~ '^board:[0-9a-fA-F-]{36}$' then return false; end if;
-  return private.can_use_lesson_board(substr(p_topic, 7)::uuid);
+  if p_topic is null or p_topic !~ '^(board|screen):[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then
+    return false;
+  end if;
+  return private.can_use_lesson_board(split_part(p_topic, ':', 2)::uuid);
 end;
 $$;
 
@@ -73,8 +77,8 @@ drop trigger if exists lesson_boards_author on public.lesson_boards;
 create trigger lesson_boards_author before insert or update on public.lesson_boards
 for each row execute procedure private.stamp_board_author();
 
--- 3. Realtime authorization for the private channel "board:<lesson_id>"
---    (broadcast for strokes, presence for "who is in the room").
+-- 3. Realtime authorization for the private channels "board:<lesson_id>" (broadcast for
+--    strokes, presence for "who is in the room") and "screen:<lesson_id>" (screen share).
 drop policy if exists "board_realtime_read" on realtime.messages;
 create policy "board_realtime_read" on realtime.messages
 for select to authenticated using (

@@ -15,6 +15,8 @@ export interface BoardRoom {
   /** false when migration 0006 (lesson_boards) is not applied yet. */
   boardReady: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
+  /** Auth user id of the lesson's teacher: only their screen share is accepted by students. */
+  teacherId: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,7 +34,7 @@ export async function loadTeacherRoom(lessonId: string): Promise<BoardRoom> {
   const lesson = ws.lessons.find(l => l.id === lessonId);
   if (!lesson) notFound();
   const me = { id: ws.userId ?? "demo-teacher", name: ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor", role: "teacher" as const };
-  const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me };
+  const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me, teacherId: me.id };
   if (ws.mode === "demo") return { ...base, mode: "demo", board: null, boardReady: false };
   return { ...base, mode: "live", ...(await loadBoard(lessonId)) };
 }
@@ -50,7 +52,7 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
     if (!lesson) notFound();
     return {
       mode: "demo", lesson, subtitle: courseTitle(lesson) ?? "", timezone: portal.timezone,
-      board: null, boardReady: false, me: { id: "demo-student", name: portal.name, role: "student" }
+      board: null, boardReady: false, me: { id: "demo-student", name: portal.name, role: "student" }, teacherId: "demo-teacher"
     };
   }
 
@@ -58,14 +60,14 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
   const supabase = (await createClient())!;
   const [{ data: claims }, { data: lesson }] = await Promise.all([
     supabase.auth.getClaims(),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("id", lessonId).maybeSingle()
+    supabase.from("lessons").select("id, teacher_id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("id", lessonId).maybeSingle()
   ]);
   if (!lesson) notFound();
-  const l = lesson as Lesson;
+  const { teacher_id: teacherId, ...l } = lesson as Lesson & { teacher_id: string };
   const teacher = portal.links.find(x => x.studentId === l.student_id)?.teacherName;
   return {
     mode: "live", lesson: l, subtitle: [courseTitle(l), teacher].filter(Boolean).join(" · "), timezone: portal.timezone,
-    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" },
+    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" }, teacherId,
     ...(await loadBoard(lessonId))
   };
 }

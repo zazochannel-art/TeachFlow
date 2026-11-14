@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Video } from "lucide-react";
 import { Whiteboard } from "./Whiteboard";
+import { ScreenShare } from "./ScreenShare";
 import { DemoNotice } from "@/components/ui";
 import type { BoardRoom } from "@/lib/data/board";
 import { formatDate, formatTime } from "@/lib/time";
@@ -39,17 +40,19 @@ export function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; bac
       {room.mode === "live" && !room.boardReady && (
         <p className="mb-4 rounded-[16px] border border-dashed border-[#f0c46b] bg-[#fff8e8] p-4 text-[12px] text-[#7a5208]">
           {isTeacher
-            ? <>Tabla partajată nu este activă încă: aplică migrarea <code>supabase/migrations/0006_lesson_whiteboard.sql</code> în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează și elevul nu îl vede.</>
+            ? <>Tabla partajată nu este activă încă: aplică migrarea <code>supabase/migrations/0006_lesson_whiteboard.sql</code> în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează, iar elevul nu vede nici tabla, nici ecranul partajat.</>
             : <>Tabla partajată nu este activă încă. Poți desena, dar profesorul nu vede desenul.</>}
         </p>
       )}
+
+      <ScreenShare lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 
       <Whiteboard lessonId={lesson.id} initial={room.board} live={live} me={room.me} title={lesson.title} />
 
       <p className="mt-3 text-[11px] text-muted">
         {isTeacher
-          ? "Elevii lecției văd tabla în timp real din portalul lor și pot desena și ei. Video-ul se deschide într-o filă nouă: așază fereastra video lângă tablă sau partajează ecranul cu tabla."
-          : "Tabla este comună cu profesorul: vezi în timp real ce scrie și poți desena și tu."}
+          ? "Elevii lecției văd tabla în timp real din portalul lor și pot desena și ei. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei, în pagina lor de lecție. Apelul video se deschide într-o filă nouă."
+          : "Tabla este comună cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei."}
       </p>
       {room.mode === "demo" && <DemoNotice />}
     </div>

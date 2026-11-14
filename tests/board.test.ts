@@ -86,3 +86,26 @@ describe("hitStroke", () => {
     expect(hitStroke(t, 400, 400, 0)).toBe(false);
   });
 });
+
+import { sanitizeSignal, userOfKey } from "@/lib/board/rtc";
+
+describe("sanitizeSignal", () => {
+  it("accepts well-formed signals", () => {
+    expect(sanitizeSignal({ type: "want", from: "u1:abc" })).toEqual({ type: "want", from: "u1:abc" });
+    expect(sanitizeSignal({ type: "offer", from: "t:1", to: "s:2", sdp: "v=0", extra: 1 })).toEqual({ type: "offer", from: "t:1", to: "s:2", sdp: "v=0" });
+    expect(sanitizeSignal({ type: "ice", from: "t:1", to: "s:2", candidate: { candidate: "candidate:1", sdpMid: "0", sdpMLineIndex: 0 } }))
+      .toEqual({ type: "ice", from: "t:1", to: "s:2", candidate: { candidate: "candidate:1", sdpMid: "0", sdpMLineIndex: 0 } });
+  });
+
+  it("rejects malformed signals", () => {
+    expect(sanitizeSignal({ type: "offer", from: "t:1", sdp: "v=0" })).toBeNull();
+    expect(sanitizeSignal({ type: "answer", from: "t:1", to: "s", sdp: "x".repeat(200_000) })).toBeNull();
+    expect(sanitizeSignal({ type: "ice", from: "t:1", to: "s", candidate: "nope" })).toBeNull();
+    expect(sanitizeSignal({ type: "hack", from: "t:1" })).toBeNull();
+    expect(sanitizeSignal({ type: "want" })).toBeNull();
+  });
+
+  it("extracts the user id from a peer key", () => {
+    expect(userOfKey("1b2c-uuid:ab12cd34")).toBe("1b2c-uuid");
+  });
+});
