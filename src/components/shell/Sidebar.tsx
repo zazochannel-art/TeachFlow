@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 import {
   BookOpen, CalendarDays, ClipboardList, GraduationCap, LayoutGrid,
-  MessageCircle, Settings, Users, Video, Wallet
+  MessageCircle, Settings, ShieldCheck, Users, Video, Wallet
 } from "lucide-react";
 
 export const navItems = [
@@ -21,9 +21,10 @@ export const navItems = [
 ] as const;
 
 /** Narrow dark-indigo rail with icon + label items and a tab-shaped active highlight. */
-export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
+export function Sidebar({ badges = {}, admin = false }: { badges?: Record<string, number>; admin?: boolean }) {
   const pathname = usePathname();
   const t = useT();
+  const items = admin ? [...navItems, { label: "Admin", href: "/admin", icon: ShieldCheck } as const] : navItems;
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
@@ -34,7 +35,7 @@ export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
           <GraduationCap className="h-9 w-9" fill="rgba(82,105,232,.3)" strokeWidth={1.8} />
         </Link>
         <nav className="flex w-full flex-1 flex-col items-center gap-1.5 pl-2">
-          {navItems.map(({ label, href, icon: Icon }) => {
+          {items.map(({ label, href, icon: Icon }) => {
             const active = isActive(href);
             return (
               <Link
@@ -58,7 +59,7 @@ export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
 
       {/* Mobile bottom bar */}
       <nav className="tf-scroll fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto bg-navy px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 text-white md:hidden">
-        {navItems.map(({ label, href, icon: Icon }) => {
+        {items.map(({ label, href, icon: Icon }) => {
           const active = isActive(href);
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined}
