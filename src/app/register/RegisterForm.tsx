@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n/client";
 
 export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
   const asStudent = next.startsWith("/invite/");
+  const inviteToken = asStudent ? next.slice("/invite/".length).split(/[?#/]/)[0] : "";
   const router = useRouter();
   const t = useT();
   const [name, setName] = useState("");
@@ -28,7 +29,9 @@ export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` }
+      // An invite token in the metadata makes the account a student from the start (migration 0007)
+      // and lets the app link it to the teacher even if the student never returns to the invite page.
+      options: { data: { full_name: name.trim(), ...(inviteToken ? { invite_token: inviteToken } : {}) }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` }
     });
     setLoading(false);
     if (error) { setError(authErrorMessage(error.message, t)); return; }

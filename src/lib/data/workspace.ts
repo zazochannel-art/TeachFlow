@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TZ } from "@/lib/time";
 import { buildDemoWorkspace } from "./demo";
+import { pendingInviteToken } from "@/lib/invite-token";
 import type { Course, Enrollment, Homework, Lesson, Message, Payment, Profile, Student, Subscription, TeacherProfile } from "@/types/database";
 
 export interface Workspace {
@@ -36,7 +37,7 @@ const getSession = cache(async () => {
   if (error || !userId) redirect("/login");
 
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  return { supabase, userId, email } as const;
+  return { supabase, userId, email, inviteToken: pendingInviteToken(data?.claims) } as const;
 });
 
 /** Same rules as the original dashboard page: students go to their portal, others to login. */
@@ -77,7 +78,7 @@ async function withFallback<T extends { error: unknown }>(query: () => PromiseLi
  * trip instead of two); the role is enforced before anything is returned.
  */
 export const loadWorkspace = cache(async (): Promise<Workspace> => {
-  const { supabase, userId, email } = await getSession();
+  const { supabase, userId, email, inviteToken } = await getSession();
   if (!supabase || !userId) return buildDemoWorkspace();
 
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
@@ -104,6 +105,14 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
   ]);
 
   enforceTeacherRole(role);
+
+  // An account created from a student invite that is still a teacher (it never pressed
+  // "Acceptă invitația", or signed up before migration 0007): finish the invite now, as long
+  // as the account has no teaching data of its own. accept_student_invite re-checks all of it.
+  if (role === "teacher" && inviteToken && !students.data?.length && !courses.data?.length && !lessons.data?.length) {
+    const { error } = await supabase.rpc("accept_student_invite", { p_token: inviteToken });
+    if (!error) redirect("/student");
+  }
 
   const missingTables: Workspace["missingTables"] = [];
   if (homework.error) missingTables.push("homework");
