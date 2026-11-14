@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Expand, GripHorizontal, Loader2, Maximize2, Mic, MicOff, PhoneOff, Shrink, Video, VideoOff } from "lucide-react";
 import { ICE_SERVERS, sanitizeCallSignal, userOfKey, type CallMeta, type CallSignal } from "@/lib/board/rtc";
 import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
 import { newId } from "@/lib/board/model";
@@ -247,6 +247,51 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
 
   const fullscreen = () => { void gridRef.current?.requestFullscreen?.(); };
 
+  // ---------- Floating panel (small, movable, so the whiteboard keeps the page) ----------
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const [view, setView] = useState<PanelView>(loadView);
+  const [isFull, setIsFull] = useState(false);
+
+  const updateView = useCallback((patch: Partial<PanelView>) => {
+    setView(v => {
+      const next = { ...v, ...patch };
+      try { localStorage.setItem(VIEW_KEY, JSON.stringify(next)); } catch { /* storage blocked */ }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const onFull = () => setIsFull(!!document.fullscreenElement && document.fullscreenElement === gridRef.current);
+    // Keep the panel on screen when the window shrinks.
+    const onResize = () => setView(v => (v.pos ? { ...v, pos: clampPos(v.pos, panelRef.current) } : v));
+    document.addEventListener("fullscreenchange", onFull);
+    window.addEventListener("resize", onResize);
+    return () => { document.removeEventListener("fullscreenchange", onFull); window.removeEventListener("resize", onResize); };
+  }, []);
+
+  const onDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const box = panelRef.current?.getBoundingClientRect();
+    if (!box) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { dx: e.clientX - box.left, dy: e.clientY - box.top };
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setView(v => ({ ...v, pos: clampPos({ x: e.clientX - d.dx, y: e.clientY - d.dy }, panelRef.current) }));
+  };
+  const onDragEnd = () => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setView(v => {
+      try { localStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch { /* storage blocked */ }
+      return v;
+    });
+  };
+
   // ---------- UI ----------
 
   const othersInCall = Object.keys(inCall).length;
@@ -254,48 +299,116 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
 
   if (!joined) {
     return (
-      <section className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-[20px] bg-primary p-5 text-white shadow-lift">
-        <div className="flex items-center gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20"><Video className="h-5 w-5" fill="currentColor" /></span>
-          <div>
-            <p className="text-[16px] font-extrabold">{t("Lecția video")}</p>
-            <p className="text-[12px] text-white/80">
-              {othersInCall > 0
-                ? t.n("{n} participant este deja în apel|{n} participanți sunt deja în apel|{n} de participanți sunt deja în apel", othersInCall)
-                : t("Cameră și microfon direct în TeachFlow, fără Zoom sau Meet.")}
+      <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-primary px-4 py-2.5 text-white shadow-card">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/20"><Video className="h-4 w-4" fill="currentColor" /></span>
+          <div className="min-w-0">
+            <p className="text-[13px] font-extrabold leading-tight">
+              {t("Lecția video")}
+              <span className="ml-2 font-semibold text-white/80">
+                {othersInCall > 0
+                  ? t.n("{n} participant este deja în apel|{n} participanți sunt deja în apel|{n} de participanți sunt deja în apel", othersInCall)
+                  : t("Cameră și microfon direct în TeachFlow, fără Zoom sau Meet.")}
+              </span>
             </p>
-            {error && <p className="mt-1 text-[12px] font-bold text-[#ffd7d7]">{error}</p>}
+            {error && <p className="mt-0.5 text-[12px] font-bold text-[#ffd7d7]">{error}</p>}
           </div>
         </div>
-        <button type="button" onClick={join} disabled={joining} className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-[13px] font-extrabold text-primary-2 hover:bg-tint disabled:opacity-70">
-          {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />} {t("Intră în apel")}
+        <button type="button" onClick={join} disabled={joining} className="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-1.5 text-[12px] font-extrabold text-primary-2 hover:bg-tint disabled:opacity-70">
+          {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} {t("Intră în apel")}
         </button>
       </section>
     );
   }
 
   const count = peers.length + 1;
-  const cols = count <= 1 ? "grid-cols-1" : count <= 4 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-3";
+  const tileW = isFull ? "" : view.large ? "w-[220px] sm:w-[260px]" : "w-[120px] sm:w-[150px]";
+  const cols = isFull
+    ? count <= 1 ? "grid-cols-1" : count <= 4 ? "grid-cols-2" : "grid-cols-3"
+    : count <= 2 ? "grid-cols-1" : "grid-cols-2";
+  const place = view.pos ? undefined : "right-3 bottom-20 md:right-5 md:bottom-5";
 
   return (
-    <section className="mb-5 overflow-hidden rounded-[20px] bg-navy p-3 shadow-card">
-      <div ref={gridRef} className={`mx-auto grid max-w-[960px] gap-3 bg-navy ${cols}`}>
-        <Tile stream={local} name={t("Tu")} muted mirror mic={mic} cam={cam && hasCamera} label={me.role === "teacher" ? t("Profesor") : undefined} />
-        {peers.map(p => (
-          <Tile key={p.key} stream={p.stream} name={p.name || t("Participant")} mic={p.mic} cam={p.cam} connecting={!p.connected} label={p.role === "teacher" ? t("Profesor") : undefined} />
-        ))}
+    <div
+      ref={panelRef}
+      role="region"
+      aria-label={t("Apel video")}
+      style={view.pos ? { left: view.pos.x, top: view.pos.y } : undefined}
+      className={`fixed z-50 select-none overflow-hidden rounded-[16px] bg-navy shadow-lift ring-1 ring-white/10 ${place ?? ""}`}
+    >
+      <div
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        title={t("Mută fereastra")}
+        className="flex cursor-grab touch-none items-center gap-1 px-2 py-1 text-white/80 active:cursor-grabbing"
+      >
+        <GripHorizontal className="h-4 w-4 shrink-0" />
+        <span className="mr-auto truncate text-[11px] font-extrabold">{t("Apel video")} · {count}</span>
+        {!view.min && (
+          <MiniButton onClick={() => updateView({ large: !view.large })} label={view.large ? t("Camere mai mici") : t("Camere mai mari")} icon={view.large ? Shrink : Expand} />
+        )}
+        <MiniButton onClick={() => updateView({ min: !view.min })} label={view.min ? t("Arată camerele") : t("Ascunde camerele")} icon={view.min ? ChevronUp : ChevronDown} />
       </div>
-      {!live && <p className="mt-3 text-center text-[11px] text-white/70">{t("Mod local: vezi doar camera ta. Apelul cu elevii pornește după configurarea Supabase.")}</p>}
-      {live && peers.length === 0 && <p className="mt-3 text-center text-[12px] text-white/75">{t("Aștepți ceilalți participanți. Ei intră din pagina lecției, cu „Intră în apel”.")}</p>}
-      <div className="mt-3 flex items-center justify-center gap-2">
+
+      {/* Hidden, not unmounted, when minimised: the video elements also play the others' audio. */}
+      <div className={view.min ? "hidden" : "px-1.5"}>
+        <div
+          ref={gridRef}
+          className={`tf-scroll grid gap-1.5 bg-navy ${cols} ${isFull ? "h-full content-center p-4" : "max-h-[55vh] overflow-y-auto"}`}
+        >
+          <Tile className={tileW} stream={local} name={t("Tu")} muted mirror mic={mic} cam={cam && hasCamera} label={me.role === "teacher" ? t("Profesor") : undefined} />
+          {peers.map(p => (
+            <Tile key={p.key} className={tileW} stream={p.stream} name={p.name || t("Participant")} mic={p.mic} cam={p.cam} connecting={!p.connected} label={p.role === "teacher" ? t("Profesor") : undefined} />
+          ))}
+        </div>
+        {!live && <p className="mt-1 max-w-[260px] px-1 text-[10px] leading-snug text-white/65">{t("Mod local: vezi doar camera ta. Apelul cu elevii pornește după configurarea Supabase.")}</p>}
+        {live && peers.length === 0 && <p className="mt-1 max-w-[260px] px-1 text-[10px] leading-snug text-white/70">{t("Aștepți ceilalți participanți. Ei intră din pagina lecției, cu „Intră în apel”.")}</p>}
+      </div>
+
+      <div className="flex items-center justify-center gap-1.5 px-2 py-1.5">
         <CallButton onClick={() => toggle("mic")} active={mic} label={mic ? t("Oprește microfonul") : t("Pornește microfonul")} icon={mic ? Mic : MicOff} />
         <CallButton onClick={() => toggle("cam")} active={cam && hasCamera} disabled={!hasCamera} label={cam ? t("Oprește camera") : t("Pornește camera")} icon={cam && hasCamera ? Video : VideoOff} />
-        <CallButton onClick={fullscreen} active label={t("Ecran complet")} icon={Maximize2} />
-        <button type="button" onClick={leave} className="flex h-11 cursor-pointer items-center gap-2 rounded-full bg-[#e5484d] px-5 text-[13px] font-extrabold text-white hover:bg-[#c93a3f]">
-          <PhoneOff className="h-4 w-4" /> {t("Ieși din apel")}
+        {!view.min && <CallButton onClick={fullscreen} active label={t("Ecran complet")} icon={Maximize2} />}
+        <button type="button" onClick={leave} aria-label={t("Ieși din apel")} title={t("Ieși din apel")} className="grid h-8 w-10 cursor-pointer place-items-center rounded-full bg-[#e5484d] text-white hover:bg-[#c93a3f]">
+          <PhoneOff className="h-4 w-4" />
         </button>
       </div>
-    </section>
+    </div>
+  );
+}
+
+interface PanelView { pos: { x: number; y: number } | null; large: boolean; min: boolean }
+const VIEW_KEY = "tf-call-panel";
+
+function loadView(): PanelView {
+  const fallback: PanelView = { pos: null, large: false, min: false };
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null") as Partial<PanelView> | null;
+    if (!raw || typeof raw !== "object") return fallback;
+    const pos = raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.y) ? clampPos(raw.pos, null) : null;
+    return { pos, large: raw.large === true, min: raw.min === true };
+  } catch {
+    return fallback;
+  }
+}
+
+/** Keeps at least the panel's header inside the window. */
+function clampPos(p: { x: number; y: number }, el: HTMLElement | null) {
+  const w = el?.offsetWidth ?? 180;
+  const h = el?.offsetHeight ?? 40;
+  const maxX = Math.max(0, window.innerWidth - w - 4);
+  const maxY = Math.max(0, window.innerHeight - Math.min(h, 40) - 4);
+  return { x: Math.round(Math.min(Math.max(4, p.x), maxX)), y: Math.round(Math.min(Math.max(4, p.y), maxY)) };
+}
+
+function MiniButton({ onClick, label, icon: Icon }: { onClick: () => void; label: string; icon: typeof Mic }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} title={label} className="grid h-6 w-6 cursor-pointer place-items-center rounded-md text-white/80 hover:bg-white/15 hover:text-white">
+      <Icon className="h-3.5 w-3.5" />
+    </button>
   );
 }
 
@@ -308,15 +421,15 @@ function CallButton({ onClick, active, disabled, label, icon: Icon }: { onClick:
       aria-label={label}
       title={label}
       aria-pressed={!active}
-      className={`grid h-11 w-11 cursor-pointer place-items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${active ? "bg-white/15 text-white hover:bg-white/25" : "bg-white text-[#c03a3a]"}`}
+      className={`grid h-8 w-8 cursor-pointer place-items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${active ? "bg-white/15 text-white hover:bg-white/25" : "bg-white text-[#c03a3a]"}`}
     >
-      <Icon className="h-[18px] w-[18px]" />
+      <Icon className="h-4 w-4" />
     </button>
   );
 }
 
-function Tile({ stream, name, muted, mirror, mic, cam, connecting, label }: {
-  stream: MediaStream | null; name: string; muted?: boolean; mirror?: boolean; mic: boolean; cam: boolean; connecting?: boolean; label?: string;
+function Tile({ stream, name, muted, mirror, mic, cam, connecting, label, className = "" }: {
+  stream: MediaStream | null; name: string; muted?: boolean; mirror?: boolean; mic: boolean; cam: boolean; connecting?: boolean; label?: string; className?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -326,18 +439,18 @@ function Tile({ stream, name, muted, mirror, mic, cam, connecting, label }: {
   const initials = name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div className="relative aspect-video overflow-hidden rounded-[16px] bg-[#1c1f6e]">
+    <div className={`relative aspect-video overflow-hidden rounded-[10px] bg-[#1c1f6e] ${className}`}>
       <video ref={ref} autoPlay playsInline muted={muted} className={`h-full w-full object-cover ${mirror ? "-scale-x-100" : ""} ${cam ? "" : "invisible"}`} />
       {!cam && (
         <span className="absolute inset-0 grid place-items-center">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-primary text-[20px] font-extrabold text-white">{initials || "?"}</span>
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-[13px] font-extrabold text-white">{initials || "?"}</span>
         </span>
       )}
-      {connecting && <span className="absolute inset-0 grid place-items-center bg-black/30"><Loader2 className="h-6 w-6 animate-spin text-white" /></span>}
-      <span className="absolute bottom-2 left-2 flex max-w-[85%] items-center gap-1.5 rounded-lg bg-black/55 px-2 py-1 text-[11px] font-bold text-white">
-        {!mic && <MicOff className="h-3 w-3 shrink-0 text-[#ff8b8b]" />}
+      {connecting && <span className="absolute inset-0 grid place-items-center bg-black/30"><Loader2 className="h-5 w-5 animate-spin text-white" /></span>}
+      <span className="absolute bottom-1 left-1 flex max-w-[90%] items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+        {!mic && <MicOff className="h-2.5 w-2.5 shrink-0 text-[#ff8b8b]" />}
         <span className="truncate">{name}</span>
-        {label && <span className="rounded bg-primary px-1.5 text-[9px] font-extrabold uppercase">{label}</span>}
+        {label && <span className="rounded bg-primary px-1 text-[8px] font-extrabold uppercase">{label}</span>}
       </span>
     </div>
   );

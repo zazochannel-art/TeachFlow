@@ -609,4 +609,10 @@ export const en: Record<string, string> = {
   "Oprește camera": "Turn camera off",
   "Pornește camera": "Turn camera on",
   "Ieși din apel": "Leave call",
+  "Apel video": "Video call",
+  "Mută fereastra": "Move window",
+  "Camere mai mici": "Smaller cameras",
+  "Camere mai mari": "Larger cameras",
+  "Arată camerele": "Show cameras",
+  "Ascunde camerele": "Hide cameras",
 };
