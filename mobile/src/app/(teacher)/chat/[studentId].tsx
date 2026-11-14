@@ -30,7 +30,7 @@ export default function TeacherChat() {
       notice={student.user_id ? undefined : "Elevul nu are încă cont în portal. Mesajele rămân ca jurnal până acceptă invitația."}
       onSend={async body => {
         const { error } = await supabase.from("messages").insert({
-          teacher_id: data.userId, student_id: student.id, direction: "outgoing", body, read_at: new Date().toISOString()
+          teacher_id: data.userId, student_id: student.id, direction: "outgoing", body
         });
         if (error) return error.message;
         await reload();

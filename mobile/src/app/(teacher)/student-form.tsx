@@ -29,7 +29,11 @@ export default function StudentForm() {
       ? await supabase.from("students").update(row).eq("id", existing.id).eq("teacher_id", data.userId).select("id").single()
       : await supabase.from("students").insert({ ...row, teacher_id: data.userId }).select("id").single();
     setBusy(false);
-    if (res.error) return setError(res.error.message);
+    if (res.error) {
+      // Migration 0009: the database refuses an active student over the plan limit.
+      if (res.error.message.includes("student_limit_reached")) return setError("Ai atins limita de elevi activi a planului. Treci la un plan superior din pagina Abonament (pe web) sau marchează un elev ca inactiv.");
+      return setError(res.error.message);
+    }
     await reload();
     if (existing) router.back();
     else router.replace(`/student/${res.data.id}`);

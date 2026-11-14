@@ -29,9 +29,9 @@ async function fetchStudentData(userId: string): Promise<StudentData> {
     supabase.from("profiles").select("full_name, timezone").eq("id", userId).maybeSingle(),
     supabase.from("students").select("id, teacher_id, full_name, email, phone, notes, status, created_at, user_id").eq("user_id", userId),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at"),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").order("starts_at").limit(1000),
+    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").order("starts_at", { ascending: false }).limit(1000),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }),
-    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at").limit(2000),
+    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at", { ascending: false }).limit(2000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false })
   ]);
   if (records.error) throw new Error(records.error.message);
@@ -48,9 +48,10 @@ async function fetchStudentData(userId: string): Promise<StudentData> {
     records: recs,
     teachers,
     courses: (courses.data as Course[] | null) ?? [],
-    lessons: (lessons.data as Lesson[] | null) ?? [],
+    // Loaded newest first so the row cap drops the oldest rows; shown oldest first.
+    lessons: [...((lessons.data as Lesson[] | null) ?? [])].reverse(),
     homework: (homework.data as Homework[] | null) ?? [],
-    messages: (messages.data as Message[] | null) ?? [],
+    messages: [...((messages.data as Message[] | null) ?? [])].reverse(),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) }))
   };
 }

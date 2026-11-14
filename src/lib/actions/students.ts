@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getT } from "@/lib/i18n/server";
 import { requireTeacher } from "@/lib/data/workspace";
-import { effectivePlan, overStudentLimit } from "@/lib/plans";
+import { effectivePlan, overStudentLimit, type Plan } from "@/lib/plans";
 import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx } from "./common";
 
 const studentSchema = z.object({
@@ -16,6 +16,20 @@ const studentSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
   course_id: optId
 });
+
+async function limitMessage(plan: Plan) {
+  return (await getT())("Planul {plan} permite {n} elevi activi. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv.", { plan: plan.name, n: plan.studentLimit ?? 0 });
+}
+
+/** The database refuses a new active student over the plan limit (migration 0009); explain it like the check above. */
+async function studentError(message: string) {
+  if (!message.includes("student_limit_reached")) return message;
+  const { supabase, userId } = await requireTeacher();
+  const { data: sub } = supabase && userId
+    ? await supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle()
+    : { data: null };
+  return limitMessage(effectivePlan(sub));
+}
 
 export async function saveStudent(_: FormState, formData: FormData): Promise<FormState> {
   const ctx = await teacherCtx();
@@ -33,18 +47,16 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
         ctx.supabase.from("students").select("id", { count: "exact", head: true }).eq("teacher_id", ctx.userId).eq("status", "active")
       ]);
       const plan = effectivePlan(sub);
-      if (overStudentLimit(plan, count ?? 0)) {
-        return { error: (await getT())("Planul {plan} permite {n} elevi activi. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv.", { plan: plan.name, n: plan.studentLimit ?? 0 }) };
-      }
+      if (overStudentLimit(plan, count ?? 0)) return { error: await limitMessage(plan) };
     }
   }
 
   if (id) {
     const { error } = await ctx.supabase.from("students").update(fields).eq("id", id).eq("teacher_id", ctx.userId);
-    if (error) return { error: error.message };
+    if (error) return { error: await studentError(error.message) };
   } else {
     const { data, error } = await ctx.supabase.from("students").insert({ ...fields, teacher_id: ctx.userId }).select("id").single();
-    if (error) return { error: error.message };
+    if (error) return { error: await studentError(error.message) };
     if (course_id) {
       const enr = await ctx.supabase.from("course_enrollments").insert({ teacher_id: ctx.userId, course_id, student_id: data.id });
       if (enr.error) return { error: (await getT())("Elevul a fost adăugat, dar nu și înscris: {reason}", { reason: enr.error.message }) };
