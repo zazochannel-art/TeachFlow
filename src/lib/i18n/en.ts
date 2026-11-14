@@ -609,6 +609,8 @@ export const en: Record<string, string> = {
   "Oprește camera": "Turn camera off",
   "Pornește camera": "Turn camera on",
   "Ieși din apel": "Leave call",
+  "Nu se poate conecta": "Cannot connect",
+  "Rețeaua blochează conexiunea directă. Încercați din nou sau configurați un server TURN.": "The network is blocking the direct connection. Try again or set up a TURN server.",
   "Apel video": "Video call",
   "Mută fereastra": "Move window",
   "Camere mai mici": "Smaller cameras",
