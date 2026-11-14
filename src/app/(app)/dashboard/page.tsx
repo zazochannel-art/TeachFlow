@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CourseTile, CreateCourseTile, DemoNotice, EmptyNote, FeedCard, SectionTitle } from "@/components/ui";
 import { Timetable } from "@/components/Timetable";
+import { GettingStarted, gettingStartedSteps } from "@/components/GettingStarted";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { courseCards, daySlots, notifications, tasks } from "@/lib/data/derive";
 import { dateKey, isDateKey } from "@/lib/time";
@@ -20,6 +21,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <div className="grid flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
       {/* Center column */}
       <div className="flex min-w-0 flex-col">
+        {ws.mode === "live" && <GettingStarted steps={gettingStartedSteps(ws, now)} />}
         <section>
           <SectionTitle action={cards.length > 4 ? <Link href="/courses" className="text-[11px] font-bold text-primary">Vezi toate</Link> : undefined}>
             Cursurile și grupele tale
