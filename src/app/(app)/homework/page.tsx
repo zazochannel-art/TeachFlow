@@ -64,6 +64,12 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
       {reviewing && (
         <Panel title={`Verifică · ${reviewing.title}`} closeHref={close}>
           <p className="mb-4 text-[12px] text-muted">{student.get(reviewing.student_id)?.full_name}{reviewing.submitted_at ? ` · predată ${formatDate(reviewing.submitted_at, ws.timezone)}` : ""}</p>
+          {reviewing.submission && (
+            <div className="mb-5 rounded-[16px] bg-soft p-4">
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">Răspunsul elevului</p>
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{reviewing.submission}</p>
+            </div>
+          )}
           <ActionForm action={reviewHomework} demo={demo} submitLabel="Salvează evaluarea">
             <input type="hidden" name="id" value={reviewing.id} />
             <Field label="Status" htmlFor="status">

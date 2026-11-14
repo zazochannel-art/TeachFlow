@@ -43,11 +43,21 @@ export const requireTeacher = cache(async () => {
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (roleRecord?.role === "student") redirect("/student");
   if (!roleRecord || !["teacher", "admin"].includes(roleRecord.role)) redirect("/login?error=no_teacher_role");
 
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
   return { supabase, userId, email } as const;
 });
+
+/**
+ * Runs `query` and, if it fails (e.g. a column from a migration that is not applied yet),
+ * retries with `fallback` so the app keeps working on an older schema.
+ */
+async function withFallback<T extends { error: unknown }>(query: () => PromiseLike<T>, fallback: () => PromiseLike<T>): Promise<T> {
+  const first = await query();
+  return first.error ? fallback() : first;
+}
 
 /** Loads the signed-in teacher's data. RLS limits every query to rows owned by the teacher. */
 export const loadWorkspace = cache(async (): Promise<Workspace> => {
@@ -58,11 +68,17 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
     supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle(),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
-    supabase.from("students").select("id, full_name, email, phone, notes, status, created_at").eq("teacher_id", userId).order("full_name"),
+    withFallback(
+      () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name"),
+      () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at").eq("teacher_id", userId).order("full_name")
+    ),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at"),
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at").limit(2000),
-    supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
+    withFallback(
+      () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
+      () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
+    ),
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at").limit(3000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
