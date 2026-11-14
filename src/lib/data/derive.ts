@@ -1,6 +1,9 @@
 import type { Workspace } from "./workspace";
 import type { Course, Lesson } from "@/types/database";
 import { dayRange, formatDate, formatTime, initials } from "@/lib/time";
+import { makeT, type T } from "@/lib/i18n/core";
+
+const RO = makeT("ro");
 
 export type SubjectKind = "language" | "math" | "music" | "art" | "science" | "code" | "other";
 
@@ -67,17 +70,17 @@ export function lessonSubtitle(ws: Workspace, l: Lesson) {
   return [course && course.title !== l.title ? course.title : null, student?.full_name].filter(Boolean).join(" · ");
 }
 
-export function toSlot(ws: Workspace, l: Lesson, now: Date, nextId: string | null): Slot {
+export function toSlot(ws: Workspace, l: Lesson, now: Date, nextId: string | null, t: T = RO): Slot {
   const start = new Date(l.starts_at).getTime();
   const end = new Date(l.ends_at).getTime();
-  const t = now.getTime();
+  const ms = now.getTime();
   const course = ws.courses.find(c => c.id === l.course_id);
-  let state: Slot["state"] = end <= t ? "past" : start <= t ? "now" : "later";
+  let state: Slot["state"] = end <= ms ? "past" : start <= ms ? "now" : "later";
   if (state === "later" && l.id === nextId) state = "next";
   if (l.status === "cancelled" && state !== "past") state = "later";
   return {
     id: l.id, title: l.title, subtitle: lessonSubtitle(ws, l),
-    start: formatTime(l.starts_at, ws.timezone), end: formatTime(l.ends_at, ws.timezone),
+    start: formatTime(l.starts_at, ws.timezone, t.locale), end: formatTime(l.ends_at, ws.timezone, t.locale),
     startsAt: l.starts_at, meetingUrl: l.meeting_url, status: l.status, state,
     subject: subjectKind(course?.subject ?? null, l.title)
   };
@@ -91,12 +94,12 @@ export function lessonsBetween(ws: Workspace, start: Date, end: Date) {
 }
 
 /** Lessons of one day. The lesson in progress (or, if none, the next one today) is highlighted. */
-export function daySlots(ws: Workspace, key: string, now = new Date()): Slot[] {
+export function daySlots(ws: Workspace, key: string, now = new Date(), t: T = RO): Slot[] {
   const { start, end } = dayRange(key, ws.timezone);
   const lessons = lessonsBetween(ws, start, end);
   const current = currentLesson(ws, now);
   const nextId = current && !lessons.some(l => isNow(l, now)) ? current.id : null;
-  return lessons.map(l => toSlot(ws, l, now, nextId));
+  return lessons.map(l => toSlot(ws, l, now, nextId, t));
 }
 
 function isNow(l: Lesson, now: Date) {
@@ -126,16 +129,18 @@ export interface FeedItem {
 const DAY = 86400000;
 
 /** Notifications derived from real rows: lessons, enrollments, students and the subscription. */
-export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
+export function notifications(ws: Workspace, now = new Date(), t: T = RO): FeedItem[] {
   const items: FeedItem[] = [];
   const tz = ws.timezone;
+  const time = (iso: string) => formatTime(iso, tz, t.locale);
+  const date = (iso: string) => formatDate(iso, tz, t.locale);
   const cur = currentLesson(ws, now);
   if (cur) {
     const running = isNow(cur, now);
     items.push({
       id: `n-${cur.id}`, kind: "lesson", highlight: true,
-      title: running ? "E timpul lecției!" : "Lecția următoare",
-      body: running ? `a început la ${formatTime(cur.starts_at, tz)} · în desfășurare` : `astăzi la ${formatTime(cur.starts_at, tz)}`,
+      title: running ? t("E timpul lecției!") : t("Lecția următoare"),
+      body: running ? t("a început la {time} · în desfășurare", { time: time(cur.starts_at) }) : t("astăzi la {time}", { time: time(cur.starts_at) }),
       emphasis: cur.title,
       href: cur.meeting_url ?? "/classroom", external: !!cur.meeting_url
     });
@@ -149,9 +154,9 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
     const h = submitted[0];
     items.push({
       id: `n-hw-${h.id}`, kind: "homework",
-      title: submitted.length > 1 ? "Teme predate" : studentName.get(h.student_id) ?? "Elev",
+      title: submitted.length > 1 ? t("Teme predate") : studentName.get(h.student_id) ?? t("Elev"),
       emphasis: submitted.length > 1 ? String(submitted.length) : undefined,
-      body: submitted.length > 1 ? `teme noi · ultima de la ${studentName.get(h.student_id) ?? "un elev"}` : `a predat tema „${h.title}”`,
+      body: submitted.length > 1 ? t("teme noi · ultima de la {name}", { name: studentName.get(h.student_id) ?? t("un elev") }) : t("a predat tema „{title}”", { title: h.title }),
       href: "/homework?status=submitted", subject: subjectKind(h.course_id ? ws.courses.find(c => c.id === h.course_id)?.subject ?? null : null, h.title)
     });
   }
@@ -159,9 +164,9 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
   const unread = ws.messages.filter(m => m.direction === "incoming" && !m.read_at);
   if (unread.length) {
     const m = unread[unread.length - 1];
-    const who = studentName.get(m.student_id) ?? "Elev";
+    const who = studentName.get(m.student_id) ?? t("Elev");
     items.push({
-      id: `n-msg-${m.id}`, kind: "student", title: unread.length > 1 ? `${unread.length} mesaje noi` : who,
+      id: `n-msg-${m.id}`, kind: "student", title: unread.length > 1 ? t.n("{n} mesaj nou|{n} mesaje noi|{n} de mesaje noi", unread.length) : who,
       body: unread.length > 1 ? `${who}: ${m.body}` : m.body, href: `/messages?student=${m.student_id}`
     });
   }
@@ -170,10 +175,10 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
   const overdue = ws.payments.filter(p => p.status === "pending" && p.due_date && p.due_date < todayKey);
   if (overdue.length) {
     const p = overdue[0];
-    items.push({ id: `n-pay-${p.id}`, kind: "payment", title: studentName.get(p.student_id) ?? "Plată", emphasis: overdue.length > 1 ? `${overdue.length} plăți restante` : "Plată restantă", body: `· ${p.amount} ${p.currency}`, href: "/payments?status=overdue" });
+    items.push({ id: `n-pay-${p.id}`, kind: "payment", title: studentName.get(p.student_id) ?? t("Plată"), emphasis: overdue.length > 1 ? t.n("{n} plată restantă|{n} plăți restante|{n} de plăți restante", overdue.length) : t("Plată restantă"), body: `· ${p.amount} ${p.currency}`, href: "/payments?status=overdue" });
   } else {
     const paid = ws.payments.filter(p => p.status === "paid" && p.paid_at && now.getTime() - new Date(p.paid_at).getTime() < 3 * DAY)[0];
-    if (paid) items.push({ id: `n-paid-${paid.id}`, kind: "payment", title: studentName.get(paid.student_id) ?? "Plată", emphasis: `${paid.amount} ${paid.currency}`, body: `încasat ${formatDate(paid.paid_at!, tz)}`, href: "/payments?status=paid" });
+    if (paid) items.push({ id: `n-paid-${paid.id}`, kind: "payment", title: studentName.get(paid.student_id) ?? t("Plată"), emphasis: `${paid.amount} ${paid.currency}`, body: t("încasat {date}", { date: date(paid.paid_at!) }), href: "/payments?status=paid" });
   }
 
   const recent = ws.lessons
@@ -184,8 +189,8 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
     items.push({
       id: `n-done-${l.id}`, kind: l.status === "no_show" ? "student" : "homework",
       title: l.title,
-      emphasis: l.status === "no_show" ? "Absență" : card?.progress != null ? `${card.progress}%` : "Finalizată",
-      body: l.status === "no_show" ? `elevul nu s-a prezentat · ${formatDate(l.starts_at, tz)}` : `din curs parcurs · lecție încheiată ${formatDate(l.starts_at, tz)}`,
+      emphasis: l.status === "no_show" ? t("Absență") : card?.progress != null ? `${card.progress}%` : t("Finalizată"),
+      body: l.status === "no_show" ? t("elevul nu s-a prezentat · {date}", { date: date(l.starts_at) }) : t("din curs parcurs · lecție încheiată {date}", { date: date(l.starts_at) }),
       href: "/homework", subject: card?.subject
     });
   }
@@ -196,16 +201,16 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
     .slice(0, 2)
     .forEach(e => items.push({
       id: `n-enr-${e.id}`, kind: "student",
-      title: studentName.get(e.student_id) ?? "Elev nou",
-      body: `s-a înscris la ${courseTitle.get(e.course_id) ?? "un curs"}`,
+      title: studentName.get(e.student_id) ?? t("Elev nou"),
+      body: t("s-a înscris la {course}", { course: courseTitle.get(e.course_id) ?? t("un curs") }),
       href: "/students"
     }));
 
   const sub = ws.subscription;
   if (sub && (sub.status === "past_due" || sub.status === "expired")) {
-    items.push({ id: "n-sub", kind: "payment", title: "Abonament", emphasis: sub.status === "past_due" ? "Plată restantă" : "Expirat", body: "actualizează metoda de plată", href: "/payments" });
+    items.push({ id: "n-sub", kind: "payment", title: t("Abonament"), emphasis: sub.status === "past_due" ? t("Plată restantă") : t("Expirat"), body: t("actualizează metoda de plată"), href: "/payments" });
   } else if (sub?.status === "trialing" && sub.current_period_end) {
-    items.push({ id: "n-sub", kind: "payment", title: "Perioada de probă", body: `se încheie pe ${formatDate(sub.current_period_end, tz)}`, href: "/payments" });
+    items.push({ id: "n-sub", kind: "payment", title: t("Perioada de probă"), body: t("se încheie pe {date}", { date: date(sub.current_period_end) }), href: "/payments" });
   }
   return items.slice(0, 4);
 }
@@ -219,53 +224,55 @@ export function badges(ws: Workspace) {
 }
 
 /** Things the teacher should do, derived from lessons and enrollments. */
-export function tasks(ws: Workspace, now = new Date()): FeedItem[] {
+export function tasks(ws: Workspace, now = new Date(), t: T = RO): FeedItem[] {
   const items: FeedItem[] = [];
   const tz = ws.timezone;
-  const t = now.getTime();
+  const ms = now.getTime();
+  const time = (iso: string) => formatTime(iso, tz, t.locale);
+  const date = (iso: string) => formatDate(iso, tz, t.locale);
 
   const toReview = ws.homework.filter(h => h.status === "submitted");
   if (toReview.length) {
-    items.push({ id: "t-hw", kind: "homework", title: "Teme de verificat", emphasis: String(toReview.length), body: toReview.length === 1 ? `temă: ${toReview[0].title}` : "teme predate așteaptă nota", href: "/homework?status=submitted" });
+    items.push({ id: "t-hw", kind: "homework", title: t("Teme de verificat"), emphasis: String(toReview.length), body: toReview.length === 1 ? t("temă: {title}", { title: toReview[0].title }) : t("teme predate așteaptă nota"), href: "/homework?status=submitted" });
   }
 
-  const unmarked = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.ends_at).getTime() < t);
+  const unmarked = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.ends_at).getTime() < ms);
   if (unmarked.length) {
     const l = unmarked[unmarked.length - 1];
     items.push({
-      id: "t-unmarked", kind: "admin", title: unmarked.length > 1 ? "Lecții de închis" : l.title,
-      emphasis: String(unmarked.length), body: unmarked.length > 1 ? "lecții încheiate fără status" : "marchează lecția ca finalizată",
+      id: "t-unmarked", kind: "admin", title: unmarked.length > 1 ? t("Lecții de închis") : l.title,
+      emphasis: String(unmarked.length), body: unmarked.length > 1 ? t("lecții încheiate fără status") : t("marchează lecția ca finalizată"),
       href: "/calendar"
     });
   }
 
-  const upcoming = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.starts_at).getTime() > t && new Date(l.starts_at).getTime() - t < 2 * DAY);
+  const upcoming = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.starts_at).getTime() > ms && new Date(l.starts_at).getTime() - ms < 2 * DAY);
   const noLink = upcoming.filter(l => !l.meeting_url);
   if (noLink.length) {
-    items.push({ id: "t-link", kind: "admin", title: noLink[0].title, emphasis: "Link lipsă", body: `pentru ${formatDate(noLink[0].starts_at, tz)}, ${formatTime(noLink[0].starts_at, tz)}`, href: "/classroom" });
+    items.push({ id: "t-link", kind: "admin", title: noLink[0].title, emphasis: t("Link lipsă"), body: t("pentru {date}, {time}", { date: date(noLink[0].starts_at), time: time(noLink[0].starts_at) }), href: "/classroom" });
   }
 
   const nextFew = upcoming.filter(l => l.meeting_url).slice(0, 2);
   for (const l of nextFew) {
     const course = ws.courses.find(c => c.id === l.course_id);
     items.push({
-      id: `t-prep-${l.id}`, kind: "prepare", title: l.title, emphasis: formatTime(l.starts_at, tz),
-      body: `pregătește lecția · ${formatDate(l.starts_at, tz)}`, href: "/calendar", subject: subjectKind(course?.subject ?? null, l.title)
+      id: `t-prep-${l.id}`, kind: "prepare", title: l.title, emphasis: time(l.starts_at),
+      body: t("pregătește lecția · {date}", { date: date(l.starts_at) }), href: "/calendar", subject: subjectKind(course?.subject ?? null, l.title)
     });
   }
 
   const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(now);
-  const dueSoon = ws.payments.filter(p => p.status === "pending" && p.due_date && p.due_date <= new Date(t + 3 * DAY).toISOString().slice(0, 10));
+  const dueSoon = ws.payments.filter(p => p.status === "pending" && p.due_date && p.due_date <= new Date(ms + 3 * DAY).toISOString().slice(0, 10));
   if (dueSoon.length) {
-    items.push({ id: "t-pay", kind: "payment", title: "Plăți de încasat", emphasis: String(dueSoon.length), body: dueSoon.some(p => p.due_date! < todayKey) ? "include plăți restante" : "cu termen în următoarele 3 zile", href: "/payments?status=pending" });
+    items.push({ id: "t-pay", kind: "payment", title: t("Plăți de încasat"), emphasis: String(dueSoon.length), body: dueSoon.some(p => p.due_date! < todayKey) ? t("include plăți restante") : t("cu termen în următoarele 3 zile"), href: "/payments?status=pending" });
   }
 
   const enrolledIds = new Set(ws.enrollments.filter(e => e.status === "active").map(e => e.student_id));
   const loose = ws.students.filter(s => s.status === "active" && !enrolledIds.has(s.id));
   if (loose.length) {
     items.push({
-      id: "t-loose", kind: "student", title: loose.length > 1 ? `${loose[0].full_name} și alții` : loose[0].full_name,
-      emphasis: String(loose.length), body: loose.length > 1 ? "elevi fără curs · înscrie-i într-o grupă" : "elev fără curs · înscrie-l într-o grupă",
+      id: "t-loose", kind: "student", title: loose.length > 1 ? t("{name} și alții", { name: loose[0].full_name }) : loose[0].full_name,
+      emphasis: String(loose.length), body: loose.length > 1 ? t("elevi fără curs · înscrie-i într-o grupă") : t("elev fără curs · înscrie-l într-o grupă"),
       href: "/students"
     });
   }

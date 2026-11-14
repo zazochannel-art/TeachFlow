@@ -3,6 +3,7 @@
 
 export const DEFAULT_TZ = "Europe/Chisinau";
 const LOCALE = "ro-RO";
+// Every formatter takes an optional BCP 47 locale (t.locale); Romanian by default.
 
 function partsInTz(instant: Date, tz: string) {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -71,33 +72,33 @@ function noonUtc(key: string) {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** { weekday: "Luni", rest: "9 noiembrie 2026" } */
-export function formatDayHeading(key: string) {
+export function formatDayHeading(key: string, locale = LOCALE) {
   const date = noonUtc(key);
-  const weekday = new Intl.DateTimeFormat(LOCALE, { weekday: "long", timeZone: "UTC" }).format(date);
-  const rest = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" }).format(date);
+  const rest = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
   return { weekday: cap(weekday), rest };
 }
 
-export function formatShortDay(key: string) {
+export function formatShortDay(key: string, locale = LOCALE) {
   const date = noonUtc(key);
-  const weekday = new Intl.DateTimeFormat(LOCALE, { weekday: "short", timeZone: "UTC" }).format(date);
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(date);
   return { weekday: cap(weekday.replace(".", "")), day: date.getUTCDate() };
 }
 
-export function formatTime(iso: string, tz: string) {
-  return new Intl.DateTimeFormat(LOCALE, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }).format(new Date(iso));
+export function formatTime(iso: string, tz: string, locale = LOCALE) {
+  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }).format(new Date(iso));
 }
 
-export function formatDate(iso: string, tz: string) {
-  return new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", timeZone: tz }).format(new Date(iso));
+export function formatDate(iso: string, tz: string, locale = LOCALE) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: tz }).format(new Date(iso));
 }
 
 export function hourInTz(iso: string, tz: string) {
   return partsInTz(new Date(iso), tz).h;
 }
 
-export function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat(LOCALE, { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+export function formatMoney(amount: number, currency: string, locale = LOCALE) {
+  return new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 }
 
 export function initials(name: string) {

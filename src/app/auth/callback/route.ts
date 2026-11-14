@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/auth-errors";
+import { LANG_COOKIE, isLang } from "@/lib/i18n/core";
 
 /**
  * Landing point for links in Supabase auth emails (sign-up confirmation,
@@ -31,6 +32,14 @@ export async function GET(request: NextRequest) {
     if (error) return fail(error.message);
   } else {
     return fail("Link invalid.");
+  }
+
+  // Carry the language picked before signing up / in on this device into the profile.
+  const lang = request.cookies.get(LANG_COOKIE)?.value;
+  if (isLang(lang)) {
+    const { data } = await supabase.auth.getClaims();
+    const userId = data?.claims?.sub;
+    if (userId) await supabase.from("profiles").update({ preferred_language: lang }).eq("id", userId);
   }
 
   const target = type === "recovery" ? "/reset-password" : next;

@@ -29,7 +29,11 @@ Without Supabase environment variables, the dashboard displays clearly marked de
 npm run typecheck
 npm run lint
 npm run build
+npm run i18n:check   # every UI string has ru + en translations
 ```
+
+## Languages
+The UI is in Romanian, Russian and English. Romanian text in the code is the translation key: `t("Elevi")` on the server (`getT()` from `src/lib/i18n/server.ts`) or in client components (`useT()` from `src/lib/i18n/client.tsx`). Translations live in `src/lib/i18n/ru.ts` and `en.ts`; plurals use `t.n("{n} elev|{n} elevi|{n} de elevi", n)`. The language comes from the signed-in user's profile, then the `tf_lang` cookie (RO/RU/EN switch on the login and student pages), then the browser. `npm run i18n:check` fails when a string has no translation.
 
 ## Security notes
 - Do not put a Supabase secret/service-role key in a `NEXT_PUBLIC_` variable.

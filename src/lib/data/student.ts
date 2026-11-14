@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TZ } from "@/lib/time";
 import { buildDemoWorkspace } from "./demo";
+import { getT } from "@/lib/i18n/server";
 import type { Course, Homework, Lesson, Message, Payment } from "@/types/database";
 
 /** One teacher relationship of the signed-in student (a students row linked to their account). */
@@ -28,6 +29,7 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const supabase = await createClient();
   if (!supabase) return demoPortal();
 
+  const tr = await getT();
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (error || !userId) redirect("/login?next=/student");
@@ -51,14 +53,14 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const { data: teachers } = teacherIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", teacherIds)
     : { data: [] as Array<{ id: string; full_name: string }> };
-  const teacherName = new Map((teachers ?? []).map(t => [t.id, t.full_name || "Profesor"]));
+  const teacherName = new Map((teachers ?? []).map(t => [t.id, t.full_name || tr("Profesor")]));
 
   const p = profile.data as { full_name: string; timezone: string } | null;
   return {
     mode: "live",
-    name: p?.full_name || (typeof data?.claims?.email === "string" ? data.claims.email.split("@")[0] : "Elev"),
+    name: p?.full_name || (typeof data?.claims?.email === "string" ? data.claims.email.split("@")[0] : tr("Elev")),
     timezone: p?.timezone || DEFAULT_TZ,
-    links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? "Profesor", studentName: r.full_name })),
+    links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? tr("Profesor"), studentName: r.full_name })),
     courses: (courses.data as Course[] | null) ?? [],
     lessons: (lessons.data as Lesson[] | null) ?? [],
     homework: (homework.data as Homework[] | null) ?? [],

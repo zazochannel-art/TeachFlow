@@ -7,6 +7,7 @@ import { requireTeacher } from "@/lib/data/workspace";
 import { createClient } from "@/lib/supabase/server";
 
 import type { FormState } from "@/lib/actions/common";
+import { rememberLang } from "@/lib/i18n/server";
 
 const DEMO_MSG = "Mod demonstrativ: configurează Supabase pentru a salva date.";
 
@@ -40,6 +41,7 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     supabase.from("teacher_profiles").update({ headline: v.headline || null, bio: v.bio || null, hourly_rate: rate, currency: v.currency }).eq("user_id", userId)
   ]);
   if (p.error || t.error) return { error: (p.error ?? t.error)!.message };
+  await rememberLang(v.preferred_language);
 
   revalidatePath("/", "layout");
   return { ok: "Modificările au fost salvate." };

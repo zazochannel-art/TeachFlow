@@ -3,15 +3,17 @@
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/lib/actions/common";
+import { useT } from "@/lib/i18n/client";
 
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 
 /** Form bound to a server action, with inline error/success messages. */
 export function ActionForm({
-  action, children, submitLabel = "Salvează", demo = false, className = "grid gap-4 sm:grid-cols-2", resetOnOk = false, extra
+  action, children, submitLabel, demo = false, className = "grid gap-4 sm:grid-cols-2", resetOnOk = false, extra
 }: {
   action: Action; children: ReactNode; submitLabel?: string; demo?: boolean; className?: string; resetOnOk?: boolean; extra?: ReactNode;
 }) {
+  const t = useT();
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => { if (resetOnOk && state.ok) ref.current?.reset(); }, [state, resetOnOk]);
@@ -19,12 +21,12 @@ export function ActionForm({
   return (
     <form ref={ref} action={formAction} className={className}>
       {children}
-      {state.error && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a] sm:col-span-2">{state.error}</p>}
-      {state.ok && state.ok !== "sent" && <p role="status" className="text-[12px] font-semibold text-[#1b8a5a] sm:col-span-2">{state.ok}</p>}
+      {state.error && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a] sm:col-span-2">{t(state.error)}</p>}
+      {state.ok && state.ok !== "sent" && <p role="status" className="text-[12px] font-semibold text-[#1b8a5a] sm:col-span-2">{t(state.ok)}</p>}
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-        <button className="tf-btn" disabled={pending || demo}>{pending ? "Se salvează…" : submitLabel}</button>
+        <button className="tf-btn" disabled={pending || demo}>{pending ? t("Se salvează…") : submitLabel ?? t("Salvează")}</button>
         {extra}
-        {demo && <span className="text-[11px] text-muted">Indisponibil în modul demonstrativ.</span>}
+        {demo && <span className="text-[11px] text-muted">{t("Indisponibil în modul demonstrativ.")}</span>}
       </div>
     </form>
   );
@@ -37,7 +39,8 @@ export function SubmitButton({ children, className = "" }: { children: ReactNode
 }
 
 /** Two-step delete button: the first click asks, the second submits. */
-export function ConfirmSubmit({ label = "Șterge", confirm = "Confirmi ștergerea?", className = "" }: { label?: string; confirm?: string; className?: string }) {
+export function ConfirmSubmit({ label, confirm, className = "" }: { label?: string; confirm?: string; className?: string }) {
+  const t = useT();
   const [armed, setArmed] = useState(false);
   const { pending } = useFormStatus();
   useEffect(() => {
@@ -46,6 +49,6 @@ export function ConfirmSubmit({ label = "Șterge", confirm = "Confirmi ștergere
     return () => clearTimeout(t);
   }, [armed]);
   return armed
-    ? <button disabled={pending} className={`cursor-pointer rounded-xl bg-[#c03a3a] px-3 py-2 text-[12px] font-bold text-white ${className}`}>{pending ? "Se șterge…" : confirm}</button>
-    : <button type="button" onClick={() => setArmed(true)} className={`cursor-pointer rounded-xl border border-[#f1caca] px-3 py-2 text-[12px] font-bold text-[#c03a3a] hover:bg-[#fdecec] ${className}`}>{label}</button>;
+    ? <button disabled={pending} className={`cursor-pointer rounded-xl bg-[#c03a3a] px-3 py-2 text-[12px] font-bold text-white ${className}`}>{pending ? t("Se șterge…") : confirm ?? t("Confirmi ștergerea?")}</button>
+    : <button type="button" onClick={() => setArmed(true)} className={`cursor-pointer rounded-xl border border-[#f1caca] px-3 py-2 text-[12px] font-bold text-[#c03a3a] hover:bg-[#fdecec] ${className}`}>{label ?? t("Șterge")}</button>;
 }

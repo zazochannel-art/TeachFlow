@@ -4,6 +4,7 @@ import { TopBar, type CurrentLessonChip } from "@/components/shell/TopBar";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { badges, currentLesson, notifications } from "@/lib/data/derive";
 import { dateKey, formatTime } from "@/lib/time";
+import { getT } from "@/lib/i18n/server";
 
 /**
  * App shell from the reference: pale lavender canvas, one large rounded white panel,
@@ -11,17 +12,17 @@ import { dateKey, formatTime } from "@/lib/time";
  * The auth/role guard runs inside loadWorkspace() for every page.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const ws = await loadWorkspace();
+  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
   const now = new Date();
   const lesson = currentLesson(ws, now);
   const current: CurrentLessonChip | null = lesson ? {
     title: lesson.title,
-    time: formatTime(lesson.starts_at, ws.timezone),
+    time: formatTime(lesson.starts_at, ws.timezone, t.locale),
     running: new Date(lesson.starts_at) <= now,
     href: lesson.meeting_url ?? "/classroom",
     external: !!lesson.meeting_url
   } : null;
-  const name = ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor";
+  const name = ws.profile?.full_name || ws.email?.split("@")[0] || t("Profesor");
 
   return (
     <div className="flex min-h-screen justify-center bg-canvas md:p-5 lg:p-7 xl:p-9">
@@ -34,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               name={name}
               avatarUrl={ws.profile?.avatar_url ?? null}
               current={current}
-              unread={notifications(ws, now).length}
+              unread={notifications(ws, now, t).length}
             />
           </Suspense>
           {children}

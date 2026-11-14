@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getT } from "@/lib/i18n/server";
 import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx } from "./common";
 
 const studentSchema = z.object({
@@ -29,7 +30,7 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
     if (error) return { error: error.message };
     if (course_id) {
       const enr = await ctx.supabase.from("course_enrollments").insert({ teacher_id: ctx.userId, course_id, student_id: data.id });
-      if (enr.error) return { error: `Elevul a fost adăugat, dar nu și înscris: ${enr.error.message}` };
+      if (enr.error) return { error: (await getT())("Elevul a fost adăugat, dar nu și înscris: {reason}", { reason: enr.error.message }) };
     }
   }
   refresh();

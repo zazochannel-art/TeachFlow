@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useT } from "@/lib/i18n/client";
 import {
   BookOpen, CalendarDays, ClipboardList, GraduationCap, LayoutGrid,
   MessageCircle, Settings, Users, Video, Wallet
@@ -22,6 +23,7 @@ export const navItems = [
 /** Narrow dark-indigo rail with icon + label items and a tab-shaped active highlight. */
 export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname();
+  const t = useT();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
@@ -47,7 +49,7 @@ export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
                   <Icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
                   {badges[href] > 0 && <span className="absolute -right-2.5 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] font-extrabold text-white ring-2 ring-navy">{badges[href]}</span>}
                 </span>
-                <span className="px-1 text-center text-[10px] font-semibold leading-tight tracking-tight">{label}</span>
+                <span className="px-1 text-center text-[10px] font-semibold leading-tight tracking-tight">{t(label)}</span>
               </Link>
             );
           })}
@@ -65,7 +67,7 @@ export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
                 <Icon className="h-[18px] w-[18px]" />
                 {badges[href] > 0 && <span className="absolute -right-2 -top-1.5 h-2.5 w-2.5 rounded-full bg-[#8fa0ff] ring-2 ring-navy" />}
               </span>
-              <span className="whitespace-nowrap text-[9px] font-semibold">{label}</span>
+              <span className="whitespace-nowrap text-[9px] font-semibold">{t(label)}</span>
             </Link>
           );
         })}
