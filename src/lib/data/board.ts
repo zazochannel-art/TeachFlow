@@ -12,7 +12,7 @@ export interface BoardRoom {
   timezone: string;
   /** Saved board JSON (validated on the client), or null when nothing was drawn yet. */
   board: unknown;
-  /** false when migration 0004 (lesson_boards) is not applied yet. */
+  /** false when migration 0006 (lesson_boards) is not applied yet. */
   boardReady: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
 }

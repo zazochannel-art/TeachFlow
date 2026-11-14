@@ -39,7 +39,7 @@ export function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; bac
       {room.mode === "live" && !room.boardReady && (
         <p className="mb-4 rounded-[16px] border border-dashed border-[#f0c46b] bg-[#fff8e8] p-4 text-[12px] text-[#7a5208]">
           {isTeacher
-            ? <>Tabla partajată nu este activă încă: aplică migrarea <code>supabase/migrations/0004_lesson_whiteboard.sql</code> în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează și elevul nu îl vede.</>
+            ? <>Tabla partajată nu este activă încă: aplică migrarea <code>supabase/migrations/0006_lesson_whiteboard.sql</code> în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează și elevul nu îl vede.</>
             : <>Tabla partajată nu este activă încă. Poți desena, dar profesorul nu vede desenul.</>}
         </p>
       )}
