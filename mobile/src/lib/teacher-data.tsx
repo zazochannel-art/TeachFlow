@@ -37,9 +37,9 @@ async function fetchTeacherData(userId: string, email: string | null): Promise<T
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
     supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name"),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at"),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at").limit(2000),
+    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
-    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at").limit(3000),
+    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
   const firstError = [students, lessons].find(r => r.error)?.error;
@@ -54,9 +54,10 @@ async function fetchTeacherData(userId: string, email: string | null): Promise<T
     subscription: (subscription.data as Subscription | null) ?? null,
     students: (students.data as Student[] | null) ?? [],
     courses: (courses.data as Course[] | null) ?? [],
-    lessons: (lessons.data as Lesson[] | null) ?? [],
+    // Loaded newest first so the row cap drops the oldest rows; shown oldest first.
+    lessons: [...((lessons.data as Lesson[] | null) ?? [])].reverse(),
     homework: (homework.data as Homework[] | null) ?? [],
-    messages: (messages.data as Message[] | null) ?? [],
+    messages: [...((messages.data as Message[] | null) ?? [])].reverse(),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) }))
   };
 }
