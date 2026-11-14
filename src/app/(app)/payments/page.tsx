@@ -6,11 +6,11 @@ import { loadWorkspace } from "@/lib/data/workspace";
 import { courseCards, currencyTotals } from "@/lib/data/derive";
 import { deletePayment, markPaymentPaid, savePayment } from "@/lib/actions/payments";
 import { dateKey, dayRange, formatDate, formatMoney } from "@/lib/time";
+import { effectivePlan } from "@/lib/plans";
 import type { Lesson, Payment } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
 
-const planNames = { free: "Free", starter: "Starter", pro: "Pro", premium: "Premium" } as const;
 const statusNames = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "Altă metodă" } as const;
 type Params = { status?: string; new?: string; edit?: string; student?: string };
@@ -75,11 +75,12 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           <p className="text-[11px] text-muted">{t("Valoarea lecțiilor ținute")}</p><p className="text-[18px] font-extrabold">{money(estimate)}</p>
           <p className="text-[10px] text-muted">{t("{n} lecții × preț curs", { n: inMonth.filter(l => l.status === "completed").length })}</p>
         </div></Card>
-        <Card className={stat}><span className={icon}><CreditCard className="h-5 w-5" /></span><div>
+        <Link href="/billing" className="block rounded-[20px] transition-shadow hover:shadow-md"><Card className={`${stat} h-full`}><span className={icon}><CreditCard className="h-5 w-5" /></span><div>
           <p className="text-[11px] text-muted">{t("Abonament TeachFlow")}</p>
-          <p className="text-[18px] font-extrabold">{sub ? planNames[sub.plan_code] : "—"}</p>
+          <p className="text-[18px] font-extrabold">{effectivePlan(sub).name}</p>
           {sub && <p className="text-[10px] text-muted">{t(statusNames[sub.status])}{sub.current_period_end ? ` · ${t("până la {date}", { date: formatDate(sub.current_period_end, ws.timezone, t.locale) })}` : ""}</p>}
-        </div></Card>
+          <p className="mt-1 text-[10px] font-bold text-primary">{t("Schimbă planul")} →</p>
+        </div></Card></Link>
       </div>
 
       {!missing && (

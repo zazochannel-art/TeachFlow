@@ -96,7 +96,7 @@ export function buildDemoWorkspace(): Workspace {
   ];
 
   return {
-    mode: "demo", userId: null, email: null, timezone: tz,
+    mode: "demo", userId: null, email: null, isAdmin: false, timezone: tz,
     profile: { full_name: "Profesor Demo", avatar_url: null, preferred_language: "ro", timezone: tz },
     teacherProfile: null,
     subscription: { plan_code: "free", status: "trialing", current_period_end: new Date(now.getTime() + 5 * 86400000).toISOString() },
