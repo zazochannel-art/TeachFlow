@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TZ } from "@/lib/time";
 import { buildDemoWorkspace } from "./demo";
 import { getT } from "@/lib/i18n/server";
+import { pendingInviteToken } from "@/lib/invite-token";
 import type { Course, Homework, Lesson, Message, Payment } from "@/types/database";
 
 /** One teacher relationship of the signed-in student (a students row linked to their account). */
@@ -51,6 +52,13 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   if (role.data?.role !== "student") redirect("/dashboard");
 
   const rows = (students.data ?? []) as Array<{ id: string; teacher_id: string; full_name: string }>;
+
+  // Signed up from an invite but not linked yet: link now instead of showing an empty portal.
+  const inviteToken = pendingInviteToken(data?.claims);
+  if (!rows.length && inviteToken) {
+    const accepted = await supabase.rpc("accept_student_invite", { p_token: inviteToken });
+    if (!accepted.error) redirect("/student");
+  }
   const teacherIds = [...new Set(rows.map(r => r.teacher_id))];
   const { data: teachers } = teacherIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", teacherIds)
