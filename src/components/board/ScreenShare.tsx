@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Maximize2, MonitorUp, MonitorX, Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
 import { ICE_SERVERS, sanitizeSignal, userOfKey, type RtcSignal } from "@/lib/board/rtc";
 import { newId } from "@/lib/board/model";
 import { useT } from "@/lib/i18n/client";
@@ -36,7 +35,8 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
   const [viewers, setViewers] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const signalRef = useRef<SignalHandle | null>(null);
+  const iceRef = useRef<RTCIceServer[]>(ICE_SERVERS);
   const keyRef = useRef("");
   const streamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef(new Map<string, RTCPeerConnection>());
@@ -48,10 +48,7 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
     if (v) v.srcObject = isTeacher ? localStream : remoteStream;
   }, [isTeacher, localStream, remoteStream]);
 
-  const send = useCallback((msg: RtcSignal) => {
-    const ch = channelRef.current;
-    if (ch) void ch.send({ type: "broadcast", event: "rtc", payload: msg });
-  }, []);
+  const send = useCallback((msg: RtcSignal) => { signalRef.current?.send(msg); }, []);
 
   const countViewers = useCallback(() => {
     let n = 0;
@@ -79,7 +76,7 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
 
   const newPeer = useCallback((key: string) => {
     closePeer(key);
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: iceRef.current });
     pcsRef.current.set(key, pc);
     pc.onicecandidate = e => {
       if (e.candidate) send({ type: "ice", from: keyRef.current, to: key, candidate: e.candidate.toJSON() });
@@ -138,9 +135,6 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
   useEffect(() => {
     keyRef.current = `${me.id}:${newId().slice(0, 8)}`;
     if (!live) return;
-    const supabase = createClient();
-    if (!supabase) return;
-    let cancelled = false;
     const pcs = pcsRef.current;
 
     const onSignal = async (raw: unknown) => {
@@ -187,26 +181,17 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
       }
     };
 
-    (async () => {
-      await supabase.realtime.setAuth();
-      if (cancelled) return;
-      const channel = supabase.channel(`screen:${lessonId}`, { config: { private: true, broadcast: { self: false } } });
-      channelRef.current = channel;
-      channel
-        .on("broadcast", { event: "rtc" }, ({ payload }) => { void onSignal(payload).catch(() => {}); })
-        .subscribe(status => {
-          if (cancelled || status !== "SUBSCRIBED") return;
-          // A student joining mid-lesson asks for the share; a teacher already sharing re-announces it.
-          if (!isTeacher) send({ type: "want", from: keyRef.current });
-          else if (streamRef.current) send({ type: "start", from: keyRef.current });
-        });
-    })();
+    void getIceServers().then(servers => { iceRef.current = servers; });
+    // A student joining mid-lesson asks for the share; a teacher already sharing re-announces it.
+    const handle = joinSignal(`screen:${lessonId}`, "rtc", payload => { void onSignal(payload).catch(() => {}); }, () => {
+      if (!isTeacher) send({ type: "want", from: keyRef.current });
+      else if (streamRef.current) send({ type: "start", from: keyRef.current });
+    });
+    signalRef.current = handle;
 
     return () => {
-      cancelled = true;
-      const ch = channelRef.current;
-      channelRef.current = null;
-      if (ch) void supabase.removeChannel(ch);
+      signalRef.current = null;
+      handle?.leave();
       for (const pc of pcs.values()) pc.close();
       pcs.clear();
     };

@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { ArrowLeft, Video } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Whiteboard } from "./Whiteboard";
 import { ScreenShare } from "./ScreenShare";
+import { VideoCall } from "./VideoCall";
 import { DemoNotice } from "@/components/ui";
 import type { BoardRoom } from "@/lib/data/board";
 import { formatDate, formatTime } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 
-/** Lesson room: lesson header with the video link, and the shared whiteboard below. */
+/** Lesson room: built-in video call, the teacher's screen share and the shared whiteboard. */
 export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; backHref: string; backLabel: string }) {
   const t = await getT();
   const { lesson, timezone: tz } = room;
@@ -28,24 +29,22 @@ export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoo
             </p>
           </div>
         </div>
-        {lesson.meeting_url ? (
-          <a href={lesson.meeting_url} target="_blank" rel="noopener noreferrer" className="tf-btn">
-            <Video className="h-4 w-4" fill="currentColor" /> {isTeacher ? t("Pornește video") : t("Intră în video")}
+        {lesson.meeting_url && (
+          <a href={lesson.meeting_url} target="_blank" rel="noopener noreferrer" className="tf-btn-ghost" title={t("Linkul extern salvat la lecție (Zoom, Meet…)")}>
+            <ExternalLink className="h-4 w-4" /> {t("Link extern")}
           </a>
-        ) : isTeacher ? (
-          <Link href={`/calendar?lesson=${lesson.id}&back=/classroom/${lesson.id}`} className="tf-btn-ghost">{t("Adaugă linkul video")}</Link>
-        ) : (
-          <span className="rounded-xl bg-soft px-4 py-2 text-[12px] font-bold text-muted">{t("Linkul video apare aici înainte de lecție")}</span>
         )}
       </div>
 
       {room.mode === "live" && !room.boardReady && (
         <p className="mb-4 rounded-[16px] border border-dashed border-[#f0c46b] bg-[#fff8e8] p-4 text-[12px] text-[#7a5208]">
           {isTeacher
-            ? <>{t("Tabla partajată nu este activă încă: aplică migrarea")} <code>supabase/migrations/0006_lesson_whiteboard.sql</code> {t("în Supabase (SQL Editor). Până atunci poți desena, dar desenul nu se salvează, iar elevul nu vede nici tabla, nici ecranul partajat.")}</>
-            : t("Tabla partajată nu este activă încă. Poți desena, dar profesorul nu vede desenul.")}
+            ? <>{t("Tabla partajată nu este activă încă: aplică migrarea")} <code>supabase/migrations/0006_lesson_whiteboard.sql</code> {t("în Supabase (SQL Editor). Până atunci apelul video, tabla și ecranul partajat funcționează doar la tine.")}</>
+            : t("Sala online nu este activă încă: apelul video și tabla nu ajung la profesor. Anunță-l pe profesor.")}
         </p>
       )}
+
+      <VideoCall lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 
       <ScreenShare lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 
@@ -53,8 +52,8 @@ export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoo
 
       <p className="mt-3 text-[11px] text-muted">
         {isTeacher
-          ? t("Elevii lecției văd tabla în timp real din portalul lor și pot desena și ei. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei, în pagina lor de lecție. Apelul video se deschide într-o filă nouă.")
-          : t("Tabla este comună cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")}
+          ? t("Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pot desena și ei pe tablă. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.")
+          : t("Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")}
       </p>
       {room.mode === "demo" && <DemoNotice />}
     </div>

@@ -55,12 +55,7 @@ export default async function StudentHome() {
                 <p className="truncate text-[19px] font-extrabold">{next.title}</p>
                 <p className="text-[12px] text-white/80">{dateKey(new Date(next.starts_at), tz) === today ? t("Astăzi") : formatDate(next.starts_at, tz, t.locale)}, {formatTime(next.starts_at, tz, t.locale)}–{formatTime(next.ends_at, tz, t.locale)}{multiTeacher && next.student_id ? ` · ${teacherOf.get(next.student_id) ?? ""}` : ""}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {next.meeting_url
-                  ? <a href={next.meeting_url} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-white px-5 py-2.5 text-[13px] font-extrabold text-primary-2 hover:bg-tint">{t("Intră în lecție")}</a>
-                  : <span className="rounded-xl bg-white/15 px-4 py-2 text-[12px] font-bold">{t("Linkul apare aici înainte de lecție")}</span>}
-                <Link href={`/student/lesson/${next.id}`} className="rounded-xl border border-white/80 px-4 py-2.5 text-[13px] font-bold hover:bg-white/10">{t("Tabla lecției")}</Link>
-              </div>
+              <Link href={`/student/lesson/${next.id}`} className="rounded-xl bg-white px-5 py-2.5 text-[13px] font-extrabold text-primary-2 hover:bg-tint">{t("Intră în lecție")}</Link>
             </div>
           ) : <p className="text-[14px] font-bold">{t("Nu ai lecții programate deocamdată.")}</p>}
         </section>
@@ -95,7 +90,7 @@ export default async function StudentHome() {
                     <p className="truncate text-[13px] font-extrabold">{l.title}</p>
                     <p className="text-[11px] text-muted"><CalendarDays className="mr-1 inline h-3 w-3" />{formatDate(l.starts_at, tz, t.locale)} · {formatTime(l.starts_at, tz, t.locale)}</p>
                   </div>
-                  {l.meeting_url && <a href={l.meeting_url} target="_blank" rel="noopener noreferrer" aria-label={t("Intră în lecție · {title}", { title: l.title })} className="grid h-8 w-8 place-items-center rounded-full bg-tint text-primary-2 hover:bg-[#dfe4fb]"><Video className="h-3.5 w-3.5" /></a>}
+                  <Link href={`/student/lesson/${l.id}`} aria-label={t("Intră în lecție · {title}", { title: l.title })} className="grid h-8 w-8 place-items-center rounded-full bg-tint text-primary-2 hover:bg-[#dfe4fb]"><Video className="h-3.5 w-3.5" /></Link>
                 </div>
               );
             })}

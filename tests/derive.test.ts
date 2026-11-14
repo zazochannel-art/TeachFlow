@@ -45,16 +45,17 @@ describe("notifications and tasks", () => {
   it("highlights the next lesson of today", () => {
     const ws = emptyWorkspace({ lessons: [lesson("l1", "2026-11-14T16:00:00Z", 60, { meeting_url: "https://meet.example.com/x" })] });
     const [first] = notifications(ws, NOW);
-    expect(first).toMatchObject({ kind: "lesson", title: "Lecția următoare", href: "https://meet.example.com/x", external: true });
+    expect(first).toMatchObject({ kind: "lesson", title: "Lecția următoare", href: "/classroom/l1" });
   });
-  it("asks to close finished lessons, add missing links and collect overdue payments", () => {
+  it("asks to close finished lessons, prepare the next ones and collect overdue payments", () => {
     const ws = emptyWorkspace({
       lessons: [lesson("past", "2026-11-13T10:00:00Z", 60), lesson("soon", "2026-11-15T10:00:00Z", 60)],
       payments: [payment("p1", { due_date: "2026-11-10" })]
     });
     const ids = tasks(ws, NOW).map(t => t.id);
     expect(ids).toContain("t-unmarked");
-    expect(ids).toContain("t-link");
+    expect(ids).toContain("t-prep-soon");
+    expect(ids).not.toContain("t-link");
     expect(ids).toContain("t-pay");
   });
   it("returns nothing for an empty account", () => {
@@ -72,12 +73,12 @@ describe("currencyTotals", () => {
 
 describe("gettingStartedSteps", () => {
   it("starts with only the profile done for a new teacher", () => {
-    const steps = gettingStartedSteps(emptyWorkspace(), NOW);
+    const steps = gettingStartedSteps(emptyWorkspace());
     expect(steps.filter(s => s.done).map(s => s.id)).toEqual(["profile"]);
     expect(steps.find(s => !s.done)?.href).toBe("/students?new=1");
   });
-  it("points the link step at the first upcoming lesson without a link", () => {
+  it("no longer asks for an external meeting link (lessons have a built-in video call)", () => {
     const ws = emptyWorkspace({ lessons: [lesson("l9", "2026-11-16T10:00:00Z", 60)] });
-    expect(gettingStartedSteps(ws, NOW).find(s => s.id === "link")?.href).toBe("/calendar?lesson=l9&back=/dashboard");
+    expect(gettingStartedSteps(ws).some(s => s.id === "link")).toBe(false);
   });
 });

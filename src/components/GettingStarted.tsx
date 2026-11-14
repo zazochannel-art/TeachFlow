@@ -6,17 +6,14 @@ import { getT } from "@/lib/i18n/server";
 interface Step { id: string; title: string; text: string; href: string; done: boolean }
 
 /** First-run checklist built from the teacher's real data. Hidden once every step is done. Titles are Romanian source text. */
-export function gettingStartedSteps(ws: Workspace, now = new Date()): Step[] {
+export function gettingStartedSteps(ws: Workspace): Step[] {
   const firstStudent = ws.students[0];
-  const upcoming = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.ends_at) >= now);
-  const withoutLink = upcoming.find(l => !l.meeting_url);
   return [
     { id: "profile", title: "Completează profilul", text: "Numele și fusul orar apar în orar și în mesaje.", href: "/settings", done: Boolean(ws.profile?.full_name?.trim()) },
     { id: "student", title: "Adaugă primul elev", text: "Nume și date de contact.", href: "/students?new=1", done: ws.students.length > 0 },
     { id: "course", title: "Creează un curs sau o grupă", text: "Materie, nivel și preț.", href: "/courses/new", done: ws.courses.length > 0 },
     { id: "enroll", title: "Înscrie elevul la curs", text: "Leagă elevii de cursurile lor.", href: firstStudent ? `/students?edit=${firstStudent.id}` : "/students", done: ws.enrollments.length > 0 },
     { id: "lesson", title: "Programează o lecție", text: "Poate fi și săptămânală, cu repetare.", href: "/calendar?new=1", done: ws.lessons.length > 0 },
-    { id: "link", title: "Adaugă linkul de conectare", text: "Zoom, Meet sau altul, ca lecția să pornească dintr-un clic.", href: withoutLink ? `/calendar?lesson=${withoutLink.id}&back=/dashboard` : "/calendar?new=1", done: ws.lessons.some(l => Boolean(l.meeting_url)) },
   ];
 }
 
