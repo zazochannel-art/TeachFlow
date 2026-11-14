@@ -32,11 +32,11 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const userId = data?.claims?.sub;
   if (error || !userId) redirect("/login?next=/student");
 
-  const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle();
-  if (role?.role !== "student") redirect("/dashboard");
-
+  // The role lookup runs in the same parallel batch as the data (one round trip); RLS already
+  // limits the data, and the role is enforced before anything is returned.
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const [profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
+  const [role, profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
+    supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("full_name, timezone").eq("id", userId).maybeSingle(),
     supabase.from("students").select("id, teacher_id, full_name").eq("user_id", userId),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title"),
@@ -45,6 +45,8 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at").limit(1000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false }).limit(300)
   ]);
+
+  if (role.data?.role !== "student") redirect("/dashboard");
 
   const rows = (students.data ?? []) as Array<{ id: string; teacher_id: string; full_name: string }>;
   const teacherIds = [...new Set(rows.map(r => r.teacher_id))];
