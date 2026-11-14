@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 
 export function StudentNav({ unread }: { unread: number }) {
   const path = usePathname();
   const t = useT();
-  const items = [{ href: "/student", label: "Acasă" }, { href: "/student/messages", label: "Mesaje", badge: unread }];
+  // The messages page marks everything read while it renders, but this layout (and its count) is not
+  // re-rendered on client navigation. Hide the count once seen, until the server sends a different one.
+  const onMessages = path.startsWith("/student/messages");
+  const [seen, setSeen] = useState<number | null>(null);
+  if (onMessages && seen !== unread) setSeen(unread);
+  const badge = onMessages || seen === unread ? 0 : unread;
+  const items = [{ href: "/student", label: "Acasă" }, { href: "/student/messages", label: "Mesaje", badge }];
   return (
     <nav className="order-last flex w-full gap-1 sm:order-none sm:w-auto" aria-label={t("Portal elev")}>
       {items.map(i => {

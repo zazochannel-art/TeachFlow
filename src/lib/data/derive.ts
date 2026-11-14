@@ -208,9 +208,9 @@ export function notifications(ws: Workspace, now = new Date(), t: T = RO): FeedI
 
   const sub = ws.subscription;
   if (sub && (sub.status === "past_due" || sub.status === "expired")) {
-    items.push({ id: "n-sub", kind: "payment", title: t("Abonament"), emphasis: sub.status === "past_due" ? t("Plată restantă") : t("Expirat"), body: t("actualizează metoda de plată"), href: "/payments" });
+    items.push({ id: "n-sub", kind: "payment", title: t("Abonament"), emphasis: sub.status === "past_due" ? t("Plată restantă") : t("Expirat"), body: t("actualizează metoda de plată"), href: "/billing" });
   } else if (sub?.status === "trialing" && sub.current_period_end) {
-    items.push({ id: "n-sub", kind: "payment", title: t("Perioada de probă"), body: t("se încheie pe {date}", { date: date(sub.current_period_end) }), href: "/payments" });
+    items.push({ id: "n-sub", kind: "payment", title: t("Perioada de probă"), body: t("se încheie pe {date}", { date: date(sub.current_period_end) }), href: "/billing" });
   }
   return items.slice(0, 4);
 }
