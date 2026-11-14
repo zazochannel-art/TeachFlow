@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { AuthMessage } from "@/components/auth/AuthMessage";
 
-export function RegisterForm() {
+export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
+  const asStudent = next.startsWith("/invite/");
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -24,12 +25,12 @@ export function RegisterForm() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard` }
+      options: { data: { full_name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` }
     });
     setLoading(false);
     if (error) { setError(authErrorMessage(error.message)); return; }
     // Email confirmation disabled in Supabase: the user is signed in right away.
-    if (data.session) { router.replace("/dashboard"); router.refresh(); return; }
+    if (data.session) { router.replace(next); router.refresh(); return; }
     // Supabase hides existing accounts by returning a user without identities.
     if (data.user && data.user.identities?.length === 0) { setError(authErrorMessage("User already registered")); return; }
     setSentTo(email);
@@ -50,8 +51,8 @@ export function RegisterForm() {
   return (
     <form onSubmit={submit} className="mx-auto w-full max-w-[380px]">
       <Link href="/" className="text-[20px] font-extrabold text-primary md:hidden">TeachFlow</Link>
-      <h1 className="mt-6 text-[24px] font-extrabold tracking-tight text-ink md:mt-0">Creează cont de profesor</h1>
-      <p className="mb-7 mt-1.5 text-[13px] text-muted">Începe să-ți organizezi lecțiile într-un singur loc.</p>
+      <h1 className="mt-6 text-[24px] font-extrabold tracking-tight text-ink md:mt-0">{asStudent ? "Creează contul de elev" : "Creează cont de profesor"}</h1>
+      <p className="mb-7 mt-1.5 text-[13px] text-muted">{asStudent ? "După confirmare, revii la invitație și o accepți." : "Începe să-ți organizezi lecțiile într-un singur loc."}</p>
       <label className="tf-label" htmlFor="name">Nume complet</label>
       <input id="name" className="tf-input mb-4" autoComplete="name" required value={name} onChange={e => setName(e.target.value)} />
       <label className="tf-label" htmlFor="email">Email</label>
@@ -60,7 +61,7 @@ export function RegisterForm() {
       <input id="password" className="tf-input mb-5" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} />
       {error && <AuthMessage tone="error">{error}</AuthMessage>}
       <button className="tf-btn w-full" disabled={loading}>{loading ? "Se creează contul..." : "Creează cont"}</button>
-      <p className="mt-5 text-center text-[12px] text-muted">Ai deja cont? <Link href="/login" className="font-bold text-primary">Autentifică-te</Link></p>
+      <p className="mt-5 text-center text-[12px] text-muted">Ai deja cont? <Link href={next === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(next)}`} className="font-bold text-primary">Autentifică-te</Link></p>
     </form>
   );
 }

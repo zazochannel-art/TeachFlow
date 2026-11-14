@@ -5,6 +5,7 @@ import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace, type Workspace } from "@/lib/data/workspace";
 import { deleteStudent, enrollStudent, removeEnrollment, saveStudent } from "@/lib/actions/students";
 import { formatDate, formatMoney } from "@/lib/time";
+import { StudentAccess } from "@/components/StudentAccess";
 import type { Student } from "@/types/database";
 
 type Params = { q?: string; new?: string; edit?: string; status?: string };
@@ -52,6 +53,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           aside={<form action={deleteStudent}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label="Șterge elevul" confirm="Șterge definitiv" /></form>}>
           <StudentForm ws={ws} demo={demo} student={editing} />
           <Enrollments ws={ws} student={editing} />
+          <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
         </Panel>
       )}
 

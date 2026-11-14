@@ -30,6 +30,8 @@ export interface Student {
   notes: string | null;
   status: "active" | "inactive";
   created_at: string;
+  /** Linked auth user once the student accepted an invite (migration 0003). */
+  user_id?: string | null;
 }
 
 export interface Course {
@@ -86,6 +88,8 @@ export interface Homework {
   grade: string | null;
   feedback: string | null;
   created_at: string;
+  /** Text the student submitted from the portal (migration 0003). */
+  submission?: string | null;
 }
 
 export interface Message {
