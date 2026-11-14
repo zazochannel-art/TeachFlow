@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Nunito } from "next/font/google";
 import "./globals.css";
+
+const nunito = Nunito({ subsets: ["latin", "latin-ext"], variable: "--font-nunito", display: "swap" });
 
 export const metadata: Metadata = {
   title: "TeachFlow — Predă mai simplu",
@@ -7,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ro"><body>{children}</body></html>;
+  return <html lang="ro" className={nunito.variable}><body>{children}</body></html>;
 }
