@@ -6,39 +6,9 @@ import { z } from "zod";
 import { requireTeacher } from "@/lib/data/workspace";
 import { createClient } from "@/lib/supabase/server";
 
-export interface FormState { error?: string; ok?: string }
+import type { FormState } from "@/lib/actions/common";
 
 const DEMO_MSG = "Mod demonstrativ: configurează Supabase pentru a salva date.";
-
-const courseSchema = z.object({
-  title: z.string().trim().min(2, "Numele cursului este prea scurt.").max(120),
-  subject: z.string().trim().max(80).optional(),
-  level: z.string().trim().max(60).optional(),
-  format: z.enum(["individual", "group"]),
-  price: z.string().trim().optional(),
-  currency: z.enum(["MDL", "EUR", "RON", "USD"]),
-  description: z.string().trim().max(1000).optional()
-});
-
-export async function createCourse(_: FormState, formData: FormData): Promise<FormState> {
-  const { supabase, userId } = await requireTeacher();
-  if (!supabase || !userId) return { error: DEMO_MSG };
-
-  const parsed = courseSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
-  const v = parsed.data;
-  const price = v.price ? Number(v.price.replace(",", ".")) : null;
-  if (price != null && (Number.isNaN(price) || price < 0)) return { error: "Prețul trebuie să fie un număr pozitiv." };
-
-  const { error } = await supabase.from("courses").insert({
-    teacher_id: userId, title: v.title, subject: v.subject || null, level: v.level || null,
-    format: v.format, price, currency: v.currency, description: v.description || null
-  });
-  if (error) return { error: error.message };
-
-  revalidatePath("/", "layout");
-  redirect("/courses");
-}
 
 const settingsSchema = z.object({
   full_name: z.string().trim().max(120),
@@ -73,17 +43,6 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
 
   revalidatePath("/", "layout");
   return { ok: "Modificările au fost salvate." };
-}
-
-const statusSchema = z.object({ id: z.string().min(1), status: z.enum(["completed", "cancelled", "no_show"]) });
-
-export async function setLessonStatus(formData: FormData) {
-  const { supabase, userId } = await requireTeacher();
-  if (!supabase || !userId) return;
-  const parsed = statusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
-  await supabase.from("lessons").update({ status: parsed.data.status }).eq("id", parsed.data.id).eq("teacher_id", userId);
-  revalidatePath("/", "layout");
 }
 
 export async function signOut() {

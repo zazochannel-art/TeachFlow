@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateSettings, type FormState } from "../actions";
+import { updateSettings } from "@/lib/actions/settings";
+import type { FormState } from "@/lib/actions/common";
 
 interface Values {
   full_name: string; preferred_language: string; timezone: string;

@@ -1,57 +1,127 @@
-import { CalendarCheck, CreditCard, TrendingUp, Wallet } from "lucide-react";
-import { Card, DemoNotice, PageHeader, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
+import Link from "next/link";
+import { AlertCircle, CalendarCheck, Check, CreditCard, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
+import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, SubjectIcon, Tabs } from "@/components/ui";
+import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { courseCards, currencyTotals } from "@/lib/data/derive";
+import { deletePayment, markPaymentPaid, savePayment } from "@/lib/actions/payments";
 import { dateKey, dayRange, formatDate, formatMoney } from "@/lib/time";
-import type { Lesson } from "@/types/database";
+import type { Lesson, Payment } from "@/types/database";
 
 const planNames = { free: "Free", starter: "Starter", pro: "Pro", premium: "Premium" } as const;
 const statusNames = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
+const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "Altă metodă" } as const;
+type Params = { status?: string; new?: string; edit?: string; student?: string };
 
-export default async function PaymentsPage() {
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const ws = await loadWorkspace();
+  const sp = await searchParams;
+  const demo = ws.mode === "demo";
+  const missing = ws.missingTables.includes("payments");
   const now = new Date();
-  const [y, m] = dateKey(now, ws.timezone).split("-").map(Number);
+  const today = dateKey(now, ws.timezone);
+  const [y, m] = today.split("-").map(Number);
   const monthStart = dayRange(`${y}-${String(m).padStart(2, "0")}-01`, ws.timezone).start;
-  const next = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
-  const monthEnd = dayRange(next, ws.timezone).start;
+  const monthEnd = dayRange(new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10), ws.timezone).start;
   const monthName = new Intl.DateTimeFormat("ro-RO", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
 
   const course = new Map(ws.courses.map(c => [c.id, c]));
+  const student = new Map(ws.students.map(s => [s.id, s]));
   const seats = (courseId: string) => ws.enrollments.filter(e => e.course_id === courseId && e.status === "active").length;
-  // Estimate only: TeachFlow has no payments table yet. Lesson value = course price × participants.
   const value = (l: Lesson) => {
     const c = l.course_id ? course.get(l.course_id) : undefined;
     if (!c || c.price == null) return null;
     return { amount: c.price * (c.format === "group" ? Math.max(1, seats(c.id)) : 1), currency: c.currency };
   };
   const inMonth = ws.lessons.filter(l => new Date(l.starts_at) >= monthStart && new Date(l.starts_at) < monthEnd);
-  const earned = currencyTotals(inMonth.filter(l => l.status === "completed").map(value).filter(v => v != null));
-  const planned = currencyTotals(inMonth.filter(l => l.status === "scheduled" && new Date(l.starts_at) > now).map(value).filter(v => v != null));
-  const doneCount = inMonth.filter(l => l.status === "completed").length;
+  const estimate = currencyTotals(inMonth.filter(l => l.status === "completed").map(value).filter(v => v != null));
+
+  const paidThisMonth = ws.payments.filter(p => p.status === "paid" && p.paid_at && new Date(p.paid_at) >= monthStart && new Date(p.paid_at) < monthEnd);
+  const pending = ws.payments.filter(p => p.status === "pending");
+  const overdue = pending.filter(p => p.due_date && p.due_date < today);
+  const money = (list: Array<{ amount: number; currency: string }>) => list.length ? currencyTotals(list).map(t => formatMoney(t.amount, t.currency)).join(" + ") : "—";
+
+  const filter = (["all", "paid", "pending", "overdue"] as const).find(f => f === sp.status) ?? "all";
+  const list = filter === "all" ? ws.payments : filter === "overdue" ? overdue : ws.payments.filter(p => p.status === filter);
+  const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit) : undefined;
   const sub = ws.subscription;
   const cards = courseCards(ws, true);
-
-  const money = (list: Array<{ amount: number; currency: string }>) => list.length ? list.map(t => formatMoney(t.amount, t.currency)).join(" + ") : "—";
   const stat = "flex items-center gap-4 p-5";
   const icon = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
 
   return (
     <div>
-      <PageHeader title="Finanțe" subtitle={`Rezumat pentru ${monthName}`} />
+      <PageHeader title="Finanțe" subtitle={`Rezumat pentru ${monthName}`}
+        action={!missing && <Link href="/payments?new=1" className="tf-btn"><Plus className="h-4 w-4" /> Înregistrează plată</Link>} />
+      {missing && <MigrationNotice table="payments" />}
+
+      {(sp.new || editing) && !missing && (
+        <Panel title={editing ? "Editează plata" : "Plată nouă"} closeHref={`/payments?status=${filter}`}>
+          <PaymentForm demo={demo} payment={editing} defaultStudent={sp.student} today={today} ws={ws} />
+        </Panel>
+      )}
+
       <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className={`${stat} rounded-[20px] bg-primary text-white shadow-lift`}>
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/20"><Wallet className="h-5 w-5" /></span>
-          <div><p className="text-[11px] text-white/80">Încasări estimate</p><p className="text-[18px] font-extrabold">{money(earned)}</p></div>
+          <div><p className="text-[11px] text-white/80">Încasat luna aceasta</p><p className="text-[18px] font-extrabold">{missing ? "—" : money(paidThisMonth)}</p></div>
         </div>
-        <Card className={stat}><span className={icon}><TrendingUp className="h-5 w-5" /></span><div><p className="text-[11px] text-muted">Programat restul lunii</p><p className="text-[18px] font-extrabold">{money(planned)}</p></div></Card>
-        <Card className={stat}><span className={icon}><CalendarCheck className="h-5 w-5" /></span><div><p className="text-[11px] text-muted">Lecții ținute</p><p className="text-[18px] font-extrabold">{doneCount}</p></div></Card>
+        <Card className={stat}><span className={`${icon} ${overdue.length ? "bg-[#fdecec] text-[#c03a3a]" : ""}`}><AlertCircle className="h-5 w-5" /></span><div>
+          <p className="text-[11px] text-muted">De încasat{overdue.length ? ` · ${overdue.length} restante` : ""}</p><p className="text-[18px] font-extrabold">{money(pending)}</p>
+        </div></Card>
+        <Card className={stat}><span className={icon}><TrendingUp className="h-5 w-5" /></span><div>
+          <p className="text-[11px] text-muted">Valoarea lecțiilor ținute</p><p className="text-[18px] font-extrabold">{money(estimate)}</p>
+          <p className="text-[10px] text-muted">{inMonth.filter(l => l.status === "completed").length} lecții × preț curs</p>
+        </div></Card>
         <Card className={stat}><span className={icon}><CreditCard className="h-5 w-5" /></span><div>
           <p className="text-[11px] text-muted">Abonament TeachFlow</p>
           <p className="text-[18px] font-extrabold">{sub ? planNames[sub.plan_code] : "—"}</p>
           {sub && <p className="text-[10px] text-muted">{statusNames[sub.status]}{sub.current_period_end ? ` · până la ${formatDate(sub.current_period_end, ws.timezone)}` : ""}</p>}
         </div></Card>
       </div>
+
+      {!missing && (
+        <>
+          <SectionTitle>Plăți</SectionTitle>
+          <Tabs active={filter} items={[
+            { key: "all", label: "Toate", href: "/payments", count: ws.payments.length },
+            { key: "paid", label: "Încasate", href: "/payments?status=paid", count: ws.payments.length - pending.length },
+            { key: "pending", label: "De încasat", href: "/payments?status=pending", count: pending.length },
+            { key: "overdue", label: "Restante", href: "/payments?status=overdue", count: overdue.length }
+          ]} />
+          {list.length === 0 ? (
+            <EmptyState icon={CalendarCheck} title="Nicio plată aici" text="Înregistrează plățile primite de la elevi sau sumele de încasat, cu termen de plată." action={<Link href="/payments?new=1" className="tf-btn">Înregistrează o plată</Link>} />
+          ) : (
+            <Card className="mb-8 overflow-hidden">
+              {list.map(p => {
+                const st = student.get(p.student_id);
+                const late = p.status === "pending" && p.due_date && p.due_date < today;
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line/70 px-5 py-4 text-[12px] last:border-0">
+                    <Avatar name={st?.full_name ?? "?"} size={38} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-extrabold">{st?.full_name ?? "Elev șters"}</div>
+                      <div className="truncate text-muted">{[p.course_id ? course.get(p.course_id)?.title : null, p.method ? methods[p.method] : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
+                    </div>
+                    <div className="text-muted">{p.status === "paid" ? `încasat ${p.paid_at ? formatDate(p.paid_at, ws.timezone) : ""}` : p.due_date ? `termen ${formatDate(`${p.due_date}T12:00:00Z`, "UTC")}` : "fără termen"}</div>
+                    <Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? "Încasată" : late ? "Restantă" : "De încasat"}</Pill>
+                    <div className="w-28 text-right text-[13px] font-extrabold">{formatMoney(p.amount, p.currency)}</div>
+                    <div className="flex items-center gap-2">
+                      {p.status === "pending" && (
+                        <form action={markPaymentPaid}><input type="hidden" name="id" value={p.id} />
+                          <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> Încasată</SubmitButton>
+                        </form>
+                      )}
+                      <Link href={`/payments?status=${filter}&edit=${p.id}`} aria-label="Editează plata" className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
+                      <form action={deletePayment}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="×" confirm="Șterge" className="py-1.5" /></form>
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+        </>
+      )}
 
       <SectionTitle>Prețuri pe curs</SectionTitle>
       <Card className="overflow-hidden">
@@ -66,13 +136,53 @@ export default async function PaymentsPage() {
                 <div className="text-muted">{c.format === "group" ? `Grupă · ${card.studentCount} elevi` : "Individual"}</div>
               </div>
               <Pill tone={c.is_active ? "green" : "gray"}>{c.is_active ? "Activ" : "Inactiv"}</Pill>
-              <div className="w-28 text-right font-extrabold">{c.price != null ? `${formatMoney(c.price, c.currency)} / lecție` : "—"}</div>
+              <Link href={`/courses?edit=${c.id}`} className="w-32 text-right font-extrabold hover:text-primary">{c.price != null ? `${formatMoney(c.price, c.currency)} / lecție` : "Setează prețul"}</Link>
             </div>
           );
         })}
       </Card>
-      <p className="mt-4 text-[11px] text-muted">Sumele sunt estimate din lecțiile finalizate și prețul cursului (× elevii înscriși pentru grupe). Plățile efective vor apărea aici odată cu modulul de plăți.</p>
-      {ws.mode === "demo" && <DemoNotice />}
+      {demo && <DemoNotice />}
     </div>
+  );
+}
+
+function PaymentForm({ ws, demo, payment, defaultStudent, today }: { ws: Awaited<ReturnType<typeof loadWorkspace>>; demo: boolean; payment?: Payment; defaultStudent?: string; today: string }) {
+  const date = payment?.status === "paid" && payment.paid_at ? dateKey(new Date(payment.paid_at), ws.timezone) : payment?.due_date ?? today;
+  return (
+    <ActionForm action={savePayment} demo={demo} submitLabel={payment ? "Salvează" : "Înregistrează"}>
+      {payment && <input type="hidden" name="id" value={payment.id} />}
+      <Field label="Elev" htmlFor="student_id">
+        <select id="student_id" name="student_id" required defaultValue={payment?.student_id ?? defaultStudent ?? ""} className="tf-input">
+          <option value="" disabled>Alege elevul…</option>
+          {ws.students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
+      </Field>
+      <Field label="Curs (opțional)" htmlFor="course_id">
+        <select id="course_id" name="course_id" defaultValue={payment?.course_id ?? ""} className="tf-input">
+          <option value="">—</option>
+          {ws.courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+        </select>
+      </Field>
+      <div className="grid grid-cols-[1fr_96px] gap-3">
+        <Field label="Sumă" htmlFor="amount"><input id="amount" name="amount" required inputMode="decimal" defaultValue={payment?.amount?.toString() ?? ""} className="tf-input" /></Field>
+        <Field label="Monedă" htmlFor="currency">
+          <select id="currency" name="currency" defaultValue={payment?.currency ?? ws.teacherProfile?.currency ?? "MDL"} className="tf-input">{["MDL", "EUR", "RON", "USD"].map(c => <option key={c}>{c}</option>)}</select>
+        </Field>
+      </div>
+      <Field label="Status" htmlFor="status">
+        <select id="status" name="status" defaultValue={payment?.status ?? "paid"} className="tf-input">
+          <option value="paid">Încasată</option>
+          <option value="pending">De încasat</option>
+        </select>
+      </Field>
+      <Field label="Data încasării / termenul" htmlFor="date"><input id="date" name="date" type="date" required defaultValue={date} className="tf-input" /></Field>
+      <Field label="Metodă" htmlFor="method">
+        <select id="method" name="method" defaultValue={payment?.method ?? ""} className="tf-input">
+          <option value="">—</option>
+          {Object.entries(methods).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </Field>
+      <Field label="Notă" htmlFor="note" wide><input id="note" name="note" defaultValue={payment?.note ?? ""} className="tf-input" placeholder="ex. abonament 8 lecții" /></Field>
+    </ActionForm>
   );
 }

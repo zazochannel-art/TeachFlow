@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LinkIcon, Video } from "lucide-react";
+import { LinkIcon, Pencil, Video } from "lucide-react";
 import { Card, DemoNotice, EmptyState, PageHeader, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, toSlot } from "@/lib/data/derive";
@@ -17,7 +17,7 @@ export default async function ClassroomPage() {
 
   return (
     <div>
-      <PageHeader title="Lecții online" subtitle="Intră în lecție cu un singur clic." />
+      <PageHeader title="Lecții online" subtitle="Intră în lecție cu un singur clic." action={<Link href="/calendar?new=1&back=/classroom" className="tf-btn">+ Lecție nouă</Link>} />
 
       {hero ? (
         <div className="mb-8 flex flex-wrap items-center justify-between gap-5 rounded-[26px] bg-primary p-6 text-white shadow-lift">
@@ -31,7 +31,7 @@ export default async function ClassroomPage() {
           </div>
           {hero.meetingUrl
             ? <a href={hero.meetingUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-white/80 px-5 py-2.5 text-[13px] font-bold hover:bg-white/10"><Video className="h-4 w-4" fill="currentColor" /> Începe lecția</a>
-            : <span className="rounded-xl bg-white/15 px-4 py-2 text-[12px] font-bold">Adaugă un link de întâlnire lecției</span>}
+            : <Link href={`/calendar?lesson=${hero.id}&back=/classroom`} className="rounded-xl bg-white/15 px-4 py-2 text-[12px] font-bold hover:bg-white/25">Adaugă linkul lecției</Link>}
         </div>
       ) : (
         <div className="mb-8"><EmptyState icon={Video} title="Nicio lecție acum" text="Când o lecție începe sau urmează astăzi, o vei găsi aici cu butonul de pornire." action={<Link href="/calendar" className="tf-btn">Vezi calendarul</Link>} /></div>
@@ -49,7 +49,8 @@ export default async function ClassroomPage() {
               </div>
               {s.meetingUrl
                 ? <a href={s.meetingUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[11px] font-bold text-primary-2 hover:bg-[#dfe4fb]"><LinkIcon className="h-3.5 w-3.5" /> Link</a>
-                : <Pill tone="amber">Link lipsă</Pill>}
+                : <Link href={`/calendar?lesson=${s.id}&back=/classroom`}><Pill tone="amber">Adaugă link</Pill></Link>}
+              <Link href={`/calendar?lesson=${s.id}&back=/classroom`} aria-label={`Editează ${s.title}`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
             </Card>
           ))}
         </div>

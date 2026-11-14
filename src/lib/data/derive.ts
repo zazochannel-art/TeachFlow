@@ -141,6 +141,41 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
     });
   }
 
+  const studentName = new Map(ws.students.map(s => [s.id, s.full_name]));
+  const courseTitle = new Map(ws.courses.map(c => [c.id, c.title]));
+
+  const submitted = ws.homework.filter(h => h.status === "submitted").sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+  if (submitted.length) {
+    const h = submitted[0];
+    items.push({
+      id: `n-hw-${h.id}`, kind: "homework",
+      title: submitted.length > 1 ? "Teme predate" : studentName.get(h.student_id) ?? "Elev",
+      emphasis: submitted.length > 1 ? String(submitted.length) : undefined,
+      body: submitted.length > 1 ? `teme noi · ultima de la ${studentName.get(h.student_id) ?? "un elev"}` : `a predat tema „${h.title}”`,
+      href: "/homework?status=submitted", subject: subjectKind(h.course_id ? ws.courses.find(c => c.id === h.course_id)?.subject ?? null : null, h.title)
+    });
+  }
+
+  const unread = ws.messages.filter(m => m.direction === "incoming" && !m.read_at);
+  if (unread.length) {
+    const m = unread[unread.length - 1];
+    const who = studentName.get(m.student_id) ?? "Elev";
+    items.push({
+      id: `n-msg-${m.id}`, kind: "student", title: unread.length > 1 ? `${unread.length} mesaje noi` : who,
+      body: unread.length > 1 ? `${who}: ${m.body}` : m.body, href: `/messages?student=${m.student_id}`
+    });
+  }
+
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(now);
+  const overdue = ws.payments.filter(p => p.status === "pending" && p.due_date && p.due_date < todayKey);
+  if (overdue.length) {
+    const p = overdue[0];
+    items.push({ id: `n-pay-${p.id}`, kind: "payment", title: studentName.get(p.student_id) ?? "Plată", emphasis: overdue.length > 1 ? `${overdue.length} plăți restante` : "Plată restantă", body: `· ${p.amount} ${p.currency}`, href: "/payments?status=overdue" });
+  } else {
+    const paid = ws.payments.filter(p => p.status === "paid" && p.paid_at && now.getTime() - new Date(p.paid_at).getTime() < 3 * DAY)[0];
+    if (paid) items.push({ id: `n-paid-${paid.id}`, kind: "payment", title: studentName.get(paid.student_id) ?? "Plată", emphasis: `${paid.amount} ${paid.currency}`, body: `încasat ${formatDate(paid.paid_at!, tz)}`, href: "/payments?status=paid" });
+  }
+
   const recent = ws.lessons
     .filter(l => (l.status === "completed" || l.status === "no_show") && now.getTime() - new Date(l.ends_at).getTime() < 7 * DAY && new Date(l.ends_at) <= now)
     .slice(-2).reverse();
@@ -155,8 +190,6 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
     });
   }
 
-  const studentName = new Map(ws.students.map(s => [s.id, s.full_name]));
-  const courseTitle = new Map(ws.courses.map(c => [c.id, c.title]));
   ws.enrollments
     .filter(e => now.getTime() - new Date(e.enrolled_at).getTime() < 14 * DAY)
     .sort((a, b) => b.enrolled_at.localeCompare(a.enrolled_at))
@@ -177,11 +210,24 @@ export function notifications(ws: Workspace, now = new Date()): FeedItem[] {
   return items.slice(0, 4);
 }
 
+/** Small counters for the sidebar. */
+export function badges(ws: Workspace) {
+  return {
+    "/homework": ws.homework.filter(h => h.status === "submitted").length,
+    "/messages": ws.messages.filter(m => m.direction === "incoming" && !m.read_at).length
+  } as Record<string, number>;
+}
+
 /** Things the teacher should do, derived from lessons and enrollments. */
 export function tasks(ws: Workspace, now = new Date()): FeedItem[] {
   const items: FeedItem[] = [];
   const tz = ws.timezone;
   const t = now.getTime();
+
+  const toReview = ws.homework.filter(h => h.status === "submitted");
+  if (toReview.length) {
+    items.push({ id: "t-hw", kind: "homework", title: "Teme de verificat", emphasis: String(toReview.length), body: toReview.length === 1 ? `temă: ${toReview[0].title}` : "teme predate așteaptă nota", href: "/homework?status=submitted" });
+  }
 
   const unmarked = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.ends_at).getTime() < t);
   if (unmarked.length) {
@@ -206,6 +252,12 @@ export function tasks(ws: Workspace, now = new Date()): FeedItem[] {
       id: `t-prep-${l.id}`, kind: "prepare", title: l.title, emphasis: formatTime(l.starts_at, tz),
       body: `pregătește lecția · ${formatDate(l.starts_at, tz)}`, href: "/calendar", subject: subjectKind(course?.subject ?? null, l.title)
     });
+  }
+
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(now);
+  const dueSoon = ws.payments.filter(p => p.status === "pending" && p.due_date && p.due_date <= new Date(t + 3 * DAY).toISOString().slice(0, 10));
+  if (dueSoon.length) {
+    items.push({ id: "t-pay", kind: "payment", title: "Plăți de încasat", emphasis: String(dueSoon.length), body: dueSoon.some(p => p.due_date! < todayKey) ? "include plăți restante" : "cu termen în următoarele 3 zile", href: "/payments?status=pending" });
   }
 
   const enrolledIds = new Set(ws.enrollments.filter(e => e.status === "active").map(e => e.student_id));

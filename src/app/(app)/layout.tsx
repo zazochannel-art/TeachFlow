@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar, type CurrentLessonChip } from "@/components/shell/TopBar";
 import { loadWorkspace } from "@/lib/data/workspace";
-import { currentLesson, notifications } from "@/lib/data/derive";
+import { badges, currentLesson, notifications } from "@/lib/data/derive";
 import { dateKey, formatTime } from "@/lib/time";
 
 /**
@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen justify-center bg-canvas md:p-5 lg:p-7 xl:p-9">
       <div className="flex w-full max-w-[1440px] overflow-hidden bg-white shadow-[0_24px_60px_-20px_rgba(17,16,79,0.18)] md:min-h-[calc(100vh-40px)] md:rounded-[34px] lg:min-h-[calc(100vh-56px)] xl:min-h-[min(calc(100vh-72px),900px)]">
-        <Sidebar />
+        <Sidebar badges={badges(ws)} />
         <div className="flex min-w-0 flex-1 flex-col px-4 pb-28 pt-5 md:px-8 md:pb-7 md:pt-7 xl:px-9">
           <Suspense fallback={<div className="mb-7 h-[54px]" />}>
             <TopBar

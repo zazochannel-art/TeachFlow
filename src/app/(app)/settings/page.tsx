@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import { Avatar, Card, DemoNotice, PageHeader, SectionTitle } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
-import { signOut } from "../actions";
+import { signOut } from "@/lib/actions/settings";
 import { SettingsForm } from "./SettingsForm";
 
 export default async function SettingsPage() {

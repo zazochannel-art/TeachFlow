@@ -70,3 +70,43 @@ export interface Subscription {
   status: SubscriptionStatus;
   current_period_end: string | null;
 }
+
+export type HomeworkStatus = "assigned" | "submitted" | "reviewed";
+
+export interface Homework {
+  id: string;
+  student_id: string;
+  course_id: string | null;
+  lesson_id: string | null;
+  title: string;
+  description: string | null;
+  due_at: string | null;
+  status: HomeworkStatus;
+  submitted_at: string | null;
+  grade: string | null;
+  feedback: string | null;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  student_id: string;
+  direction: "outgoing" | "incoming";
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  student_id: string;
+  course_id: string | null;
+  amount: number;
+  currency: Currency;
+  status: "paid" | "pending";
+  due_date: string | null;
+  paid_at: string | null;
+  method: "cash" | "card" | "transfer" | "other" | null;
+  note: string | null;
+  created_at: string;
+}

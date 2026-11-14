@@ -20,7 +20,7 @@ export const navItems = [
 ] as const;
 
 /** Narrow dark-indigo rail with icon + label items and a tab-shaped active highlight. */
-export function Sidebar() {
+export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
@@ -43,7 +43,10 @@ export function Sidebar() {
                   active ? "rounded-l-[24px] bg-primary text-white shadow-md" : "text-white/75 hover:text-white"
                 }`}
               >
-                <Icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                <span className="relative">
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                  {badges[href] > 0 && <span className="absolute -right-2.5 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] font-extrabold text-white ring-2 ring-navy">{badges[href]}</span>}
+                </span>
                 <span className="px-1 text-center text-[10px] font-semibold leading-tight tracking-tight">{label}</span>
               </Link>
             );
@@ -58,7 +61,10 @@ export function Sidebar() {
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined}
               className={`flex min-w-[68px] flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 ${active ? "bg-primary" : "text-white/75"}`}>
-              <Icon className="h-[18px] w-[18px]" />
+              <span className="relative">
+                <Icon className="h-[18px] w-[18px]" />
+                {badges[href] > 0 && <span className="absolute -right-2 -top-1.5 h-2.5 w-2.5 rounded-full bg-[#8fa0ff] ring-2 ring-navy" />}
+              </span>
               <span className="whitespace-nowrap text-[9px] font-semibold">{label}</span>
             </Link>
           );

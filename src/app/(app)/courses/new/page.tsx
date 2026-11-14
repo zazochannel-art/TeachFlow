@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
-import { CourseForm } from "./CourseForm";
+import { CourseForm } from "@/components/CourseForm";
 
 export default async function NewCoursePage() {
   const ws = await loadWorkspace();

@@ -155,3 +155,45 @@ export function Pill({ children, tone = "blue" }: { children: ReactNode; tone?: 
 export function DemoNotice() {
   return <p className="mt-6 text-[11px] text-muted">Mod demonstrativ · Supabase nu este configurat, iar datele afișate sunt exemple. Configurează <code>.env.local</code> pentru datele tale reale.</p>;
 }
+
+/** Inline editor panel opened via a URL parameter (?new=1, ?edit=id), closed by a link. */
+export function Panel({ title, closeHref, children, aside }: { title: string; closeHref: string; children: ReactNode; aside?: ReactNode }) {
+  return (
+    <Card className="mb-6 p-6">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-extrabold text-ink">{title}</h2>
+        <div className="flex items-center gap-2">{aside}<Link href={closeHref} className="tf-btn-ghost px-3 py-1.5 text-[12px]">Închide</Link></div>
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+export function Field({ label, htmlFor, children, wide = false }: { label: string; htmlFor?: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className={wide ? "sm:col-span-2" : ""}>
+      <label className="tf-label" htmlFor={htmlFor}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+export function MigrationNotice({ table }: { table: string }) {
+  return (
+    <div className="mb-6 rounded-[20px] border border-[#f3dfb3] bg-[#fff8e8] p-4 text-[12px] text-[#7a5410]">
+      Tabelul <code>{table}</code> nu există încă în baza ta de date. Aplică <code>supabase/migrations/0002_homework_messages_payments.sql</code> în Supabase SQL Editor pentru a activa această pagină.
+    </div>
+  );
+}
+
+export function Tabs({ items, active }: { items: Array<{ key: string; label: string; href: string; count?: number }>; active: string }) {
+  return (
+    <div className="tf-scroll mb-5 flex gap-2 overflow-x-auto">
+      {items.map(t => (
+        <Link key={t.key} href={t.href} className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-[12px] font-bold ${t.key === active ? "bg-primary text-white" : "bg-white text-muted shadow-card hover:text-ink"}`}>
+          {t.label}{t.count != null && <span className={`rounded-full px-1.5 text-[10px] ${t.key === active ? "bg-white/20" : "bg-soft"}`}>{t.count}</span>}
+        </Link>
+      ))}
+    </div>
+  );
+}

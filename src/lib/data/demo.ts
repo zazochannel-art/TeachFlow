@@ -1,6 +1,6 @@
 import { DEFAULT_TZ, addDays, dateKey, zonedToUtc } from "@/lib/time";
 import type { Workspace } from "./workspace";
-import type { Course, Enrollment, Lesson, Student } from "@/types/database";
+import type { Course, Enrollment, Homework, Lesson, Message, Payment, Student } from "@/types/database";
 
 // Shown only when Supabase is not configured (see README). The UI labels it as demo data.
 
@@ -75,11 +75,31 @@ export function buildDemoWorkspace(): Workspace {
   }
   lessons.sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
+  const ago = (days: number, h = 0) => new Date(now.getTime() - days * 86400000 - h * 3600000).toISOString();
+  const homework: Homework[] = [
+    { id: "demo-h0", student_id: "demo-s0", course_id: "demo-c0", lesson_id: null, title: "Essay: My city", description: "200 de cuvinte", due_at: ago(-2), status: "submitted", submitted_at: ago(0, 3), grade: null, feedback: null, created_at: ago(5) },
+    { id: "demo-h1", student_id: "demo-s1", course_id: "demo-c0", lesson_id: null, title: "Essay: My city", description: "200 de cuvinte", due_at: ago(-2), status: "submitted", submitted_at: ago(1), grade: null, feedback: null, created_at: ago(5) },
+    { id: "demo-h2", student_id: "demo-s4", course_id: "demo-c1", lesson_id: null, title: "Ecuații de gradul II — fișa 3", description: null, due_at: ago(-4), status: "assigned", submitted_at: null, grade: null, feedback: null, created_at: ago(2) },
+    { id: "demo-h3", student_id: "demo-s2", course_id: "demo-c3", lesson_id: null, title: "Gama Do major", description: null, due_at: ago(1), status: "reviewed", submitted_at: ago(2), grade: "9", feedback: "Ritm bun, atenție la degetul 4.", created_at: ago(8) }
+  ];
+  const messages: Message[] = [
+    { id: "demo-m0", student_id: "demo-s0", direction: "incoming", body: "Bună ziua! Am trimis eseul, puteți să-l verificați?", read_at: null, created_at: ago(0, 2) },
+    { id: "demo-m1", student_id: "demo-s0", direction: "outgoing", body: "Mulțumesc, Maria! Îl verific până mâine.", read_at: ago(0, 1), created_at: ago(0, 1) },
+    { id: "demo-m2", student_id: "demo-s4", direction: "incoming", body: "Putem muta lecția de joi la 17:00?", read_at: null, created_at: ago(0, 5) },
+    { id: "demo-m3", student_id: "demo-s2", direction: "outgoing", body: "Exersează gama de 10 minute pe zi.", read_at: ago(3), created_at: ago(3) }
+  ];
+  const payments: Payment[] = [
+    { id: "demo-p0", student_id: "demo-s0", course_id: "demo-c0", amount: 1000, currency: "MDL", status: "paid", due_date: null, paid_at: ago(3), method: "transfer", note: "Abonament 4 lecții", created_at: ago(3) },
+    { id: "demo-p1", student_id: "demo-s2", course_id: "demo-c3", amount: 1400, currency: "MDL", status: "paid", due_date: null, paid_at: ago(6), method: "card", note: null, created_at: ago(6) },
+    { id: "demo-p2", student_id: "demo-s4", course_id: "demo-c1", amount: 1200, currency: "MDL", status: "pending", due_date: ago(1).slice(0, 10), paid_at: null, method: null, note: null, created_at: ago(10) },
+    { id: "demo-p3", student_id: "demo-s7", course_id: "demo-c2", amount: 800, currency: "MDL", status: "pending", due_date: ago(-5).slice(0, 10), paid_at: null, method: null, note: null, created_at: ago(2) }
+  ];
+
   return {
     mode: "demo", userId: null, email: null, timezone: tz,
     profile: { full_name: "Profesor Demo", avatar_url: null, preferred_language: "ro", timezone: tz },
     teacherProfile: null,
     subscription: { plan_code: "free", status: "trialing", current_period_end: new Date(now.getTime() + 5 * 86400000).toISOString() },
-    students, courses, enrollments, lessons
+    students, courses, enrollments, lessons, homework, messages, payments, missingTables: []
   };
 }
