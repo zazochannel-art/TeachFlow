@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet } from "lucide-react";
+import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, PageHeader, Panel, Pill, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace, type Workspace } from "@/lib/data/workspace";
@@ -36,6 +36,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               <input name="q" defaultValue={q} placeholder="Caută după nume, email, telefon" aria-label="Caută elevi" className="w-48 bg-transparent text-[12px] outline-none sm:w-56" />
               {filter !== "active" && <input type="hidden" name="status" value={filter} />}
             </form>
+            {ws.students.length > 0 && <a href="/students/export" download className="tf-btn-ghost h-11" title="Descarcă lista de elevi (CSV, se deschide în Excel)"><Download className="h-4 w-4" /> Exportă</a>}
             <Link href="/students?new=1" className="tf-btn h-11"><Plus className="h-4 w-4" /> Elev nou</Link>
           </div>
         }
