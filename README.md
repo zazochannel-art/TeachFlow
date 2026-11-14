@@ -19,7 +19,7 @@ Open http://localhost:3000.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Project URL and publishable key from the Supabase project Connect/API settings.
 4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, then `0002_homework_messages_payments.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing.
-5. Configure the Auth email provider and redirect URLs for `http://localhost:3000/**`.
+5. Configure the Auth email provider. Under Authentication → URL Configuration set the Site URL to your production domain and add redirect URLs for `http://localhost:3000/**` and `https://<your-domain>/**`. Email links land on `/auth/callback`, which signs the user in and continues to the dashboard (or to `/reset-password` for password recovery).
 6. Restart the dev server.
 
 Without Supabase environment variables, the dashboard displays clearly marked demo data. Authentication actions require Supabase configuration.
