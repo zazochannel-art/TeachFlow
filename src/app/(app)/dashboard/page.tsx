@@ -22,7 +22,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <div className="grid flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
       {/* Center column */}
       <div className="flex min-w-0 flex-col">
-        {ws.mode === "live" && <GettingStarted steps={gettingStartedSteps(ws, now)} />}
+        {ws.mode === "live" && <GettingStarted steps={gettingStartedSteps(ws)} />}
         <section>
           <SectionTitle action={cards.length > 4 ? <Link href="/courses" className="text-[11px] font-bold text-primary">{t("Vezi toate")}</Link> : undefined}>
             {t("Cursurile și grupele tale")}

@@ -21,8 +21,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     title: lesson.title,
     time: formatTime(lesson.starts_at, ws.timezone, t.locale),
     running: new Date(lesson.starts_at) <= now,
-    href: lesson.meeting_url ?? "/classroom",
-    external: !!lesson.meeting_url
+    href: `/classroom/${lesson.id}`,
+    external: false
   } : null;
   const name = ws.profile?.full_name || ws.email?.split("@")[0] || t("Profesor");
 

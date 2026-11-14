@@ -5,7 +5,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt
 
 function sections(d: Digest, t: T) {
   return [
-    { title: t("Lecțiile de mâine"), items: d.tomorrow, note: d.noLink ? t.n("{n} lecție nu are încă link de conectare.|{n} lecții nu au încă link de conectare.|{n} de lecții nu au încă link de conectare.", d.noLink) : null, path: "/calendar" },
+    { title: t("Lecțiile de mâine"), items: d.tomorrow, note: null, path: "/calendar" },
     { title: t("Teme de verificat"), items: d.review, note: null, path: "/homework?status=submitted" },
     { title: t("Plăți restante"), items: d.overdue, note: null, path: "/payments?status=overdue" }
   ].filter(s => s.items.length);

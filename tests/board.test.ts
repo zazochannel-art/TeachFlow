@@ -109,3 +109,23 @@ describe("sanitizeSignal", () => {
     expect(userOfKey("1b2c-uuid:ab12cd34")).toBe("1b2c-uuid");
   });
 });
+
+import { sanitizeCallSignal } from "@/lib/board/rtc";
+
+describe("sanitizeCallSignal", () => {
+  it("accepts call signals and trims names", () => {
+    expect(sanitizeCallSignal({ type: "hello", from: "u:1", name: "x".repeat(100), role: "student", mic: false, cam: true }))
+      .toEqual({ type: "hello", from: "u:1", name: "x".repeat(60), role: "student", mic: false, cam: true });
+    expect(sanitizeCallSignal({ type: "offer", from: "a:1", to: "b:2", sdp: "v=0", name: "Ana", role: "teacher", mic: true, cam: true }))
+      .toEqual({ type: "offer", from: "a:1", to: "b:2", sdp: "v=0", name: "Ana", role: "teacher", mic: true, cam: true });
+    expect(sanitizeCallSignal({ type: "bye", from: "a:1" })).toEqual({ type: "bye", from: "a:1" });
+    expect(sanitizeCallSignal({ type: "state", from: "a:1", mic: false })).toEqual({ type: "state", from: "a:1", mic: false, cam: true });
+  });
+
+  it("rejects bad roles, missing targets and unknown types", () => {
+    expect(sanitizeCallSignal({ type: "hello", from: "u:1", name: "A", role: "admin" })).toBeNull();
+    expect(sanitizeCallSignal({ type: "here", from: "u:1", name: "A", role: "student" })).toBeNull();
+    expect(sanitizeCallSignal({ type: "offer", from: "a:1", to: "b:2", name: "A", role: "student" })).toBeNull();
+    expect(sanitizeCallSignal({ type: "start", from: "a:1" })).toBeNull();
+  });
+});

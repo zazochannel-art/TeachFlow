@@ -13,7 +13,6 @@ export interface DigestInput {
 export interface Digest {
   subject: string;
   tomorrow: string[];
-  noLink: number;
   review: string[];
   overdue: string[];
   /** False when there is nothing worth an email. */
@@ -33,9 +32,8 @@ export function buildDigest(input: DigestInput, now: Date, t: T): Digest {
   const tomorrow = tomorrowLessons.map(l => {
     const who = l.student_id ? name.get(l.student_id) : null;
     const time = `${formatTime(l.starts_at, tz, t.locale)}–${formatTime(l.ends_at, tz, t.locale)}`;
-    return `${time} · ${l.title}${who && !l.title.includes(who) ? ` · ${who}` : ""}${l.meeting_url ? "" : ` (${t("fără link")})`}`;
+    return `${time} · ${l.title}${who && !l.title.includes(who) ? ` · ${who}` : ""}`;
   });
-  const noLink = tomorrowLessons.filter(l => !l.meeting_url).length;
 
   const review = input.homework
     .filter(h => h.status === "submitted")
@@ -54,7 +52,7 @@ export function buildDigest(input: DigestInput, now: Date, t: T): Digest {
 
   return {
     subject: parts.length ? `TeachFlow · ${parts.join(" · ")}` : "TeachFlow",
-    tomorrow, noLink, review, overdue,
+    tomorrow, review, overdue,
     hasContent: parts.length > 0
   };
 }

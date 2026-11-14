@@ -142,7 +142,7 @@ export function notifications(ws: Workspace, now = new Date(), t: T = RO): FeedI
       title: running ? t("E timpul lecției!") : t("Lecția următoare"),
       body: running ? t("a început la {time} · în desfășurare", { time: time(cur.starts_at) }) : t("astăzi la {time}", { time: time(cur.starts_at) }),
       emphasis: cur.title,
-      href: cur.meeting_url ?? "/classroom", external: !!cur.meeting_url
+      href: `/classroom/${cur.id}`
     });
   }
 
@@ -247,12 +247,7 @@ export function tasks(ws: Workspace, now = new Date(), t: T = RO): FeedItem[] {
   }
 
   const upcoming = ws.lessons.filter(l => l.status === "scheduled" && new Date(l.starts_at).getTime() > ms && new Date(l.starts_at).getTime() - ms < 2 * DAY);
-  const noLink = upcoming.filter(l => !l.meeting_url);
-  if (noLink.length) {
-    items.push({ id: "t-link", kind: "admin", title: noLink[0].title, emphasis: t("Link lipsă"), body: t("pentru {date}, {time}", { date: date(noLink[0].starts_at), time: time(noLink[0].starts_at) }), href: "/classroom" });
-  }
-
-  const nextFew = upcoming.filter(l => l.meeting_url).slice(0, 2);
+  const nextFew = upcoming.slice(0, 2);
   for (const l of nextFew) {
     const course = ws.courses.find(c => c.id === l.course_id);
     items.push({

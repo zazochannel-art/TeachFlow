@@ -33,7 +33,7 @@ export async function LessonForm({ ws, lesson, date, courseId, back }: { ws: Wor
         <Field label={t("Ora")} htmlFor="time"><input id="time" name="time" type="time" required defaultValue={lesson ? formatTime(lesson.starts_at, ws.timezone) : "10:00"} className="tf-input" /></Field>
         <Field label={t("Durata (min)")} htmlFor="duration"><input id="duration" name="duration" type="number" min={15} max={480} step={5} required defaultValue={duration} className="tf-input" /></Field>
       </div>
-      <Field label={t("Link lecție online")} htmlFor="meeting_url"><input id="meeting_url" name="meeting_url" type="url" defaultValue={lesson?.meeting_url ?? ""} className="tf-input" placeholder="https://meet.google.com/…" /></Field>
+      <Field label={t("Link extern (opțional, lecția are deja apel video în TeachFlow)")} htmlFor="meeting_url"><input id="meeting_url" name="meeting_url" type="url" defaultValue={lesson?.meeting_url ?? ""} className="tf-input" placeholder="https://meet.google.com/…" /></Field>
       {!lesson && (
         <Field label={t("Repetă săptămânal")} htmlFor="repeat">
           <select id="repeat" name="repeat" className="tf-input" defaultValue="1">

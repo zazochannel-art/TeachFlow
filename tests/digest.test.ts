@@ -28,10 +28,9 @@ const base: DigestInput = {
 describe("buildDigest", () => {
   it("collects tomorrow's lessons in the teacher's time zone, homework to review and overdue payments", () => {
     const d = buildDigest(base, now, makeT("ro"));
-    expect(d.tomorrow.map(l => l.split(" · ")[1].replace(/ \(.*/, ""))).toEqual(["Engleză B2", "Pian", "Seară"]);
+    expect(d.tomorrow.map(l => l.split(" · ")[1])).toEqual(["Engleză B2", "Pian", "Seară"]);
     expect(d.tomorrow[0].startsWith("09:00–10:00")).toBe(true);
-    expect(d.tomorrow[1]).toContain("(fără link)");
-    expect(d.noLink).toBe(1);
+    expect(d.tomorrow[1]).not.toContain("link");
     expect(d.review).toEqual(["Eseu · Ana Lungu"]);
     expect(d.overdue).toHaveLength(1);
     expect(d.overdue[0]).toContain("Ana Lungu");
