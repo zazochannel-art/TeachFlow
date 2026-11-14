@@ -9,6 +9,8 @@ import { LANGS, LANG_NAMES } from "@/lib/i18n/core";
 interface Values {
   full_name: string; preferred_language: string; timezone: string;
   headline: string; bio: string; hourly_rate: string; currency: string;
+  /** undefined until migration 0004 is applied. */
+  email_reminders?: boolean;
 }
 
 export function SettingsForm({ values, demo }: { values: Values; demo: boolean }) {
@@ -48,6 +50,18 @@ export function SettingsForm({ values, demo }: { values: Values; demo: boolean }
           {["MDL", "EUR", "RON", "USD"].map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
+      {values.email_reminders !== undefined && (
+        <div className="sm:col-span-2">
+          <input type="hidden" name="has_reminders" value="1" />
+          <label className="flex cursor-pointer items-start gap-3 rounded-[16px] bg-soft p-4">
+            <input type="checkbox" name="email_reminders" defaultChecked={values.email_reminders} className="mt-0.5 h-4 w-4 accent-[#5269e8]" />
+            <span>
+              <span className="block text-[13px] font-bold text-ink">{t("Reminder zilnic pe email")}</span>
+              <span className="mt-0.5 block text-[12px] text-muted">{t("Dimineața primești lecțiile de mâine, temele de verificat și plățile restante. Nu primești nimic în zilele fără noutăți.")}</span>
+            </span>
+          </label>
+        </div>
+      )}
       {state.error && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a] sm:col-span-2">{t(state.error)}</p>}
       {state.ok && <p role="status" className="text-[12px] font-semibold text-[#1b8a5a] sm:col-span-2">{t(state.ok)}</p>}
       <div className="sm:col-span-2">

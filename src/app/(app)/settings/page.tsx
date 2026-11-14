@@ -23,7 +23,8 @@ export default async function SettingsPage() {
               headline: ws.teacherProfile?.headline ?? "",
               bio: ws.teacherProfile?.bio ?? "",
               hourly_rate: ws.teacherProfile?.hourly_rate?.toString() ?? "",
-              currency: ws.teacherProfile?.currency ?? "MDL"
+              currency: ws.teacherProfile?.currency ?? "MDL",
+              email_reminders: ws.teacherProfile?.email_reminders
             }}
           />
         </Card>
