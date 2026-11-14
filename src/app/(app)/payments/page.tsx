@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertCircle, CalendarCheck, Check, CreditCard, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
+import { AlertCircle, CalendarCheck, Check, CreditCard, Download, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, SubjectIcon, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace } from "@/lib/data/workspace";
@@ -82,7 +82,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
       {!missing && (
         <>
-          <SectionTitle>Plăți</SectionTitle>
+          <SectionTitle action={list.length > 0 && <a href={`/payments/export${filter === "all" ? "" : `?status=${filter}`}`} download className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-2"><Download className="h-3.5 w-3.5" /> Exportă CSV</a>}>Plăți</SectionTitle>
           <Tabs active={filter} items={[
             { key: "all", label: "Toate", href: "/payments", count: ws.payments.length },
             { key: "paid", label: "Încasate", href: "/payments?status=paid", count: ws.payments.length - pending.length },
