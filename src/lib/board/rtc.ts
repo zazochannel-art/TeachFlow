@@ -62,7 +62,7 @@ export const userOfKey = (key: string) => key.split(":")[0];
 // the side with the smaller key sends the offer (the other answers `here`), so offers never cross.
 // `who` asks who is already in the call (shown before joining).
 
-export interface CallMeta { name: string; role: "teacher" | "student"; mic: boolean; cam: boolean }
+export interface CallMeta { name: string; role: "teacher" | "student"; mic: boolean; cam: boolean; /** sending a screen instead of the camera */ screen?: boolean }
 
 export type CallSignal =
   | ({ type: "hello"; from: string } & CallMeta)
@@ -71,12 +71,17 @@ export type CallSignal =
   | ({ type: "offer"; from: string; to: string; sdp: string } & CallMeta)
   | { type: "answer"; from: string; to: string; sdp: string }
   | { type: "ice"; from: string; to: string; candidate: RTCIceCandidateInit }
-  | { type: "state"; from: string; mic: boolean; cam: boolean }
-  | { type: "bye"; from: string };
+  | { type: "state"; from: string; mic: boolean; cam: boolean; screen?: boolean }
+  | { type: "bye"; from: string }
+  /** asks the offerer of this pair to restart ICE (sent by the answering side) */
+  | { type: "restart"; from: string; to: string }
+  | { type: "chat"; from: string; id: string; name: string; text: string };
+
+export const MAX_CHAT = 500;
 
 function meta(m: Record<string, unknown>): CallMeta | null {
   if (typeof m.name !== "string" || (m.role !== "teacher" && m.role !== "student")) return null;
-  return { name: m.name.slice(0, 60), role: m.role, mic: m.mic !== false, cam: m.cam !== false };
+  return { name: m.name.slice(0, 60), role: m.role, mic: m.mic !== false, cam: m.cam !== false, ...(m.screen === true ? { screen: true } : {}) };
 }
 
 /** Validates a call signal received from a peer. */
@@ -90,7 +95,14 @@ export function sanitizeCallSignal(raw: unknown): CallSignal | null {
     case "bye":
       return { type: m.type, from };
     case "state":
-      return { type: "state", from, mic: m.mic !== false, cam: m.cam !== false };
+      return { type: "state", from, mic: m.mic !== false, cam: m.cam !== false, ...(m.screen === true ? { screen: true } : {}) };
+    case "restart":
+      return isKey(m.to) ? { type: "restart", from, to: m.to } : null;
+    case "chat": {
+      if (!isKey(m.id) || typeof m.name !== "string" || typeof m.text !== "string") return null;
+      const text = m.text.trim().slice(0, MAX_CHAT);
+      return text ? { type: "chat", from, id: m.id, name: m.name.slice(0, 60), text } : null;
+    }
     case "hello": {
       const x = meta(m);
       return x ? { type: "hello", from, ...x } : null;
