@@ -43,7 +43,7 @@ export const requireTeacher = cache(async () => {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!roleRecord || !["teacher", "admin"].includes(roleRecord.role)) redirect("/login");
+  if (!roleRecord || !["teacher", "admin"].includes(roleRecord.role)) redirect("/login?error=no_teacher_role");
 
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
   return { supabase, userId, email } as const;
