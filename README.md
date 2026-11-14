@@ -18,7 +18,7 @@ Open http://localhost:3000.
 1. Create a project in Supabase.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Project URL and publishable key from the Supabase project Connect/API settings.
-4. Apply `supabase/migrations/0001_foundation.sql` in the Supabase SQL Editor or through the Supabase CLI.
+4. Apply the migrations in `supabase/migrations/` in order (`0001_foundation.sql`, then `0002_homework_messages_payments.sql`) in the Supabase SQL Editor or through the Supabase CLI. Until 0002 is applied, the Homework, Messages and Finances pages show a notice instead of failing.
 5. Configure the Auth email provider and redirect URLs for `http://localhost:3000/**`.
 6. Restart the dev server.
 
