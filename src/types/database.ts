@@ -20,6 +20,8 @@ export interface TeacherProfile {
   subject_specialties: string[];
   hourly_rate: number | null;
   currency: Currency;
+  /** Migration 0004; undefined before it is applied. */
+  email_reminders?: boolean;
 }
 
 export interface Student {
