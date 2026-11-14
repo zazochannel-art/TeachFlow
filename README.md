@@ -24,6 +24,9 @@ Open http://localhost:3000.
 
 Without Supabase environment variables, the dashboard displays clearly marked demo data. Authentication actions require Supabase configuration.
 
+## Mobile app
+The native Android/iOS app lives in [`mobile/`](mobile/README.md) (Expo / React Native). It uses the same Supabase project, so accounts and data are shared with the web app. See `mobile/README.md` for running it on a phone with Expo Go, building an APK, and publishing to the stores.
+
 ## Commands
 ```bash
 npm run typecheck

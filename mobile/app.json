@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "TeachFlow",
+    "slug": "teachflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "teachflow",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "md.teachflow.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "md.teachflow.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#11104F",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F1F2FF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
