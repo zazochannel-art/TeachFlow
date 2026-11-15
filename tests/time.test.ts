@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateKey, dayRange, isDateKey, startOfWeek, zonedToUtc } from "@/lib/time";
+import { addDays, ageOn, dateKey, dayRange, isDateKey, startOfWeek, zonedToUtc } from "@/lib/time";
 
 const TZ = "Europe/Chisinau";
 
@@ -43,5 +43,17 @@ describe("calendar helpers", () => {
     expect(isDateKey("2026-13-40")).toBe(false);
     expect(isDateKey("14.11.2026")).toBe(false);
     expect(isDateKey(undefined)).toBe(false);
+  });
+});
+
+describe("ageOn", () => {
+  it("counts full years and handles birthdays later in the year", () => {
+    expect(ageOn("2012-05-20", new Date("2026-05-19T12:00:00Z"))).toBe(13);
+    expect(ageOn("2012-05-20", new Date("2026-05-20T12:00:00Z"))).toBe(14);
+    expect(ageOn("2012-12-31", new Date("2026-11-15T12:00:00Z"))).toBe(13);
+  });
+  it("rejects invalid or future dates", () => {
+    expect(ageOn("bad", new Date())).toBeNull();
+    expect(ageOn("2030-01-01", new Date("2026-11-15T12:00:00Z"))).toBeNull();
   });
 });

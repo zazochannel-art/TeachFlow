@@ -20,13 +20,16 @@ const ERRORS: Record<string, string> = {
   submission_too_long: "Răspunsul este prea lung (maximum 8000 de caractere).",
   empty_message: "Scrie un mesaj.",
   message_too_long: "Mesajul este prea lung.",
-  student_not_found: "Conversația nu a fost găsită."
+  student_not_found: "Conversația nu a fost găsită.",
+  student_account: "Acest cont este folosit de un elev. Creează un cont separat pentru părinte.",
+  phone_too_long: "Numărul de telefon este prea lung."
 };
 
 function friendly(message: string) {
   const key = Object.keys(ERRORS).find(k => message.includes(k));
   if (key) return ERRORS[key];
   if (/submit_homework_files/.test(message)) return "Predarea cu fișiere nu este activată încă (lipsește migrarea 0010).";
+  if (/parent|update_my_phone/.test(message) && /function .* does not exist|schema cache/i.test(message)) return "Funcția nu este activată încă (lipsește migrarea 0012).";
   if (/function .* does not exist|schema cache/i.test(message)) return "Portalul elevilor nu este activat încă (lipsește migrarea 0003).";
   return message;
 }
@@ -104,4 +107,56 @@ export async function studentSignOut() {
   const supabase = await client();
   if (supabase) await supabase.auth.signOut();
   redirect("/login");
+}
+
+export async function acceptParentInvite(_: FormState, formData: FormData): Promise<FormState> {
+  const token = String(formData.get("token") ?? "");
+  if (!isInviteToken(token)) return { error: ERRORS.invite_invalid };
+  const supabase = await client();
+  if (!supabase) return { error: "Configurează Supabase pentru a folosi invitațiile." };
+  const { error } = await supabase.rpc("accept_parent_invite", { p_token: token });
+  if (error) return { error: friendly(error.message) };
+  revalidatePath("/", "layout");
+  redirect("/parent");
+}
+
+export async function sendParentMessage(_: FormState, formData: FormData): Promise<FormState> {
+  const parsed = messageSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
+  const supabase = await client();
+  if (!supabase) return { error: "Mod demonstrativ: mesajul nu se poate trimite." };
+  const { error } = await supabase.rpc("send_parent_message", { p_student_id: parsed.data.student_id, p_body: parsed.data.body });
+  if (error) return { error: friendly(error.message) };
+  revalidatePath("/parent", "layout");
+  return { ok: "sent" };
+}
+
+export async function markParentMessagesRead() {
+  const supabase = await client();
+  if (!supabase) return;
+  await supabase.rpc("mark_parent_messages_read");
+}
+
+const profileSchema = z.object({
+  full_name: z.string().trim().min(2, "Numele este prea scurt.").max(120),
+  phone: z.string().trim().max(40, ERRORS.phone_too_long).optional().default("")
+});
+
+/** "Profilul meu" (students and parents): own name, and for students the phone on the teachers' cards. */
+export async function updateMyProfile(_: FormState, formData: FormData): Promise<FormState> {
+  const parsed = profileSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
+  const supabase = await client();
+  if (!supabase) return { error: "Mod demonstrativ: modificările nu se salvează." };
+  const { data } = await supabase.auth.getClaims();
+  const uid = data?.claims?.sub;
+  if (!uid) return { error: "Date invalide." };
+  const { error } = await supabase.from("profiles").update({ full_name: parsed.data.full_name }).eq("id", uid);
+  if (error) return { error: friendly(error.message) };
+  if (formData.has("phone")) {
+    const res = await supabase.rpc("update_my_phone", { p_phone: parsed.data.phone });
+    if (res.error) return { error: friendly(res.error.message) };
+  }
+  revalidatePath("/", "layout");
+  return { ok: "Profil salvat." };
 }

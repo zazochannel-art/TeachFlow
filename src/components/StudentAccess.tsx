@@ -30,7 +30,7 @@ export function StudentAccess({ studentId, studentName, linked, demo }: { studen
         </div>
       ) : (
         <>
-          <p className="mb-3 text-[12px] text-muted">{t("Trimite elevului (sau părintelui) un link. După ce își face cont, vede lecțiile cu linkul de conectare, temele (le poate preda online), plățile și îți poate scrie.")}</p>
+          <p className="mb-3 text-[12px] text-muted">{t("Trimite elevului un link. După ce își face cont, vede lecțiile cu linkul de conectare, temele (le poate preda online), plățile și îți poate scrie.")}</p>
           <form action={action} className="flex flex-wrap items-center gap-3">
             <input type="hidden" name="student_id" value={studentId} />
             <button className="tf-btn-ghost" disabled={pending || demo}><Link2 className="h-4 w-4" /> {pending ? t("Se creează…") : state.link ? t("Generează alt link") : t("Creează link de invitație")}</button>

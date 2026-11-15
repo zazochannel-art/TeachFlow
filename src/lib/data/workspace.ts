@@ -30,6 +30,8 @@ export interface Workspace {
   filesReady?: boolean;
   /** Course colours, student photos and the avatars bucket exist (migration 0011). */
   visualReady?: boolean;
+  /** Student profile fields, parent accounts and message channels exist (migration 0012). */
+  parentsReady?: boolean;
 }
 
 /** Verified session claims for this request (deduplicated per render with React cache). */
@@ -48,6 +50,7 @@ const getSession = cache(async () => {
 /** Same rules as the original dashboard page: students go to their portal, others to login. */
 function enforceTeacherRole(role: string | undefined | null) {
   if (role === "student") redirect("/student");
+  if (role === "parent") redirect("/parent");
   if (!role || !["teacher", "admin"].includes(role)) redirect("/login?error=no_teacher_role");
 }
 
@@ -88,6 +91,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
 
   let filesReady = false;
   let visualReady = false;
+  let parentsReady = false;
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
@@ -98,7 +102,11 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
     withFallback(
       () => withFallback(
-        () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url").eq("teacher_id", userId).order("full_name"),
+        () => withFallback(
+          () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url, birth_date, grade_level, goals, parent_name, parent_phone, parent_email").eq("teacher_id", userId).order("full_name")
+            .then(r => { parentsReady = !r.error; return r; }),
+          () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url").eq("teacher_id", userId).order("full_name")
+        ),
         () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name")
       ),
       () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at").eq("teacher_id", userId).order("full_name")
@@ -116,7 +124,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
       ),
       () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
     ),
-    supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
+    withFallback(
+      () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at, channel, author_id").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
+      () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000)
+    ),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
 
@@ -155,6 +166,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
     missingTables,
     filesReady,
-    visualReady
+    visualReady,
+    parentsReady
   };
 });

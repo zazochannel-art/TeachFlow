@@ -112,3 +112,13 @@ export function initials(name: string) {
   if (!parts.length) return "?";
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
+
+/** Full years between a YYYY-MM-DD birth date and `on` (null for an invalid or future date). */
+export function ageOn(birthDate: string, on: Date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  let age = on.getUTCFullYear() - y;
+  if (on.getUTCMonth() + 1 < mo || (on.getUTCMonth() + 1 === mo && on.getUTCDate() < d)) age--;
+  return age >= 0 && age < 130 ? age : null;
+}

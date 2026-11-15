@@ -3,7 +3,7 @@ import { GraduationCap, LogOut } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { loadStudentPortal } from "@/lib/data/student";
 import { studentSignOut } from "@/lib/actions/student";
-import { StudentNav } from "./StudentNav";
+import { PortalNav } from "@/components/PortalNav";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getT } from "@/lib/i18n/server";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -20,12 +20,14 @@ export default async function StudentLayout({ children }: { children: React.Reac
             <GraduationCap className="h-8 w-8 text-primary" fill="rgba(82,105,232,.3)" strokeWidth={1.8} />
             <span className="hidden text-[17px] font-extrabold tracking-tight min-[400px]:inline">TeachFlow</span>
           </Link>
-          <StudentNav unread={unread} />
+          <PortalNav home="/student" messages="/student/messages" extra={[{ href: "/student/profile", label: "Profilul meu" }]} unread={unread} label="Portal elev" />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher dark />
             <ThemeToggle onDark />
-            <span className="hidden sm:inline-flex"><Avatar name={portal.name} src={portal.avatarUrl} size={34} /></span>
-            <span className="hidden text-[13px] font-bold sm:inline">{portal.name}</span>
+            <Link href="/student/profile" className="hidden items-center gap-3 sm:inline-flex">
+              <Avatar name={portal.name} src={portal.avatarUrl} size={34} />
+              <span className="text-[13px] font-bold">{portal.name}</span>
+            </Link>
             <form action={studentSignOut}>
               <button aria-label={t("Ieși din cont")} title={t("Ieși din cont")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-white/10 hover:bg-white/20"><LogOut className="h-4 w-4" /></button>
             </form>

@@ -30,7 +30,7 @@ export function LoginForm({ next, initialError, initialInfo }: { next: string; i
     <form onSubmit={submit} className="mx-auto w-full max-w-[380px]">
       <Link href="/" className="text-[20px] font-extrabold text-primary md:hidden">TeachFlow</Link>
       <h1 className="mt-6 text-[24px] font-extrabold tracking-tight text-ink md:mt-0">{t("Bine ai revenit!")}</h1>
-      <p className="mb-7 mt-1.5 text-[13px] text-muted">{t(next.startsWith("/invite/") || next.startsWith("/student") ? "Autentifică-te în contul tău." : "Autentifică-te în contul tău de profesor.")}</p>
+      <p className="mb-7 mt-1.5 text-[13px] text-muted">{t(next.startsWith("/invite/") || next.startsWith("/student") || next.startsWith("/parent") ? "Autentifică-te în contul tău." : "Autentifică-te în contul tău de profesor.")}</p>
       {initialInfo && !error && <AuthMessage tone="info">{initialInfo}</AuthMessage>}
       <label className="tf-label" htmlFor="email">{t("Email")}</label>
       <input id="email" className="tf-input mb-5" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} />
