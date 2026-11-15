@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertCircle, CalendarCheck, Check, Download, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
+import { AlertCircle, CalendarCheck, Check, Download, FileText, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace } from "@/lib/data/workspace";
@@ -97,17 +97,18 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                     <Avatar name={st?.full_name ?? "?"} src={st?.avatar_url} size={38} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-extrabold">{st?.full_name ?? t("Elev șters")}</div>
-                      <div className="truncate text-muted">{[p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
+                      <div className="truncate text-muted">{[p.invoice_no, p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
                     </div>
                     <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted md:w-28 md:text-right">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
                     <span className="md:w-24"><Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill></span></div>
                     <div className="col-start-3 row-start-1 text-right text-[13px] font-extrabold md:w-28">{formatMoney(p.amount, p.currency, t.locale)}</div>
-                    <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 md:w-[188px]">
+                    <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 md:w-[228px]">
                       {p.status === "pending" && (
                         <form action={markPaymentPaid}><input type="hidden" name="id" value={p.id} />
                           <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Încasată")}</span></SubmitButton>
                         </form>
                       )}
+                      <a href={`/invoices/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("Factura PDF")} title={t("Factura PDF")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><FileText className="h-3.5 w-3.5" /></a>
                       <Link href={`/payments?status=${filter}&edit=${p.id}`} aria-label={t("Editează plata")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
                       <form action={deletePayment}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="×" confirm={t("Șterge")} className="py-1.5" /></form>
                     </div>

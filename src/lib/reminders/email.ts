@@ -36,11 +36,11 @@ ${s.note ? `<p style="margin:8px 0 0;font-size:13px;color:#a2660a">${esc(s.note)
 }
 
 /** Sends one email through the Resend HTTP API. */
-export async function sendEmail(msg: { to: string; subject: string; html: string; text: string; replyTo?: string }, env: { apiKey: string; from: string }) {
+export async function sendEmail(msg: { to: string; subject: string; html: string; text: string; replyTo?: string; attachments?: Array<{ filename: string; content: string }> }, env: { apiKey: string; from: string }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(msg.replyTo ? { reply_to: msg.replyTo } : {}) })
+    body: JSON.stringify({ from: env.from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(msg.replyTo ? { reply_to: msg.replyTo } : {}), ...(msg.attachments?.length ? { attachments: msg.attachments } : {}) })
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 300)}`);
 }

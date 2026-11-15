@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import {
-  BookOpen, CalendarDays, ClipboardList, GraduationCap, LayoutGrid, Library, Sparkles,
+  BookOpen, CalendarDays, ClipboardList, Globe, GraduationCap, LayoutGrid, Library, Sparkles,
   Menu, MessageCircle, Settings, X, ShieldCheck, Users, Video, Wallet
 } from "lucide-react";
 
@@ -20,6 +20,7 @@ export const navItems = [
   { label: "Bibliotecă", href: "/library", icon: Library },
   { label: "Mesaje", href: "/messages", icon: MessageCircle },
   { label: "Finanțe", href: "/payments", icon: Wallet },
+  { label: "Pagina mea", href: "/public-page", icon: Globe },
   { label: "Setări", href: "/settings", icon: Settings }
 ] as const;
 

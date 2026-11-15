@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ClipboardCheck, Star, Video, Wallet } from "lucide-react";
+import { CalendarDays, ClipboardCheck, FileText, Star, Video, Wallet } from "lucide-react";
 import { Card, DemoNotice, EmptyNote, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
 import { ActionForm } from "@/components/forms";
 import { loadStudentPortal } from "@/lib/data/student";
@@ -16,6 +16,8 @@ import { FileAttach } from "@/components/FileAttach";
 import { FileList } from "@/components/FileList";
 import { storedFiles } from "@/lib/files";
 import { signFiles } from "@/lib/data/files";
+import { demoProgress, loadPortalProgress } from "@/lib/data/progress";
+import { ProgressSummary } from "@/components/ProgressView";
 
 const hwLabel = { assigned: "De făcut", submitted: "Predată", reviewed: "Verificată" } as const;
 const hwTone = { assigned: "amber", submitted: "blue", reviewed: "green" } as const;
@@ -37,7 +39,10 @@ export default async function StudentHome() {
   const pending = p.payments.filter(x => x.status === "pending");
   const first = p.name.split(" ")[0];
   const files = p.mode === "live" && p.filesReady;
-  const links = files ? await signFiles([...todo, ...done].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : {};
+  const [links, progress] = await Promise.all([
+    files ? signFiles([...todo, ...done].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : Promise.resolve({} as Record<string, string>),
+    p.mode === "demo" ? Promise.resolve(demoProgress(p, tz)) : loadPortalProgress(p.links, tz)
+  ]);
   const folderFor = (h: Homework) => (files && p.userId ? `sub/${p.userId}/${h.id}` : undefined);
 
   // Progress over the last 30 days (the window the portal loads).
@@ -129,6 +134,7 @@ export default async function StudentHome() {
       </div>
 
       <aside className="space-y-8">
+        {progress && <section><SectionTitle action={<Link href="/student/achievements" className="text-[11px] font-bold text-primary">{t("Toate insignele")} →</Link>}>{t("Realizările mele")}</SectionTitle><ProgressSummary p={progress} t={t} href="/student/achievements" /></section>}
         <section>
           <SectionTitle>{t("Orar")}</SectionTitle>
           <Card className="overflow-hidden">
@@ -163,6 +169,7 @@ export default async function StudentHome() {
                     <p className="truncate text-muted">{x.status === "paid" ? t("achitat {date}", { date: x.paid_at ? formatDate(x.paid_at, tz, t.locale) : "" }) : x.due_date ? t("termen {date}", { date: formatDate(`${x.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("de achitat")}{x.course_id && course.get(x.course_id) ? ` · ${course.get(x.course_id)!.title}` : ""}</p>
                   </div>
                   <Pill tone={x.status === "paid" ? "green" : late ? "red" : "amber"}>{x.status === "paid" ? t("Achitat") : late ? t("Restant") : t("De achitat")}</Pill>
+                  <a href={`/invoices/${x.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("Factura PDF")} title={t("Factura PDF")} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-soft text-muted hover:text-primary"><FileText className="h-3.5 w-3.5" /></a>
                 </div>
               );
             })}

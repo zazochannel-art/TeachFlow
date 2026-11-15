@@ -22,7 +22,9 @@ const settingsSchema = z.object({
   email_reminders: z.literal("on").optional(),
   has_reminders: z.literal("1").optional(),
   parent_reports: z.literal("on").optional(),
-  has_reports: z.literal("1").optional()
+  has_reports: z.literal("1").optional(),
+  gamification: z.literal("on").optional(),
+  has_gamification: z.literal("1").optional()
 });
 
 export async function updateSettings(_: FormState, formData: FormData): Promise<FormState> {
@@ -48,7 +50,9 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       ...teacherFields,
       ...(v.has_reminders ? { email_reminders: v.email_reminders === "on" } : {}),
       // Migration 0013 adds the monthly parent report switch.
-      ...(v.has_reports ? { parent_reports: v.parent_reports === "on" } : {})
+      ...(v.has_reports ? { parent_reports: v.parent_reports === "on" } : {}),
+      // Migration 0015 adds points and badges for students.
+      ...(v.has_gamification ? { gamification: v.gamification === "on" } : {})
     }).eq("user_id", userId)
   ]);
   if (p.error || t.error) return { error: (p.error ?? t.error)!.message };
@@ -62,4 +66,32 @@ export async function signOut() {
   const supabase = await createClient();
   if (supabase) await supabase.auth.signOut();
   redirect("/login");
+}
+
+const invoiceSchema = z.object({
+  invoice_name: z.string().trim().max(160).optional(),
+  invoice_code: z.string().trim().max(40).optional(),
+  invoice_address: z.string().trim().max(240).optional(),
+  invoice_bank: z.string().trim().max(120).optional(),
+  invoice_iban: z.string().trim().max(40).optional().transform(v => (v ? v.replace(/\s+/g, "").toUpperCase() : v)),
+  invoice_note: z.string().trim().max(300).optional(),
+  invoice_prefix: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{1,8}$/, "Prefixul are 1–8 litere sau cifre (ex. TF)."),
+  invoice_email: z.literal("on").optional()
+});
+
+/** Billing details printed on the PDF invoices, and the automatic e-mail switch (migration 0015). */
+export async function saveInvoiceSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const { supabase, userId } = await requireTeacher();
+  if (!supabase || !userId) return { error: DEMO_MSG };
+  const parsed = invoiceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
+  const v = parsed.data;
+  const { error } = await supabase.from("teacher_profiles").update({
+    invoice_name: v.invoice_name || null, invoice_code: v.invoice_code || null, invoice_address: v.invoice_address || null,
+    invoice_bank: v.invoice_bank || null, invoice_iban: v.invoice_iban || null, invoice_note: v.invoice_note || null,
+    invoice_prefix: v.invoice_prefix, invoice_email: v.invoice_email === "on"
+  }).eq("user_id", userId);
+  if (error) return { error: /invoice_/.test(error.message) ? "Facturile nu sunt activate încă (lipsește migrarea 0015)." : error.message };
+  revalidatePath("/", "layout");
+  return { ok: "Datele pentru facturi au fost salvate." };
 }

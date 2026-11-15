@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { emailInvoice } from "@/lib/invoices/notify";
 import { z } from "zod";
 import { DEMO_STATE, type FormState, currency, money, optId, optText, parseForm, refresh, teacherCtx } from "./common";
 
@@ -27,10 +29,15 @@ export async function savePayment(_: FormState, formData: FormData): Promise<For
     paid_at: v.status === "paid" ? new Date(`${date}T12:00:00Z`).toISOString() : null,
     due_date: v.status === "pending" ? date : null
   };
-  const { error } = id
-    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId)
-    : await ctx.supabase.from("payments").insert({ ...fields, teacher_id: ctx.userId });
+  const before = id ? (await ctx.supabase.from("payments").select("status").eq("id", id).eq("teacher_id", ctx.userId).maybeSingle()).data : null;
+  const { data, error } = id
+    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId).select("id").maybeSingle()
+    : await ctx.supabase.from("payments").insert({ ...fields, teacher_id: ctx.userId }).select("id").single();
   if (error) return { error: error.message };
+  // Invoice e-mail to the parents: for every new payment, and when a pending one becomes paid.
+  const origin = (await headers()).get("origin");
+  if (data && !id) emailInvoice(data.id, "issued", origin);
+  if (data && id && before?.status === "pending" && v.status === "paid") emailInvoice(data.id, "paid", origin);
   refresh();
   redirect("/payments");
 }
@@ -39,7 +46,8 @@ export async function markPaymentPaid(formData: FormData) {
   const ctx = await teacherCtx();
   const id = String(formData.get("id") ?? "");
   if (!ctx || !id) return;
-  await ctx.supabase.from("payments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id).eq("teacher_id", ctx.userId);
+  const { data } = await ctx.supabase.from("payments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id).eq("teacher_id", ctx.userId).eq("status", "pending").select("id").maybeSingle();
+  if (data) emailInvoice(data.id, "paid", (await headers()).get("origin"));
   refresh();
 }
 

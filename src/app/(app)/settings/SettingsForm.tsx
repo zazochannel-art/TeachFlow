@@ -13,6 +13,8 @@ interface Values {
   email_reminders?: boolean;
   /** undefined until migration 0013 is applied. */
   parent_reports?: boolean;
+  /** undefined until migration 0015 is applied. */
+  gamification?: boolean;
 }
 
 export function SettingsForm({ values, demo }: { values: Values; demo: boolean }) {
@@ -72,6 +74,18 @@ export function SettingsForm({ values, demo }: { values: Values; demo: boolean }
             <span>
               <span className="block text-[13px] font-bold text-ink">{t("Raport lunar pentru părinți")}</span>
               <span className="mt-0.5 block text-[12px] text-muted">{t("Pe 1 ale lunii, părinții primesc automat pe email prezența, temele, notele și testele copilului din luna trecută.")}</span>
+            </span>
+          </label>
+        </div>
+      )}
+      {values.gamification !== undefined && (
+        <div className="sm:col-span-2">
+          <input type="hidden" name="has_gamification" value="1" />
+          <label className="flex cursor-pointer items-start gap-3 rounded-[16px] bg-soft p-4">
+            <input type="checkbox" name="gamification" defaultChecked={values.gamification} className="mt-0.5 h-4 w-4 accent-[#5269e8]" />
+            <span>
+              <span className="block text-[13px] font-bold text-ink">{t("Puncte, insigne și serii pentru elevi")}</span>
+              <span className="mt-0.5 block text-[12px] text-muted">{t("Elevii câștigă puncte pentru teme, teste și lecții, urcă în nivel și adună insigne. Părinții văd progresul în portalul lor.")}</span>
             </span>
           </label>
         </div>
