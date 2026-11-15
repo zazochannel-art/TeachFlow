@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { parseFileRefs } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
 import { isInviteToken } from "@/lib/invite-token";
 import type { FormState } from "./common";
@@ -13,7 +14,9 @@ const ERRORS: Record<string, string> = {
   own_invite: "Ești autentificat cu contul de profesor. Deschide linkul cu contul elevului.",
   teacher_account: "Acest cont este folosit ca profesor. Creează un cont separat pentru elev.",
   homework_not_found: "Tema nu mai poate fi predată (poate a fost deja verificată).",
-  empty_submission: "Scrie răspunsul înainte să predai tema.",
+  empty_submission: "Scrie răspunsul sau atașează un fișier înainte să predai tema.",
+  too_many_files: "Cel mult 10 fișiere.",
+  bad_file: "Un fișier nu a putut fi atașat. Încarcă-l din nou.",
   submission_too_long: "Răspunsul este prea lung (maximum 8000 de caractere).",
   empty_message: "Scrie un mesaj.",
   message_too_long: "Mesajul este prea lung.",
@@ -23,6 +26,7 @@ const ERRORS: Record<string, string> = {
 function friendly(message: string) {
   const key = Object.keys(ERRORS).find(k => message.includes(k));
   if (key) return ERRORS[key];
+  if (/submit_homework_files/.test(message)) return "Predarea cu fișiere nu este activată încă (lipsește migrarea 0010).";
   if (/function .* does not exist|schema cache/i.test(message)) return "Portalul elevilor nu este activat încă (lipsește migrarea 0003).";
   return message;
 }
@@ -46,16 +50,30 @@ export async function acceptInvite(_: FormState, formData: FormData): Promise<Fo
 
 const submitSchema = z.object({
   homework_id: z.string().uuid(),
-  submission: z.string().trim().min(1, ERRORS.empty_submission).max(8000, ERRORS.submission_too_long)
+  submission: z.string().trim().max(8000, ERRORS.submission_too_long).optional().default("")
 });
 
 export async function submitHomework(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = submitSchema.safeParse(Object.fromEntries(formData));
+  const parsed = submitSchema.safeParse({ homework_id: formData.get("homework_id"), submission: formData.get("submission") ?? "" });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
   const supabase = await client();
   if (!supabase) return { error: "Mod demonstrativ: tema nu se poate preda." };
-  const { error } = await supabase.rpc("submit_homework", { p_homework_id: parsed.data.homework_id, p_submission: parsed.data.submission });
-  if (error) return { error: friendly(error.message) };
+  const { homework_id, submission } = parsed.data;
+
+  if (formData.has("files")) {
+    // With the file picker (migration 0010): text, files or both; only files from the student's own folder.
+    const { data } = await supabase.auth.getClaims();
+    const uid = data?.claims?.sub;
+    if (!uid) return { error: "Date invalide." };
+    const files = parseFileRefs(formData.get("files"), `sub/${uid}/${homework_id}/`);
+    if (!submission && !files.length) return { error: ERRORS.empty_submission };
+    const { error } = await supabase.rpc("submit_homework_files", { p_homework_id: homework_id, p_submission: submission, p_files: files });
+    if (error) return { error: friendly(error.message) };
+  } else {
+    if (!submission) return { error: ERRORS.empty_submission };
+    const { error } = await supabase.rpc("submit_homework", { p_homework_id: homework_id, p_submission: submission });
+    if (error) return { error: friendly(error.message) };
+  }
   revalidatePath("/student", "layout");
   return { ok: "Tema a fost predată. Profesorul a primit-o." };
 }

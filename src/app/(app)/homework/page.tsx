@@ -8,6 +8,10 @@ import { deleteHomework, markHomeworkSubmitted, reviewHomework, saveHomework } f
 import { addDays, dateKey, formatDate } from "@/lib/time";
 import type { HomeworkStatus } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
+import { FileAttach } from "@/components/FileAttach";
+import { FileList } from "@/components/FileList";
+import { storedFiles } from "@/lib/files";
+import { signFiles } from "@/lib/data/files";
 
 const labels: Record<HomeworkStatus, string> = { assigned: "Atribuită", submitted: "De verificat", reviewed: "Verificată" };
 const tones = { assigned: "blue", submitted: "amber", reviewed: "green" } as const;
@@ -33,6 +37,8 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   const reviewing = sp.review ? ws.homework.find(h => h.id === sp.review) : undefined;
   const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
+  const files = ws.mode === "live" && ws.filesReady;
+  const links = files ? await signFiles([...list, ...(reviewing ? [reviewing] : [])].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : {};
 
   return (
     <div>
@@ -64,6 +70,7 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
             )}
             <Field label={t("Termen")} htmlFor="due"><input id="due" name="due" type="date" defaultValue={editing?.due_at ? dateKey(new Date(editing.due_at), ws.timezone) : addDays(today, 7)} className="tf-input" /></Field>
             <Field label={t("Descriere")} htmlFor="description" wide><textarea id="description" name="description" rows={3} defaultValue={editing?.description ?? ""} className="tf-input" /></Field>
+            {files && ws.userId && <FileAttach name="attachments" folder={`hw/${ws.userId}`} initial={storedFiles(editing?.attachments)} label={t("Atașează fișiere pentru elevi")} />}
           </ActionForm>
         </Panel>
       )}
@@ -75,6 +82,12 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
             <div className="mb-5 rounded-[16px] bg-soft p-4">
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">{t("Răspunsul elevului")}</p>
               <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{reviewing.submission}</p>
+            </div>
+          )}
+          {storedFiles(reviewing.submission_files).length > 0 && (
+            <div className="mb-5">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{t("Fișierele elevului")}</p>
+              <FileList files={storedFiles(reviewing.submission_files)} links={links} />
             </div>
           )}
           <ActionForm action={reviewHomework} demo={demo} submitLabel={t("Salvează evaluarea")}>
@@ -134,6 +147,13 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
                     {h.grade && <span className="font-bold text-ink">{t("Nota: {grade}", { grade: h.grade })}</span>}
                   </div>
                   {h.description && <p className="mt-2 line-clamp-2 text-muted">{h.description}</p>}
+                  <FileList files={storedFiles(h.attachments)} links={links} className="mt-2" />
+                  {storedFiles(h.submission_files).length > 0 && (
+                    <div className="mt-2">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted">{t("Predat de elev")}</p>
+                      <FileList files={storedFiles(h.submission_files)} links={links} />
+                    </div>
+                  )}
                   {h.feedback && <p className="mt-2 rounded-xl bg-soft px-3 py-2 text-ink">{h.feedback}</p>}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {h.status === "assigned" && (

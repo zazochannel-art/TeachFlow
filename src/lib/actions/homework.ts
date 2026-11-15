@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { zonedToUtc } from "@/lib/time";
+import { parseFileRefs } from "@/lib/files";
 import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
 
 const homeworkSchema = z.object({
@@ -29,7 +30,9 @@ export async function saveHomework(_: FormState, formData: FormData): Promise<Fo
     const [y, m, d] = v.due.split("-").map(Number);
     due_at = zonedToUtc(y, m, d, 23, 59, tz).toISOString();
   }
-  const fields = { title: v.title, description: v.description, course_id: v.course_id, lesson_id: v.lesson_id, due_at };
+  const fields: Record<string, unknown> = { title: v.title, description: v.description, course_id: v.course_id, lesson_id: v.lesson_id, due_at };
+  // Attachments only when the form has the picker (migration 0010 applied); only the teacher's own folder.
+  if (formData.has("attachments")) fields.attachments = parseFileRefs(formData.get("attachments"), `hw/${ctx.userId}/`);
 
   if (v.id) {
     const { error } = await ctx.supabase.from("homework").update(fields).eq("id", v.id).eq("teacher_id", ctx.userId);

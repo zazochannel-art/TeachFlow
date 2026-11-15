@@ -9,6 +9,10 @@ import { dateKey, formatDate, formatDayHeading, formatMoney, formatTime } from "
 import type { Homework } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
+import { FileAttach } from "@/components/FileAttach";
+import { FileList } from "@/components/FileList";
+import { storedFiles } from "@/lib/files";
+import { signFiles } from "@/lib/data/files";
 
 const hwLabel = { assigned: "De făcut", submitted: "Predată", reviewed: "Verificată" } as const;
 const hwTone = { assigned: "amber", submitted: "blue", reviewed: "green" } as const;
@@ -29,6 +33,9 @@ export default async function StudentHome() {
   const done = p.homework.filter(h => h.status !== "assigned").slice(0, 6);
   const pending = p.payments.filter(x => x.status === "pending");
   const first = p.name.split(" ")[0];
+  const files = p.mode === "live" && p.filesReady;
+  const links = files ? await signFiles([...todo, ...done].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : {};
+  const folderFor = (h: Homework) => (files && p.userId ? `sub/${p.userId}/${h.id}` : undefined);
 
   if (p.mode === "live" && p.links.length === 0) {
     return (
@@ -62,14 +69,14 @@ export default async function StudentHome() {
         <section className="mt-8">
           <SectionTitle>{t("Teme de făcut")}</SectionTitle>
           {todo.length === 0 ? <EmptyNote>{t("Nicio temă nouă. Bravo!")}</EmptyNote> : (
-            <div className="space-y-3">{todo.map(h => <HomeworkCard key={h.id} h={h} tz={tz} courseTitle={h.course_id ? course.get(h.course_id)?.title : undefined} t={t} open />)}</div>
+            <div className="space-y-3">{todo.map(h => <HomeworkCard key={h.id} h={h} tz={tz} courseTitle={h.course_id ? course.get(h.course_id)?.title : undefined} t={t} open links={links} folder={folderFor(h)} />)}</div>
           )}
         </section>
 
         {done.length > 0 && (
           <section className="mt-8">
             <SectionTitle>{t("Teme predate")}</SectionTitle>
-            <div className="space-y-3">{done.map(h => <HomeworkCard key={h.id} h={h} tz={tz} courseTitle={h.course_id ? course.get(h.course_id)?.title : undefined} t={t} />)}</div>
+            <div className="space-y-3">{done.map(h => <HomeworkCard key={h.id} h={h} tz={tz} courseTitle={h.course_id ? course.get(h.course_id)?.title : undefined} t={t} links={links} />)}</div>
           </section>
         )}
         {p.mode === "demo" && <DemoNotice />}
@@ -121,7 +128,7 @@ export default async function StudentHome() {
   );
 }
 
-function HomeworkCard({ h, tz, courseTitle, t, open = false }: { h: Homework; tz: string; courseTitle?: string; t: T; open?: boolean }) {
+function HomeworkCard({ h, tz, courseTitle, t, open = false, links, folder }: { h: Homework; tz: string; courseTitle?: string; t: T; open?: boolean; links: Record<string, string>; folder?: string }) {
   const overdue = h.status === "assigned" && h.due_at && new Date(h.due_at) < new Date();
   return (
     <Card className="p-5">
@@ -134,7 +141,9 @@ function HomeworkCard({ h, tz, courseTitle, t, open = false }: { h: Homework; tz
         <Pill tone={overdue ? "red" : hwTone[h.status]}>{overdue ? t("Întârziată") : t(hwLabel[h.status])}</Pill>
       </div>
       {h.description && <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{h.description}</p>}
+      <FileList files={storedFiles(h.attachments)} links={links} className="mt-3" />
       {h.submission && !open && <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft px-3 py-2 text-[12px] text-ink"><b>{t("Răspunsul tău:")}</b> {h.submission}</p>}
+      {!open && <FileList files={storedFiles(h.submission_files)} links={links} className="mt-2" />}
       {h.status === "reviewed" && (h.grade || h.feedback) && (
         <p className="mt-3 rounded-xl bg-[#e7f6ee] px-3 py-2 text-[12px] text-[#11603f]">{h.grade && <b>{t("Nota: {grade}", { grade: h.grade })}. </b>}{h.feedback}</p>
       )}
@@ -144,7 +153,8 @@ function HomeworkCard({ h, tz, courseTitle, t, open = false }: { h: Homework; tz
           <div className="mt-3">
             <ActionForm action={submitHomework} submitLabel={t("Trimite tema")} className="grid gap-3">
               <input type="hidden" name="homework_id" value={h.id} />
-              <textarea name="submission" required rows={5} maxLength={8000} className="tf-input" placeholder={t("Scrie răspunsul sau lipește un link (Google Docs, Drive etc.)")} defaultValue={h.submission ?? ""} />
+              <textarea name="submission" required={!folder} rows={5} maxLength={8000} className="tf-input" placeholder={t("Scrie răspunsul sau lipește un link (Google Docs, Drive etc.)")} defaultValue={h.submission ?? ""} />
+              {folder && <FileAttach name="files" folder={folder} initial={storedFiles(h.submission_files)} label={t("Atașează poze sau fișiere")} />}
             </ActionForm>
           </div>
         </details>

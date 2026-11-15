@@ -13,6 +13,10 @@ export interface StudentLink { studentId: string; teacherId: string; teacherName
 
 export interface StudentPortal {
   mode: "live" | "demo";
+  /** Auth user id (live mode); the student's own Storage folder is sub/<userId>/. */
+  userId: string | null;
+  /** Homework files are enabled (migration 0010). */
+  filesReady: boolean;
   name: string;
   timezone: string;
   links: StudentLink[];
@@ -39,13 +43,16 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   // The role lookup runs in the same parallel batch as the data (one round trip); RLS already
   // limits the data, and the role is enforced before anything is returned.
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  let filesReady = false;
   const [role, profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
     supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("full_name, timezone").eq("id", userId).maybeSingle(),
     supabase.from("students").select("id, teacher_id, full_name").eq("user_id", userId),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title"),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").gte("starts_at", since).order("starts_at").limit(500),
-    supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }).limit(300),
+    supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").order("created_at", { ascending: false }).limit(300)
+      .then(r => { filesReady = !r.error; return r; })
+      .then(r => r.error ? supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }).limit(300) : r),
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at", { ascending: false }).limit(1000),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false }).limit(300)
   ]);
@@ -69,6 +76,8 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const p = profile.data as { full_name: string; timezone: string } | null;
   return {
     mode: "live",
+    userId,
+    filesReady,
     name: p?.full_name || (typeof data?.claims?.email === "string" ? data.claims.email.split("@")[0] : tr("Elev")),
     timezone: p?.timezone || DEFAULT_TZ,
     links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? tr("Profesor"), studentName: r.full_name })),
@@ -87,6 +96,8 @@ function demoPortal(): StudentPortal {
   const courseIds = new Set(ws.enrollments.filter(e => e.student_id === me.id && e.status === "active").map(e => e.course_id));
   return {
     mode: "demo",
+    userId: null,
+    filesReady: false,
     name: me.full_name,
     timezone: ws.timezone,
     links: [{ studentId: me.id, teacherId: "demo", teacherName: "Profesor Demo", studentName: me.full_name }],

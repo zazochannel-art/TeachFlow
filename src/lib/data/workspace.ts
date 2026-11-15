@@ -26,6 +26,8 @@ export interface Workspace {
   payments: Payment[];
   /** Tables from migration 0002 that are not available yet (migration not applied). */
   missingTables: Array<"homework" | "messages" | "payments">;
+  /** Homework file columns and the Storage bucket exist (migration 0010). */
+  filesReady?: boolean;
 }
 
 /** Verified session claims for this request (deduplicated per render with React cache). */
@@ -82,6 +84,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
   const { supabase, userId, email, inviteToken } = await getSession();
   if (!supabase || !userId) return buildDemoWorkspace();
 
+  let filesReady = false;
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
@@ -98,7 +101,11 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
     withFallback(
-      () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
+      () => withFallback(
+        () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
+          .then(r => { filesReady = !r.error; return r; }),
+        () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
+      ),
       () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
     ),
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
@@ -138,6 +145,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     homework: (homework.data as Homework[] | null) ?? [],
     messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
-    missingTables
+    missingTables,
+    filesReady
   };
 });

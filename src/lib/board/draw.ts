@@ -14,8 +14,11 @@ export function drawGrid(ctx: CanvasRenderingContext2D) {
   ctx.restore();
 }
 
+/** Returns a loaded picture for an image stroke, or null while it is still loading. */
+export type ImageSource = (src: string) => CanvasImageSource | null;
+
 /** Draws one stroke in board coordinates (the caller sets the scale transform). */
-export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, fontFamily: string) {
+export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, fontFamily: string, images?: ImageSource) {
   const p = s.points;
   ctx.save();
   ctx.strokeStyle = s.color;
@@ -62,6 +65,22 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, fontFamily:
       ctx.beginPath();
       ctx.ellipse((x0 + x1) / 2, (y0 + y1) / 2, Math.abs(x1 - x0) / 2, Math.abs(y1 - y0) / 2, 0, 0, Math.PI * 2);
       ctx.stroke();
+      break;
+    }
+    case "image": {
+      const [x0, y0, x1, y1] = p;
+      const x = Math.min(x0, x1), y = Math.min(y0, y1), w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+      const img = s.src && images ? images(s.src) : null;
+      if (img) {
+        ctx.drawImage(img, x, y, w, h);
+      } else {
+        ctx.fillStyle = "#f5f6fe";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = "#d5d9ef";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 8]);
+        ctx.strokeRect(x, y, w, h);
+      }
       break;
     }
     case "text": {

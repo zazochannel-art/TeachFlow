@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
-  Circle, Download, Eraser, Grid3x3, Highlighter, Maximize2, Minimize2, Minus, MoveUpRight,
-  Pen, Redo2, Square, Trash2, Type, Undo2, type LucideIcon
+  Circle, Download, Eraser, Grid3x3, Highlighter, ImagePlus, Loader2, Maximize2, Minimize2, Minus, MoveUpRight,
+  Paperclip, Pen, Redo2, Square, Trash2, Type, Undo2, type LucideIcon
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -12,6 +12,8 @@ import {
   textFontSize, type BoardEvent, type Stroke, type Tool
 } from "@/lib/board/model";
 import { drawGrid, drawStroke } from "@/lib/board/draw";
+import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, isImage, storageName } from "@/lib/files";
+import { LessonFiles, type LessonFile } from "./LessonFiles";
 import { useT } from "@/lib/i18n/client";
 
 type ToolOrEraser = Tool | "eraser";
@@ -49,6 +51,8 @@ interface Props {
   initial: unknown;
   /** false in demo mode (no Supabase): the board works locally but is neither shared nor saved. */
   live: boolean;
+  /** Storage for lesson files is set up (migration 0010). In demo mode files stay in this tab. */
+  filesReady?: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
   title: string;
 }
@@ -57,7 +61,7 @@ interface Props {
  * Shared lesson whiteboard. Strokes are sent to the other participants over a private
  * Supabase Realtime channel and the full board is saved to `lesson_boards` (debounced).
  */
-export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
+export function Whiteboard({ lessonId, initial, live, me, title, filesReady = false }: Props) {
   const t = useT();
   const [strokes, setStrokes] = useState<Stroke[]>(() => sanitizeBoard(initial));
   const [tool, setTool] = useState<ToolOrEraser>("pen");
@@ -72,6 +76,15 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [textDraft, setTextDraft] = useState<{ x: number; y: number; value: string } | null>(null);
   const [cssSize, setCssSize] = useState({ w: 0, h: 0 });
+  const [uploading, setUploading] = useState(0);
+  const [fileError, setFileError] = useState("");
+  const [showFiles, setShowFiles] = useState(false);
+  const [localFiles, setLocalFiles] = useState<LessonFile[]>([]);
+  const [filesVersion, setFilesVersion] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef(new Map<string, HTMLImageElement | "loading" | "error">());
+  const canUpload = !live || filesReady;
 
   const frameRef = useRef<HTMLDivElement>(null);
   const holderRef = useRef<HTMLDivElement>(null);
@@ -90,6 +103,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   const fontRef = useRef("sans-serif");
   const sizeRef = useRef(cssSize);
   const gridRef = useRef(grid);
+  const getImageRef = useRef<(src: string) => HTMLImageElement | null>(() => null);
 
   // ---------- rendering ----------
 
@@ -113,7 +127,9 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
       b.fillRect(0, 0, pw, ph);
       b.setTransform(scale, 0, 0, scale, 0, 0);
       if (gridRef.current) drawGrid(b);
-      for (const s of strokesRef.current) drawStroke(b, s, fontRef.current);
+      // Pictures go underneath, so drawings made on top of them stay visible.
+      for (const s of strokesRef.current) if (s.tool === "image") drawStroke(b, s, fontRef.current, getImageRef.current);
+      for (const s of strokesRef.current) if (s.tool !== "image") drawStroke(b, s, fontRef.current);
       baseDirtyRef.current = false;
     }
 
@@ -129,6 +145,32 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
     if (baseChanged) baseDirtyRef.current = true;
     if (!rafRef.current) rafRef.current = requestAnimationFrame(render);
   }, [render]);
+
+  // Pictures on the board: Storage files get a short-lived signed link; demo pictures use blob: URLs.
+  useEffect(() => {
+    getImageRef.current = (src: string) => {
+      const cached = imagesRef.current.get(src);
+      if (cached instanceof HTMLImageElement) return cached;
+      if (cached) return null;
+      imagesRef.current.set(src, "loading");
+      void (async () => {
+        let url = src;
+        if (!src.startsWith("blob:")) {
+          const supabase = createClient();
+          const signed = supabase ? await supabase.storage.from(FILES_BUCKET).createSignedUrl(src, 3600) : null;
+          if (!signed?.data?.signedUrl) { imagesRef.current.set(src, "error"); return; }
+          url = signed.data.signedUrl;
+        }
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => { imagesRef.current.set(src, img); requestDraw(true); };
+        img.onerror = () => imagesRef.current.set(src, "error");
+        img.src = url;
+      })();
+      return null;
+    };
+    requestDraw(true);
+  }, [requestDraw]);
 
   useEffect(() => {
     strokesRef.current = strokes;
@@ -248,6 +290,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
       channelRef.current = channel;
       channel
         .on("broadcast", { event: "board" }, ({ payload }) => onRemote(payload))
+        .on("broadcast", { event: "files" }, () => setFilesVersion(v => v + 1))
         .on("presence", { event: "sync" }, () => {
           const state = channel.presenceState<{ name: string; role: string }>();
           const list: BoardPeer[] = [];
@@ -433,6 +476,67 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
     pushHistory({ kind: "add", strokes: [cur] });
   };
 
+  // ---------- files and pictures ----------
+
+  /** Uploads one file: pictures are placed on the board, other files go to the lesson's file list. */
+  const addFile = useCallback(async (file: File, at?: { x: number; y: number }) => {
+    setFileError("");
+    if (file.size > MAX_FILE_BYTES) { setFileError(t("„{name}” e prea mare (maxim 25 MB).", { name: file.name })); return; }
+    const picture = isImage(file) && file.type !== "image/svg+xml";
+    let src: string;
+    if (live) {
+      const supabase = createClient();
+      if (!supabase) return;
+      src = `lesson/${lessonId}/${storageName(file.name, newId())}`;
+      setUploading(n => n + 1);
+      const { error } = await supabase.storage.from(FILES_BUCKET).upload(src, file, { contentType: file.type || undefined });
+      setUploading(n => n - 1);
+      if (error) { setFileError(t("Nu s-a putut încărca „{name}”.", { name: file.name })); return; }
+      const ch = channelRef.current;
+      if (ch) void ch.send({ type: "broadcast", event: "files", payload: {} });
+      setFilesVersion(v => v + 1);
+    } else {
+      src = URL.createObjectURL(file);
+      setLocalFiles(list => [...list, { key: src, name: file.name, size: file.size, url: src }]);
+    }
+    if (!picture) { setShowFiles(true); return; }
+
+    // Natural size, fitted into at most 60% of the board, centred on the drop point (or the board).
+    const dims = await new Promise<{ w: number; h: number }>(resolve => {
+      const probe = new Image();
+      const url = URL.createObjectURL(file);
+      probe.onload = () => { resolve({ w: probe.naturalWidth || 800, h: probe.naturalHeight || 600 }); URL.revokeObjectURL(url); };
+      probe.onerror = () => { resolve({ w: 800, h: 600 }); URL.revokeObjectURL(url); };
+      probe.src = url;
+    });
+    const k = Math.min(1, (BOARD_W * 0.6) / dims.w, (BOARD_H * 0.6) / dims.h);
+    const w = Math.round(dims.w * k), h = Math.round(dims.h * k);
+    const cx = at?.x ?? BOARD_W / 2, cy = at?.y ?? BOARD_H / 2;
+    const x0 = Math.round(Math.min(Math.max(cx - w / 2, 0), BOARD_W - w)), y0 = Math.round(Math.min(Math.max(cy - h / 2, 0), BOARD_H - h));
+    const stroke: Stroke = { id: newId(), tool: "image", color: "#000000", size: 1, points: [x0, y0, x0 + w, y0 + h], src };
+    commit({ type: "add", strokes: [stroke] });
+    pushHistory({ kind: "add", strokes: [stroke] });
+  }, [live, lessonId, t, commit, pushHistory]);
+
+  const addFiles = useCallback((list: FileList | File[] | null, at?: { x: number; y: number }) => {
+    if (!list || !canUpload) return;
+    for (const f of [...list].slice(0, 10)) void addFile(f, at);
+  }, [addFile, canUpload]);
+
+  // Paste a picture (Ctrl+V) straight onto the board.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      const files = [...(e.clipboardData?.files ?? [])].filter(f => isImage(f));
+      if (!files.length) return;
+      e.preventDefault();
+      addFiles(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [addFiles]);
+
   // ---------- keyboard ----------
 
   useEffect(() => {
@@ -460,7 +564,8 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, BOARD_W, BOARD_H);
     if (grid) drawGrid(ctx);
-    for (const s of strokesRef.current) drawStroke(ctx, s, fontRef.current);
+    for (const s of strokesRef.current) if (s.tool === "image") drawStroke(ctx, s, fontRef.current, getImageRef.current);
+    for (const s of strokesRef.current) if (s.tool !== "image") drawStroke(ctx, s, fontRef.current);
     c.toBlob(blob => {
       if (!blob) return;
       const a = document.createElement("a");
@@ -538,6 +643,21 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
         <div className="flex items-center gap-1">
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!canUpload || uploading > 0}
+            title={canUpload ? t("Adaugă poză sau fișier (sau Ctrl+V / trage pe tablă)") : t("Fișierele se activează după migrarea 0010")}
+            aria-label={t("Adaugă poză sau fișier")}
+            className="flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-tint px-2.5 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb] disabled:cursor-not-allowed disabled:opacity-40">
+            {uploading > 0 ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : <ImagePlus className="h-[17px] w-[17px]" />}
+            <span className="hidden lg:inline">{t("Adaugă")}</span>
+          </button>
+          <input ref={fileInputRef} type="file" multiple accept={FILE_ACCEPT} className="sr-only" tabIndex={-1}
+            onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
+          <IconButton label={t("Fișierele lecției")} icon={Paperclip} onClick={() => setShowFiles(v => !v)} pressed={showFiles} />
+        </div>
+
+        <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
+
+        <div className="flex items-center gap-1">
           <IconButton label={t("Anulează (Ctrl+Z)")} icon={Undo2} onClick={undo} disabled={undoStack.length === 0} />
           <IconButton label={t("Refă (Ctrl+Y)")} icon={Redo2} onClick={redo} disabled={redoStack.length === 0} />
           <IconButton label={t("Caroiaj")} icon={Grid3x3} onClick={() => setGrid(g => !g)} pressed={grid} />
@@ -552,7 +672,22 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         </div>
       </div>
 
-      <div ref={holderRef} className={`relative w-full ${fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] max-h-[calc(100vh-140px)]"} flex items-center justify-center`}>
+      {fileError && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a]">{fileError}</p>}
+      {showFiles && (
+        <LessonFiles lessonId={lessonId} live={live && filesReady} localFiles={localFiles} version={filesVersion}
+          canDelete={me.role === "teacher"} onClose={() => setShowFiles(false)} />
+      )}
+
+      <div ref={holderRef}
+        className={`relative w-full ${fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] max-h-[calc(100vh-140px)]"} flex items-center justify-center`}
+        onDragOver={e => { if (canUpload && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => {
+          if (!canUpload || !e.dataTransfer.files.length) return;
+          e.preventDefault();
+          setDragOver(false);
+          addFiles(e.dataTransfer.files, canvasRef.current ? toBoard(e) : undefined);
+        }}>
         <div className="relative overflow-hidden rounded-[20px] border border-line/70 shadow-card" style={{ width: cssSize.w || "100%", height: cssSize.h || "100%" }}>
           <canvas
             ref={canvasRef}
@@ -566,6 +701,11 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           />
+          {dragOver && (
+            <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-primary/10 text-[14px] font-extrabold text-primary-2 ring-4 ring-inset ring-primary/40">
+              {t("Lasă fișierul aici")}
+            </div>
+          )}
           {textDraft && (
             <textarea
               autoFocus
