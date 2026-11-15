@@ -72,12 +72,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           const { weekday, day: num } = formatShortDay(day, t.locale);
           const isToday = day === today;
           return (
-            <div key={day} className="min-w-0 rounded-[20px] bg-soft p-3">
-              <div className="mb-3 flex items-center justify-between px-1">
+            <div key={day} className={`min-w-0 rounded-[20px] bg-soft p-3 ${slots.length === 0 ? "flex items-center gap-3 lg:block" : ""} ${isToday ? "ring-1 ring-primary/25" : ""}`}>
+              <div className={`flex items-center justify-between px-1 ${slots.length === 0 ? "flex-1 lg:mb-3" : "mb-3"}`}>
                 <Link href={`/dashboard?date=${day}`} className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-muted"}`}>{weekday}</Link>
                 <span className={`grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold ${isToday ? "bg-primary text-white" : "text-ink"}`}>{num}</span>
               </div>
-              <div className="space-y-2">
+              <div className={slots.length === 0 ? "w-24 shrink-0 lg:w-auto" : "space-y-2"}>
                 {slots.map(s => {
                   const active = s.state === "now" || s.state === "next";
                   const needsStatus = s.state === "past" && s.status === "scheduled";

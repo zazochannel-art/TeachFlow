@@ -261,6 +261,7 @@ export const ru: Record<string, string> = {
   "Mergi la contul tău": "Перейти в аккаунт",
   "Mesaj": "Сообщение",
   "Mesaj de la mine": "Моё сообщение",
+  "Mai mult": "Ещё",
   "Mesaje": "Сообщения",
   "Mesaje cu {name}": "Переписка с {name}",
   "Mesaje · {name}": "Сообщения · {name}",

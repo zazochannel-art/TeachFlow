@@ -24,7 +24,8 @@ interface Props {
   unread: number;
 }
 
-const DATED_PAGES = ["/dashboard", "/calendar"];
+// Only the dashboard is tied to a single day; the calendar has its own week navigation,
+// and on every other page a date picker would only be noise.
 
 export function TopBar({ todayKey, name, avatarUrl, current, unread }: Props) {
   const pathname = usePathname();
@@ -36,18 +37,19 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread }: Props) {
 
   const raw = params.get("date");
   const key = isDateKey(raw) ? raw : todayKey;
-  const base = DATED_PAGES.includes(pathname) ? pathname : "/dashboard";
-  const step = pathname === "/calendar" ? 7 : 1;
+  const base = "/dashboard";
+  const step = 1;
+  const showDate = pathname === "/dashboard";
   const hrefFor = (k: string) => (k === todayKey ? base : `${base}?date=${k}`);
   const { weekday, rest } = formatDayHeading(key, t.locale);
 
   const roundBtn = "grid h-5 w-5 place-items-center rounded-full bg-ink text-white transition-opacity hover:opacity-80";
 
   return (
-    <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-3.5">
+    <header className={`mb-5 flex flex-wrap items-center gap-3 md:mb-7 md:gap-4 ${showDate ? "justify-between" : "justify-end"}`}>
+      {showDate && <div className="flex items-center gap-2.5 sm:gap-3.5">
         <Link href={hrefFor(addDays(key, -step))} aria-label={t("Ziua anterioară")} className={roundBtn}><ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.6} /></Link>
-        <h1 className="text-[17px] tracking-tight text-ink">
+        <h1 className="text-[15px] tracking-tight text-ink sm:text-[17px]">
           <strong className="font-extrabold">{weekday}</strong>, {rest}
         </h1>
         <Link href={hrefFor(addDays(key, step))} aria-label={t("Ziua următoare")} className={roundBtn}><ChevronRight className="h-3.5 w-3.5" strokeWidth={2.6} /></Link>
@@ -56,15 +58,15 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread }: Props) {
           <Calendar className="h-3.5 w-3.5" />
         </Link>
         {key !== todayKey && <Link href={base} className="text-[11px] font-bold text-primary">{t("Astăzi")}</Link>}
-      </div>
+      </div>}
 
-      <div className="flex h-[54px] items-center overflow-hidden rounded-2xl bg-white shadow-card">
+      <div className="flex h-[54px] w-full items-center overflow-hidden rounded-2xl bg-white shadow-card sm:w-auto">
         {current && (
           current.external
-            ? <a href={current.href} target="_blank" rel="noreferrer" className="flex h-full items-center gap-4 rounded-r-2xl bg-primary px-5 text-white" title={current.running ? t("Lecție în desfășurare") : t("Următoarea lecție la {time}", { time: current.time })}><Chip c={current} /></a>
-            : <Link href={current.href} className="flex h-full items-center gap-4 rounded-r-2xl bg-primary px-5 text-white"><Chip c={current} /></Link>
+            ? <a href={current.href} target="_blank" rel="noreferrer" className="flex h-full min-w-0 items-center gap-4 rounded-r-2xl bg-primary px-4 text-white sm:px-5" title={current.running ? t("Lecție în desfășurare") : t("Următoarea lecție la {time}", { time: current.time })}><Chip c={current} /></a>
+            : <Link href={current.href} className="flex h-full min-w-0 items-center gap-4 rounded-r-2xl bg-primary px-4 text-white sm:px-5"><Chip c={current} /></Link>
         )}
-        <div className="flex items-center gap-5 px-5 text-ink">
+        <div className="ml-auto flex items-center gap-4 px-4 text-ink sm:gap-5 sm:px-5">
           {searching ? (
             <form className="flex items-center gap-2" onSubmit={e => { e.preventDefault(); router.push(`/students?q=${encodeURIComponent(query)}`); setSearching(false); }}>
               <Search className="h-4 w-4 text-muted" />

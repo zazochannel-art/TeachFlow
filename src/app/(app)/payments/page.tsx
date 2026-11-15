@@ -48,8 +48,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit) : undefined;
   const sub = ws.subscription;
   const cards = courseCards(ws, true);
-  const stat = "flex items-center gap-4 p-5";
-  const icon = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
+  const stat = "flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5";
+  const icon = "grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
 
   return (
     <div>
@@ -63,9 +63,9 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         </Panel>
       )}
 
-      <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <div className={`${stat} rounded-[20px] bg-primary text-white shadow-lift`}>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/20"><Wallet className="h-5 w-5" /></span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20 sm:h-11 sm:w-11"><Wallet className="h-5 w-5" /></span>
           <div><p className="text-[11px] text-white/80">{t("Încasat luna aceasta")}</p><p className="text-[18px] font-extrabold">{missing ? "—" : money(paidThisMonth)}</p></div>
         </div>
         <Card className={stat}><span className={`${icon} ${overdue.length ? "bg-[#fdecec] text-[#c03a3a]" : ""}`}><AlertCircle className="h-5 w-5" /></span><div>
@@ -100,19 +100,19 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 const st = student.get(p.student_id);
                 const late = p.status === "pending" && p.due_date && p.due_date < today;
                 return (
-                  <div key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line/70 px-5 py-4 text-[12px] last:border-0">
+                  <div key={p.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line/70 px-4 py-3.5 text-[12px] last:border-0 md:flex md:flex-wrap md:gap-x-4 md:px-5 md:py-4">
                     <Avatar name={st?.full_name ?? "?"} size={38} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-extrabold">{st?.full_name ?? t("Elev șters")}</div>
                       <div className="truncate text-muted">{[p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
                     </div>
-                    <div className="text-muted">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
-                    <Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill>
-                    <div className="w-28 text-right text-[13px] font-extrabold">{formatMoney(p.amount, p.currency, t.locale)}</div>
-                    <div className="flex items-center gap-2">
+                    <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
+                    <Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill></div>
+                    <div className="col-start-3 row-start-1 text-right text-[13px] font-extrabold md:w-28">{formatMoney(p.amount, p.currency, t.locale)}</div>
+                    <div className="col-start-3 row-start-2 flex items-center justify-end gap-2">
                       {p.status === "pending" && (
                         <form action={markPaymentPaid}><input type="hidden" name="id" value={p.id} />
-                          <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> {t("Încasată")}</SubmitButton>
+                          <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Încasată")}</span></SubmitButton>
                         </form>
                       )}
                       <Link href={`/payments?status=${filter}&edit=${p.id}`} aria-label={t("Editează plata")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
@@ -132,14 +132,14 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         {ws.courses.map(c => {
           const card = cards.find(x => x.id === c.id)!;
           return (
-            <div key={c.id} className="flex items-center gap-4 border-b border-line/70 px-5 py-4 text-[12px] last:border-0">
+            <div key={c.id} className="flex items-center gap-3 border-b border-line/70 px-4 py-3.5 sm:gap-4 sm:px-5 sm:py-4 text-[12px] last:border-0">
               <span className={icon}><SubjectIcon kind={card.subject} className="h-[18px] w-[18px]" /></span>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-extrabold">{c.title}</div>
                 <div className="text-muted">{c.format === "group" ? `${t("Grupă")} · ${t.n("{n} elev|{n} elevi|{n} de elevi", card.studentCount)}` : t("Individual")}</div>
               </div>
-              <Pill tone={c.is_active ? "green" : "gray"}>{c.is_active ? t("Activ") : t("Inactiv")}</Pill>
-              <Link href={`/courses?edit=${c.id}`} className="w-32 text-right font-extrabold hover:text-primary">{c.price != null ? t("{price} / lecție", { price: formatMoney(c.price, c.currency, t.locale) }) : t("Setează prețul")}</Link>
+              <span className="hidden sm:inline-flex"><Pill tone={c.is_active ? "green" : "gray"}>{c.is_active ? t("Activ") : t("Inactiv")}</Pill></span>
+              <Link href={`/courses?edit=${c.id}`} className="shrink-0 text-right sm:w-32 font-extrabold hover:text-primary">{c.price != null ? t("{price} / lecție", { price: formatMoney(c.price, c.currency, t.locale) }) : t("Setează prețul")}</Link>
             </div>
           );
         })}

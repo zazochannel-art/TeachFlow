@@ -14,15 +14,15 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-white">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 bg-navy px-5 py-4 text-white md:px-8">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-4 gap-y-3 bg-navy px-4 py-3.5 sm:gap-x-6 sm:px-5 sm:py-4 text-white md:px-8">
           <Link href="/student" className="flex items-center gap-2.5">
             <GraduationCap className="h-8 w-8 text-primary" fill="rgba(82,105,232,.3)" strokeWidth={1.8} />
-            <span className="text-[17px] font-extrabold tracking-tight">TeachFlow</span>
+            <span className="hidden text-[17px] font-extrabold tracking-tight min-[400px]:inline">TeachFlow</span>
           </Link>
           <StudentNav unread={unread} />
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher dark />
-            <Avatar name={portal.name} size={34} />
+            <span className="hidden sm:inline-flex"><Avatar name={portal.name} size={34} /></span>
             <span className="hidden text-[13px] font-bold sm:inline">{portal.name}</span>
             <form action={studentSignOut}>
               <button aria-label={t("Ieși din cont")} title={t("Ieși din cont")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-white/10 hover:bg-white/20"><LogOut className="h-4 w-4" /></button>

@@ -33,14 +33,14 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         title={t("Elevi")}
         subtitle={t("{total} elevi · {active} activi", { total: ws.students.length, active: ws.students.filter(s => s.status === "active").length })}
         action={
-          <div className="flex flex-wrap items-center gap-3">
-            <form className="flex h-11 items-center gap-2 rounded-2xl bg-white px-4 shadow-card" action="/students">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <form className="flex h-11 w-full items-center gap-2 rounded-2xl bg-white px-4 shadow-card sm:w-auto" action="/students">
               <Search className="h-4 w-4 text-muted" />
-              <input name="q" defaultValue={q} placeholder={t("Caută după nume, email, telefon")} aria-label={t("Caută elevi")} className="w-48 bg-transparent text-[12px] outline-none sm:w-56" />
+              <input name="q" defaultValue={q} placeholder={t("Caută după nume, email, telefon")} aria-label={t("Caută elevi")} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none sm:w-56 sm:flex-none" />
               {filter !== "active" && <input type="hidden" name="status" value={filter} />}
             </form>
-            {ws.students.length > 0 && <a href="/students/export" download className="tf-btn-ghost h-11" title={t("Descarcă lista de elevi (CSV, se deschide în Excel)")}><Download className="h-4 w-4" /> {t("Exportă")}</a>}
-            <Link href="/students?new=1" className="tf-btn h-11"><Plus className="h-4 w-4" /> {t("Elev nou")}</Link>
+            {ws.students.length > 0 && <a href="/students/export" download className="tf-btn-ghost h-11 flex-1 sm:flex-none" title={t("Descarcă lista de elevi (CSV, se deschide în Excel)")}><Download className="h-4 w-4" /> {t("Exportă")}</a>}
+            <Link href="/students?new=1" className="tf-btn h-11 flex-1 sm:flex-none"><Plus className="h-4 w-4" /> {t("Elev nou")}</Link>
           </div>
         }
       />
@@ -79,23 +79,23 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             const due = ws.payments.filter(p => p.student_id === s.id && p.status === "pending");
             const unread = ws.messages.filter(m => m.student_id === s.id && m.direction === "incoming" && !m.read_at).length;
             return (
-              <div key={s.id} className="grid gap-3 border-b border-line/70 px-5 py-4 text-[12px] last:border-0 lg:grid-cols-[1.6fr_1.4fr_1.6fr_.8fr_.9fr_96px] lg:items-center lg:gap-4">
-                <div className="flex items-center gap-3">
+              <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 border-b border-line/70 px-4 py-3.5 text-[12px] last:border-0 sm:px-5 lg:grid-cols-[1.6fr_1.4fr_1.6fr_.8fr_.9fr_96px] lg:gap-4 lg:py-4">
+                <div className="flex min-w-0 items-center gap-3">
                   <Avatar name={s.full_name} size={38} />
                   <div className="min-w-0">
                     <div className="truncate font-extrabold text-ink">{s.full_name}</div>
                     <div className="truncate text-[11px] text-muted">{s.notes || t("din {date}", { date: formatDate(s.created_at, ws.timezone, t.locale) })}</div>
                   </div>
                 </div>
-                <div className="space-y-1 text-muted">
+                <div className={`col-span-2 min-w-0 space-y-1 text-muted lg:col-span-1 ${!s.email && !s.phone ? "hidden lg:block" : ""}`}>
                   {s.email && <a href={`mailto:${s.email}`} className="flex items-center gap-2 truncate hover:text-primary"><Mail className="h-3.5 w-3.5 shrink-0" />{s.email}</a>}
                   {s.phone && <a href={`tel:${s.phone}`} className="flex items-center gap-2 hover:text-primary"><Phone className="h-3.5 w-3.5" />{s.phone}</a>}
                   {!s.email && !s.phone && <span>—</span>}
                 </div>
-                <div className="flex flex-wrap gap-1.5">{courses.length ? courses.map(c => <Pill key={c}>{c}</Pill>) : <Pill tone="amber">{t("Fără curs")}</Pill>}</div>
+                <div className="col-span-2 flex flex-wrap gap-1.5 lg:col-span-1">{courses.length ? courses.map(c => <Pill key={c}>{c}</Pill>) : <Pill tone="amber">{t("Fără curs")}</Pill>}</div>
                 <div><Pill tone={s.status === "active" ? "green" : "gray"}>{s.status === "active" ? t("Activ") : t("Inactiv")}</Pill></div>
-                <div>{due.length ? <Link href="/payments?status=pending" className="inline-flex items-center gap-1.5 font-bold text-[#a2660a]"><Wallet className="h-3.5 w-3.5" />{due.map(p => formatMoney(p.amount, p.currency, t.locale)).join(" + ")}</Link> : <span className="text-muted">{t("La zi")}</span>}</div>
-                <div className="flex items-center gap-2 lg:justify-end">
+                <div className="text-right lg:text-left">{due.length ? <Link href="/payments?status=pending" className="inline-flex items-center gap-1.5 font-bold text-[#a2660a]"><Wallet className="h-3.5 w-3.5" />{due.map(p => formatMoney(p.amount, p.currency, t.locale)).join(" + ")}</Link> : <span className="text-muted">{t("La zi")}</span>}</div>
+                <div className="col-start-2 row-start-1 flex items-center gap-2 lg:col-start-auto lg:row-start-auto lg:justify-end">
                   <Link href={`/messages?student=${s.id}`} aria-label={t("Mesaje · {name}", { name: s.full_name })} className="relative grid h-8 w-8 place-items-center rounded-full bg-tint text-primary-2 hover:bg-[#dfe4fb]">
                     <MessageCircle className="h-3.5 w-3.5" />
                     {unread > 0 && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white" />}

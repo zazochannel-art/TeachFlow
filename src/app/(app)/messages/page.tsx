@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MessageCircle, Phone, Search } from "lucide-react";
+import { Mail, MessageCircle, Phone, Search, ChevronLeft } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, MigrationNotice, PageHeader } from "@/components/ui";
 import { ActionForm } from "@/components/forms";
 import { loadWorkspace } from "@/lib/data/workspace";
@@ -28,14 +28,16 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
   const conversation = active ? ws.messages.filter(m => m.student_id === active.id) : [];
   if (active && !demo && !missing) await markConversationRead(active.id);
   const today = dateKey(new Date(), ws.timezone);
+  // Phones show one pane at a time: the list, or the open conversation with a back link.
+  const picked = Boolean(sp.student);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader title={t("Mesaje")} subtitle={t("Conversațiile cu elevii și părinții, într-un singur loc")} />
       {missing && <MigrationNotice table="messages" />}
 
-      <div className="grid min-h-[560px] flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="flex min-h-0 flex-col p-2">
+      <div className="grid flex-1 gap-6 lg:min-h-[560px] lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className={`min-h-0 flex-col p-2 ${picked ? "hidden lg:flex" : "flex"}`}>
           <form action="/messages" className="m-2 flex items-center gap-2 rounded-xl bg-soft px-3 py-2">
             <Search className="h-4 w-4 text-muted" />
             <input name="q" defaultValue={sp.q} placeholder={t("Caută un elev")} aria-label={t("Caută un elev")} className="w-full bg-transparent text-[12px] outline-none" />
@@ -62,8 +64,9 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
         </Card>
 
         {active ? (
-          <Card className="flex min-h-0 flex-col">
-            <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+          <Card className={`min-h-0 flex-col ${picked ? "flex" : "hidden lg:flex"}`}>
+            <div className="flex items-center gap-3 border-b border-line px-4 py-3.5 sm:px-5 sm:py-4">
+              <Link href="/messages" aria-label={t("Înapoi")} className="-ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink hover:bg-soft lg:hidden"><ChevronLeft className="h-5 w-5" /></Link>
               <Avatar name={active.full_name} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-extrabold">{active.full_name}</div>
@@ -73,10 +76,10 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
               {active.phone && <a href={`tel:${active.phone}`} aria-label={t("Sună")} className="grid h-9 w-9 place-items-center rounded-full bg-tint text-primary-2"><Phone className="h-4 w-4" /></a>}
             </div>
 
-            <div className="tf-scroll flex min-h-[280px] flex-1 flex-col gap-3 overflow-y-auto bg-soft/60 px-5 py-5 lg:max-h-[520px]">
+            <div className="tf-scroll flex min-h-[280px] flex-1 flex-col gap-3 overflow-y-auto bg-soft/60 px-4 py-5 sm:px-5 lg:max-h-[520px]">
               {conversation.length === 0 && <p className="m-auto text-[12px] text-muted">{t("Începe conversația cu {name}.", { name: active.full_name.split(" ")[0] })}</p>}
               {conversation.map(m => (
-                <div key={m.id} className={`max-w-[78%] rounded-[18px] px-4 py-2.5 text-[12px] leading-relaxed ${m.direction === "outgoing" ? "self-end rounded-br-md bg-primary text-white" : "self-start rounded-bl-md bg-white text-ink shadow-card"}`}>
+                <div key={m.id} className={`max-w-[85%] sm:max-w-[78%] rounded-[18px] px-4 py-2.5 text-[12px] leading-relaxed ${m.direction === "outgoing" ? "self-end rounded-br-md bg-primary text-white" : "self-start rounded-bl-md bg-white text-ink shadow-card"}`}>
                   <p className="whitespace-pre-wrap">{m.body}</p>
                   <p className={`mt-1 text-right text-[10px] ${m.direction === "outgoing" ? "text-white/70" : "text-muted"}`}>{formatDate(m.created_at, ws.timezone, t.locale)}, {formatTime(m.created_at, ws.timezone, t.locale)}</p>
                 </div>
@@ -84,7 +87,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
             </div>
 
             {!missing && (
-              <div className="border-t border-line p-4">
+              <div className="border-t border-line p-3 sm:p-4">
                 <ActionForm action={addMessage} demo={demo} submitLabel={t("Trimite")} resetOnOk className="grid gap-3"
                   extra={
                     <select name="direction" defaultValue="outgoing" aria-label={t("Cine a scris")} className="tf-input w-auto py-2 text-[12px]">
@@ -100,7 +103,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
             )}
           </Card>
         ) : (
-          <EmptyState icon={MessageCircle} title={t("Alege o conversație")} text={t("Selectează un elev din listă pentru a vedea istoricul mesajelor.")} />
+          <div className="hidden lg:block"><EmptyState icon={MessageCircle} title={t("Alege o conversație")} text={t("Selectează un elev din listă pentru a vedea istoricul mesajelor.")} /></div>
         )}
       </div>
       {demo && <DemoNotice />}
