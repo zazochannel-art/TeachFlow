@@ -93,6 +93,12 @@ export function formatDate(iso: string, tz: string, locale = LOCALE) {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: tz }).format(new Date(iso));
 }
 
+/** Minutes since local midnight in the time zone (e.g. 14:30 → 870). */
+export function minutesInTz(iso: string, tz: string) {
+  const p = partsInTz(new Date(iso), tz);
+  return p.h * 60 + p.min;
+}
+
 export function hourInTz(iso: string, tz: string) {
   return partsInTz(new Date(iso), tz).h;
 }

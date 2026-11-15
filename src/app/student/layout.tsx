@@ -6,6 +6,7 @@ import { studentSignOut } from "@/lib/actions/student";
 import { StudentNav } from "./StudentNav";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getT } from "@/lib/i18n/server";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 /** Student portal shell: full-screen like the teacher app, with a navy top navigation. */
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,8 @@ export default async function StudentLayout({ children }: { children: React.Reac
           <StudentNav unread={unread} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher dark />
-            <span className="hidden sm:inline-flex"><Avatar name={portal.name} size={34} /></span>
+            <ThemeToggle onDark />
+            <span className="hidden sm:inline-flex"><Avatar name={portal.name} src={portal.avatarUrl} size={34} /></span>
             <span className="hidden text-[13px] font-bold sm:inline">{portal.name}</span>
             <form action={studentSignOut}>
               <button aria-label={t("Ieși din cont")} title={t("Ieși din cont")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-white/10 hover:bg-white/20"><LogOut className="h-4 w-4" /></button>

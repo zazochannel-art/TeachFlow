@@ -9,6 +9,7 @@ import { dateKey, dayRange, formatDate, formatMoney } from "@/lib/time";
 import type { Lesson, Payment } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
+import { FinanceChart } from "@/components/FinanceChart";
 
 const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "Altă metodă" } as const;
 type Params = { status?: string; new?: string; edit?: string; student?: string };
@@ -73,6 +74,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         </div></Card>
       </div>
 
+      {!missing && <FinanceChart ws={ws} now={now} t={t} />}
+
       {!missing && (
         <>
           <SectionTitle action={list.length > 0 && <a href={`/payments/export${filter === "all" ? "" : `?status=${filter}`}`} download className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-2"><Download className="h-3.5 w-3.5" /> {t("Exportă CSV")}</a>}>{t("Plăți")}</SectionTitle>
@@ -91,7 +94,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 const late = p.status === "pending" && p.due_date && p.due_date < today;
                 return (
                   <div key={p.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line/70 px-4 py-3.5 text-[12px] last:border-0 md:flex md:flex-wrap md:gap-x-4 md:px-5 md:py-4">
-                    <Avatar name={st?.full_name ?? "?"} size={38} />
+                    <Avatar name={st?.full_name ?? "?"} src={st?.avatar_url} size={38} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-extrabold">{st?.full_name ?? t("Elev șters")}</div>
                       <div className="truncate text-muted">{[p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>

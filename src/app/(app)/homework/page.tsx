@@ -141,7 +141,7 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
                     <Pill tone={overdue ? "red" : tones[h.status]}>{overdue ? t("Întârziată") : t(labels[h.status])}</Pill>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted">
-                    <span className="flex items-center gap-1.5"><Avatar name={st?.full_name ?? "?"} size={18} />{st?.full_name ?? t("Elev")}</span>
+                    <span className="flex items-center gap-1.5"><Avatar name={st?.full_name ?? "?"} src={st?.avatar_url} size={18} />{st?.full_name ?? t("Elev")}</span>
                     {c && <span>{c.title}</span>}
                     {h.due_at && <span>{t("termen {date}", { date: formatDate(h.due_at, ws.timezone, t.locale) })}</span>}
                     {h.grade && <span className="font-bold text-ink">{t("Nota: {grade}", { grade: h.grade })}</span>}

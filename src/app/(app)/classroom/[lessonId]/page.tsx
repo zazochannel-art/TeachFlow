@@ -45,7 +45,7 @@ function LessonBar({ ws, lesson, t }: { ws: Workspace; lesson: Lesson; t: T }) {
         <div className="tf-scroll flex min-w-0 gap-2 overflow-x-auto">
           {people.map(s => (
             <Link key={s.id} href={`/students?edit=${s.id}`} className="flex shrink-0 items-center gap-1.5 rounded-full bg-soft py-1 pl-1 pr-3 text-[12px] font-bold hover:bg-tint">
-              <Avatar name={s.full_name} size={24} />{s.full_name.split(" ")[0]}
+              <Avatar name={s.full_name} src={s.avatar_url} size={24} />{s.full_name.split(" ")[0]}
             </Link>
           ))}
         </div>

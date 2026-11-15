@@ -12,7 +12,8 @@ const courseSchema = z.object({
   format: z.enum(["individual", "group"]),
   price: optMoney,
   currency,
-  description: optText(1000)
+  description: optText(1000),
+  color: z.string().trim().optional().transform(v => (v ? v.toLowerCase() : null)).refine(v => v == null || /^#[0-9a-f]{6}$/.test(v), "Culoare invalidă.")
 });
 
 export async function saveCourse(_: FormState, formData: FormData): Promise<FormState> {
@@ -20,7 +21,9 @@ export async function saveCourse(_: FormState, formData: FormData): Promise<Form
   if (!ctx) return DEMO_STATE;
   const parsed = parseForm(courseSchema, formData);
   if ("error" in parsed) return parsed;
-  const { id, ...fields } = parsed.data;
+  const { id, color, ...rest } = parsed.data;
+  // The colour column exists from migration 0011; the form only sends it when it does.
+  const fields = formData.has("color") ? { ...rest, color } : rest;
 
   const { error } = id
     ? await ctx.supabase.from("courses").update(fields).eq("id", id).eq("teacher_id", ctx.userId)

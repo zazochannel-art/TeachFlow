@@ -47,7 +47,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
             {threads.map(({ s, last, unread }) => (
               <Link key={s.id} href={`/messages?student=${s.id}`}
                 className={`flex items-center gap-3 rounded-2xl p-3 ${active?.id === s.id ? "bg-primary text-white" : "hover:bg-soft"}`}>
-                <Avatar name={s.full_name} size={38} />
+                <Avatar name={s.full_name} src={s.avatar_url} size={38} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[12px] font-extrabold">{s.full_name}</span>
@@ -67,7 +67,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
           <Card className={`min-h-0 flex-col ${picked ? "flex" : "hidden lg:flex"}`}>
             <div className="flex items-center gap-3 border-b border-line px-4 py-3.5 sm:px-5 sm:py-4">
               <Link href="/messages" aria-label={t("Înapoi")} className="-ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink hover:bg-soft lg:hidden"><ChevronLeft className="h-5 w-5" /></Link>
-              <Avatar name={active.full_name} size={40} />
+              <Avatar name={active.full_name} src={active.avatar_url} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-extrabold">{active.full_name}</div>
                 <div className="truncate text-[11px] text-muted">{[active.email, active.phone].filter(Boolean).join(" · ") || t("Fără date de contact")}</div>

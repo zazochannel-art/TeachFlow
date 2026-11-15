@@ -6,7 +6,7 @@ import { dateKey, formatTime } from "@/lib/time";
 import type { Lesson } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 
-export async function LessonForm({ ws, lesson, date, courseId, back }: { ws: Workspace; lesson?: Lesson; date: string; courseId?: string; back?: string }) {
+export async function LessonForm({ ws, lesson, date, time, courseId, back }: { ws: Workspace; lesson?: Lesson; date: string; time?: string; courseId?: string; back?: string }) {
   const t = await getT();
   const duration = lesson ? Math.round((new Date(lesson.ends_at).getTime() - new Date(lesson.starts_at).getTime()) / 60000) : 60;
   return (
@@ -30,7 +30,7 @@ export async function LessonForm({ ws, lesson, date, courseId, back }: { ws: Wor
       </Field>
       <Field label={t("Data")} htmlFor="date"><input id="date" name="date" type="date" required defaultValue={lesson ? dateKey(new Date(lesson.starts_at), ws.timezone) : date} className="tf-input" /></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("Ora")} htmlFor="time"><input id="time" name="time" type="time" required defaultValue={lesson ? formatTime(lesson.starts_at, ws.timezone) : "10:00"} className="tf-input" /></Field>
+        <Field label={t("Ora")} htmlFor="time"><input id="time" name="time" type="time" required defaultValue={lesson ? formatTime(lesson.starts_at, ws.timezone) : time && /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : "10:00"} className="tf-input" /></Field>
         <Field label={t("Durata (min)")} htmlFor="duration"><input id="duration" name="duration" type="number" min={15} max={480} step={5} required defaultValue={duration} className="tf-input" /></Field>
       </div>
       <Field label={t("Link extern (opțional, lecția are deja apel video în TeachFlow)")} htmlFor="meeting_url"><input id="meeting_url" name="meeting_url" type="url" defaultValue={lesson?.meeting_url ?? ""} className="tf-input" placeholder="https://meet.google.com/…" /></Field>

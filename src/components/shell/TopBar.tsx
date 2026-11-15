@@ -8,6 +8,7 @@ import { signOut } from "@/lib/actions/settings";
 import { Avatar } from "@/components/ui";
 import { addDays, formatDayHeading, isDateKey } from "@/lib/time";
 import { useT } from "@/lib/i18n/client";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export interface CurrentLessonChip {
   title: string;
@@ -84,6 +85,7 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread, canSignOut 
             <Bell className="h-4 w-4" fill="currentColor" />
             {unread > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />}
           </Link>
+          <ThemeToggle className="-mx-2" />
           <Link href="/settings" className="flex items-center gap-3 pl-1">
             <span className="hidden max-w-[120px] truncate text-[12px] font-extrabold sm:inline">{name}</span>
             <Avatar name={name} src={avatarUrl} size={32} />

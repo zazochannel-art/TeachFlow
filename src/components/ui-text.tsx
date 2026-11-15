@@ -6,19 +6,20 @@ import { Plus, TrendingUp } from "lucide-react";
 import type { CourseCard } from "@/lib/data/derive";
 import { useT } from "@/lib/i18n/client";
 import { Card, SubjectIcon } from "./ui-base";
+import { colorVar } from "@/lib/colors";
 
 // Shared UI pieces that carry their own text; client components so they can read the language.
 
-const tileColors = ["bg-course-1", "bg-course-2", "bg-course-3", "bg-course-4"];
-
 /** Compact blue course/group card, as in the reference "classes" row. */
-export function CourseTile({ card, index }: { card: CourseCard; index: number }) {
+export function CourseTile({ card }: { card: CourseCard; index?: number }) {
   const t = useT();
   return (
     <Link
       href={`/courses#${card.id}`}
-      className={`${tileColors[index % tileColors.length]} flex h-[138px] min-w-0 flex-col justify-between rounded-[20px] p-4 text-white shadow-md transition-transform hover:-translate-y-0.5`}
+      style={colorVar(card.color)}
+      className="tf-c-tile relative flex h-[138px] min-w-0 flex-col justify-between overflow-hidden rounded-[20px] p-4 shadow-md transition-transform hover:-translate-y-0.5"
     >
+      <SubjectIcon kind={card.subject} className="pointer-events-none absolute -bottom-3 -right-3 h-20 w-20 opacity-[0.12]" />
       <div className="line-clamp-2 text-[16px] font-extrabold leading-[1.15]" title={card.title}>{card.title}</div>
 
       <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-white/90">
@@ -32,8 +33,10 @@ export function CourseTile({ card, index }: { card: CourseCard; index: number })
 
       <div className="flex items-center justify-between">
         <div className="flex -space-x-1.5">
-          {card.avatars.length ? card.avatars.map((a, i) => (
-            <span key={i} className="grid h-7 w-7 place-items-center rounded-full bg-white text-[9px] font-extrabold text-primary-2 ring-2 ring-white/25">{a}</span>
+          {card.avatars.length ? card.avatars.map((a, i) => a.src ? (
+            <span key={i} role="img" aria-label={a.name} className="h-7 w-7 rounded-full bg-white bg-cover bg-center ring-2 ring-white/25" style={{ backgroundImage: `url(${JSON.stringify(a.src)})` }} />
+          ) : (
+            <span key={i} title={a.name} className="tf-c-ink grid h-7 w-7 place-items-center rounded-full bg-white text-[9px] font-extrabold ring-2 ring-white/25">{a.initials}</span>
           )) : <span className="text-[10px] text-white/70">{t("Fără elevi")}</span>}
         </div>
         <div className="text-right text-[10px] leading-tight text-white/85">

@@ -7,12 +7,14 @@ import { loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, lessonsBetween, toSlot } from "@/lib/data/derive";
 import { deleteLesson, setLessonStatus } from "@/lib/actions/lessons";
 import { getT } from "@/lib/i18n/server";
-import { addDays, dateKey, dayRange, formatDayHeading, formatShortDay, formatTime, isDateKey, startOfWeek } from "@/lib/time";
+import { addDays, dateKey, dayRange, formatDayHeading, formatShortDay, formatTime, isDateKey, minutesInTz, startOfWeek } from "@/lib/time";
+import { WeekGrid, type WeekDay } from "@/components/WeekGrid";
+import { colorVar } from "@/lib/colors";
 
 const statusLabel = { scheduled: "Programată", completed: "Finalizată", cancelled: "Anulată", no_show: "Absent" } as const;
 const statusTone = { scheduled: "blue", completed: "green", cancelled: "gray", no_show: "red" } as const;
 
-type Params = { date?: string; new?: string; lesson?: string; course?: string; back?: string };
+type Params = { date?: string; new?: string; lesson?: string; course?: string; back?: string; time?: string };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Params> }) {
   const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
@@ -27,6 +29,19 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const live = ws.mode === "live";
   const back = sp.back?.startsWith("/") ? sp.back : undefined;
   const self = `/calendar${key === today ? "" : `?date=${key}`}`;
+  const week: WeekDay[] = days.map(day => {
+    const { start, end } = dayRange(day, ws.timezone);
+    const { weekday, day: num } = formatShortDay(day, t.locale);
+    return {
+      key: day, weekday, num, isToday: day === today,
+      slots: lessonsBetween(ws, start, end).map(l => ({
+        ...toSlot(ws, l, now, cur?.id ?? null, t),
+        startMin: minutesInTz(l.starts_at, ws.timezone),
+        endMin: dateKey(new Date(l.ends_at), ws.timezone) === day ? Math.max(minutesInTz(l.ends_at, ws.timezone), minutesInTz(l.starts_at, ws.timezone) + 15) : 24 * 60
+      }))
+    };
+  });
+  const nowMin = days.includes(today) ? minutesInTz(now.toISOString(), ws.timezone) : null;
   const weekLabel = `${formatDayHeading(monday, t.locale).rest.replace(/ \d{4}$/, "")} – ${formatDayHeading(addDays(monday, 6), t.locale).rest}`;
 
   return (
@@ -43,7 +58,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
       {sp.new && (
         <Panel title={t("Programează o lecție")} closeHref={self}>
-          <LessonForm ws={ws} date={key < today ? today : key} courseId={sp.course} back={back} />
+          <LessonForm ws={ws} date={key < today ? today : key} time={sp.time} courseId={sp.course} back={back} />
         </Panel>
       )}
       {selected && (
@@ -65,24 +80,25 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </Panel>
       )}
 
-      <div className="tf-scroll grid gap-3 overflow-x-auto pb-2 lg:grid-cols-7">
-        {days.map(day => {
-          const { start, end } = dayRange(day, ws.timezone);
-          const slots = lessonsBetween(ws, start, end).map(l => toSlot(ws, l, now, cur?.id ?? null, t));
-          const { weekday, day: num } = formatShortDay(day, t.locale);
-          const isToday = day === today;
+      <div className="hidden lg:block">
+        <WeekGrid days={week} nowMin={nowMin} selectedId={selected?.id} t={t} />
+      </div>
+
+      {/* Phones and tablets: one card per day. */}
+      <div className="grid gap-3 lg:hidden">
+        {week.map(({ key: day, slots, weekday, num, isToday }) => {
           return (
-            <div key={day} className={`min-w-0 rounded-[20px] bg-soft p-3 ${slots.length === 0 ? "flex items-center gap-3 lg:block" : ""} ${isToday ? "ring-1 ring-primary/25" : ""}`}>
-              <div className={`flex items-center justify-between px-1 ${slots.length === 0 ? "flex-1 lg:mb-3" : "mb-3"}`}>
+            <div key={day} className={`min-w-0 rounded-[20px] bg-soft p-3 ${slots.length === 0 ? "flex items-center gap-3" : ""} ${isToday ? "ring-1 ring-primary/25" : ""}`}>
+              <div className={`flex items-center justify-between px-1 ${slots.length === 0 ? "flex-1" : "mb-3"}`}>
                 <Link href={`/dashboard?date=${day}`} className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-muted"}`}>{weekday}</Link>
                 <span className={`grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold ${isToday ? "bg-primary text-white" : "text-ink"}`}>{num}</span>
               </div>
-              <div className={slots.length === 0 ? "w-24 shrink-0 lg:w-auto" : "space-y-2"}>
+              <div className={slots.length === 0 ? "w-24 shrink-0" : "space-y-2"}>
                 {slots.map(s => {
                   const active = s.state === "now" || s.state === "next";
                   const needsStatus = s.state === "past" && s.status === "scheduled";
                   return (
-                    <div key={s.id} className={`rounded-2xl text-[11px] transition-shadow ${active ? "bg-primary text-white shadow-lift" : "bg-white shadow-card hover:shadow-md"} ${s.status === "cancelled" ? "opacity-60" : ""} ${selected?.id === s.id ? "ring-2 ring-primary" : ""}`}>
+                    <div key={s.id} style={colorVar(s.color)} className={`rounded-2xl text-[11px] transition-shadow ${active ? "tf-c-tile shadow-lift" : "tf-c-edge bg-white shadow-card hover:shadow-md"} ${s.status === "cancelled" ? "opacity-60" : ""} ${selected?.id === s.id ? "ring-2 ring-primary" : ""}`}>
                       <Link href={`/calendar?date=${day}&lesson=${s.id}`} className="block p-3 pb-2">
                         <div className={`font-bold ${active ? "text-white/80" : "text-muted"}`}>{s.start} - {s.end}</div>
                         <div className={`mt-0.5 truncate text-[12px] font-extrabold ${s.status === "cancelled" ? "line-through" : ""}`}>{s.title}</div>

@@ -7,6 +7,8 @@ import { SettingsForm } from "./SettingsForm";
 import { effectivePlan } from "@/lib/plans";
 import { getT } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/time";
+import { AvatarUpload } from "@/components/AvatarUpload";
+import { ThemePicker } from "@/components/theme/ThemeToggle";
 
 const subStatus = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 
@@ -36,13 +38,23 @@ export default async function SettingsPage() {
       <section>
         <SectionTitle>{t("Cont")}</SectionTitle>
         <Card className="p-5">
-          <div className="flex items-center gap-3">
-            <Avatar name={name} src={ws.profile?.avatar_url} size={44} />
-            <div className="min-w-0">
-              <div className="truncate text-[13px] font-extrabold">{name}</div>
-              <div className="truncate text-[11px] text-muted">{ws.email ?? "—"}</div>
+          {ws.mode === "live" && ws.visualReady ? (
+            <>
+              <AvatarUpload name={name} src={ws.profile?.avatar_url ?? null} size={64} />
+              <div className="mt-3 min-w-0">
+                <div className="truncate text-[13px] font-extrabold">{name}</div>
+                <div className="truncate text-[11px] text-muted">{ws.email ?? "—"}</div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Avatar name={name} src={ws.profile?.avatar_url} size={44} />
+              <div className="min-w-0">
+                <div className="truncate text-[13px] font-extrabold">{name}</div>
+                <div className="truncate text-[11px] text-muted">{ws.email ?? "—"}</div>
+              </div>
             </div>
-          </div>
+          )}
           {/* The TeachFlow subscription lives here (account), not in Finanțe (money from students). */}
           <Link href="/billing" className="mt-5 flex items-center gap-3 rounded-2xl border border-line p-3.5 transition-colors hover:bg-soft">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint text-primary-2"><CreditCard className="h-[18px] w-[18px]" /></span>
@@ -59,6 +71,8 @@ export default async function SettingsPage() {
             </form>
           )}
         </Card>
+        <div className="mt-7"><SectionTitle>{t("Aspect")}</SectionTitle></div>
+        <Card className="p-5"><ThemePicker /></Card>
         {ws.mode === "demo" && <DemoNotice />}
       </section>
     </div>

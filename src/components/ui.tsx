@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BookOpen, ClipboardCheck, ClipboardList, UserRound, Video, Wallet, type LucideIcon } from "lucide-react";
+import { BookOpen, ClipboardCheck, ClipboardList, Sparkles, UserRound, Video, Wallet, type LucideIcon } from "lucide-react";
 import type { FeedItem } from "@/lib/data/derive";
 import { initials } from "@/lib/time";
 import { Card, SubjectIcon } from "./ui-base";
@@ -73,14 +73,33 @@ export function FeedCard({ item }: { item: FeedItem }) {
 }
 
 export function EmptyNote({ children }: { children: ReactNode }) {
-  return <div className="rounded-[20px] border border-dashed border-line bg-white/60 p-4 text-[12px] text-muted">{children}</div>;
+  return (
+    <div className="flex items-center gap-3 rounded-[20px] border border-dashed border-line bg-white/60 p-4 text-[12px] text-muted">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e7f7ef] text-[#1b8a5a]"><Sparkles className="h-4 w-4" /></span>
+      {children}
+    </div>
+  );
 }
 
+/** Friendly empty page: a small illustration around the icon, a short text and the next step. */
 export function EmptyState({ icon: Icon, title, text, action }: { icon: LucideIcon; title: string; text: string; action?: ReactNode }) {
   return (
-    <Card className="flex flex-col items-center px-6 py-14 text-center">
-      <span className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-tint text-primary-2"><Icon className="h-6 w-6" /></span>
-      <h3 className="text-[15px] font-extrabold text-ink">{title}</h3>
+    <Card className="tf-rise flex flex-col items-center px-6 py-12 text-center">
+      <div aria-hidden className="relative mb-5 h-[112px] w-[150px]">
+        <svg viewBox="0 0 150 112" className="absolute inset-0 h-full w-full">
+          <path d="M22 62c-6-26 14-50 44-54 26-4 52 4 64 26 12 22 2 50-22 62-26 12-62 10-76-6-5-6-8-14-10-28z" fill="var(--color-tint)" />
+          <circle cx="18" cy="24" r="4" fill="var(--color-primary)" opacity=".35" />
+          <circle cx="134" cy="18" r="3" fill="var(--color-primary)" opacity=".5" />
+          <circle cx="138" cy="92" r="5" fill="var(--color-primary)" opacity=".2" />
+          <path d="M120 40l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="var(--color-primary)" opacity=".55" />
+          <path d="M28 88l1.8 4.2 4.2 1.8-4.2 1.8-1.8 4.2-1.8-4.2-4.2-1.8 4.2-1.8z" fill="var(--color-primary)" opacity=".4" />
+        </svg>
+        <span className="absolute left-[38px] top-[30px] h-[58px] w-[74px] -rotate-6 rounded-2xl bg-white/70 shadow-card" />
+        <span className="absolute left-[42px] top-[22px] grid h-[62px] w-[70px] rotate-3 place-items-center rounded-2xl bg-white text-primary shadow-card">
+          <Icon className="h-7 w-7" strokeWidth={2.1} />
+        </span>
+      </div>
+      <h3 className="text-[16px] font-extrabold text-ink">{title}</h3>
       <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted">{text}</p>
       {action && <div className="mt-5">{action}</div>}
     </Card>

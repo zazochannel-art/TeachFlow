@@ -2,6 +2,7 @@ import type { Workspace } from "./workspace";
 import type { Course, Lesson } from "@/types/database";
 import { dayRange, formatDate, formatTime, initials } from "@/lib/time";
 import { makeT, type T } from "@/lib/i18n/core";
+import { NEUTRAL_COLOR, courseColors } from "@/lib/colors";
 
 const RO = makeT("ro");
 
@@ -18,8 +19,17 @@ export function subjectKind(subject: string | null, title = ""): SubjectKind {
   return "other";
 }
 
+const colorCache = new WeakMap<object, Map<string, string>>();
+/** Colour of a course (see lib/colors); grey for lessons without a course. */
+export function colorOf(ws: Pick<Workspace, "courses">, courseId: string | null | undefined): string {
+  let map = colorCache.get(ws.courses);
+  if (!map) { map = courseColors(ws.courses); colorCache.set(ws.courses, map); }
+  return (courseId && map.get(courseId)) || NEUTRAL_COLOR;
+}
+
 export interface CourseCard {
   id: string;
+  color: string;
   title: string;
   subject: SubjectKind;
   format: Course["format"];
@@ -27,18 +37,19 @@ export interface CourseCard {
   progress: number | null;
   lessonsDone: number;
   lessonsTotal: number;
-  avatars: string[];
+  avatars: Array<{ initials: string; name: string; src: string | null }>;
 }
 
 /** One compact card per active course, with real enrollment counts and lesson completion. */
 export function courseCards(ws: Workspace, includeInactive = false): CourseCard[] {
-  const studentName = new Map(ws.students.map(s => [s.id, s.full_name]));
+  const studentById = new Map(ws.students.map(s => [s.id, s]));
   return ws.courses.filter(c => includeInactive || c.is_active).map(c => {
     const enrolled = ws.enrollments.filter(e => e.course_id === c.id && e.status === "active");
     const lessons = ws.lessons.filter(l => l.course_id === c.id && l.status !== "cancelled");
     const done = lessons.filter(l => l.status === "completed" || l.status === "no_show").length;
     return {
       id: c.id,
+      color: colorOf(ws, c.id),
       title: c.title,
       subject: subjectKind(c.subject, c.title),
       format: c.format,
@@ -46,7 +57,10 @@ export function courseCards(ws: Workspace, includeInactive = false): CourseCard[
       progress: lessons.length ? Math.round((done / lessons.length) * 100) : null,
       lessonsDone: done,
       lessonsTotal: lessons.length,
-      avatars: enrolled.slice(0, 3).map(e => initials(studentName.get(e.student_id) ?? "?"))
+      avatars: enrolled.slice(0, 3).map(e => {
+        const st = studentById.get(e.student_id);
+        return { initials: initials(st?.full_name ?? "?"), name: st?.full_name ?? "?", src: st?.avatar_url ?? null };
+      })
     };
   });
 }
@@ -62,6 +76,10 @@ export interface Slot {
   status: Lesson["status"];
   state: "past" | "now" | "next" | "later";
   subject: SubjectKind;
+  color: string;
+  courseId: string | null;
+  studentId: string | null;
+  endsAt: string;
 }
 
 export function lessonSubtitle(ws: Workspace, l: Lesson) {
@@ -82,7 +100,8 @@ export function toSlot(ws: Workspace, l: Lesson, now: Date, nextId: string | nul
     id: l.id, title: l.title, subtitle: lessonSubtitle(ws, l),
     start: formatTime(l.starts_at, ws.timezone, t.locale), end: formatTime(l.ends_at, ws.timezone, t.locale),
     startsAt: l.starts_at, meetingUrl: l.meeting_url, status: l.status, state,
-    subject: subjectKind(course?.subject ?? null, l.title)
+    subject: subjectKind(course?.subject ?? null, l.title),
+    color: colorOf(ws, l.course_id), courseId: l.course_id, studentId: l.student_id, endsAt: l.ends_at
   };
 }
 
