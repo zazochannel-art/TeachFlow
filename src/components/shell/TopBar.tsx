@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Bell, Calendar, ChevronLeft, ChevronRight, Search, Video, X } from "lucide-react";
+import { Bell, Calendar, ChevronLeft, ChevronRight, LogOut, Search, Video, X } from "lucide-react";
+import { signOut } from "@/lib/actions/settings";
 import { Avatar } from "@/components/ui";
 import { addDays, formatDayHeading, isDateKey } from "@/lib/time";
 import { useT } from "@/lib/i18n/client";
@@ -22,12 +23,13 @@ interface Props {
   avatarUrl: string | null;
   current: CurrentLessonChip | null;
   unread: number;
+  canSignOut?: boolean;
 }
 
 // Only the dashboard is tied to a single day; the calendar has its own week navigation,
 // and on every other page a date picker would only be noise.
 
-export function TopBar({ todayKey, name, avatarUrl, current, unread }: Props) {
+export function TopBar({ todayKey, name, avatarUrl, current, unread, canSignOut = false }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const router = useRouter();
@@ -86,6 +88,11 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread }: Props) {
             <span className="hidden max-w-[120px] truncate text-[12px] font-extrabold sm:inline">{name}</span>
             <Avatar name={name} src={avatarUrl} size={32} />
           </Link>
+          {canSignOut && (
+            <form action={signOut} className="-ml-2 hidden sm:block">
+              <button aria-label={t("Deconectare")} title={t("Deconectare")} className="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-muted hover:bg-soft hover:text-ink"><LogOut className="h-4 w-4" /></button>
+            </form>
+          )}
         </div>
       </div>
     </header>

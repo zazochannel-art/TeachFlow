@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
+import { CalendarDays, ClipboardList, Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, PageHeader, Panel, Pill, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace, type Workspace } from "@/lib/data/workspace";
 import { deleteStudent, enrollStudent, removeEnrollment, saveStudent } from "@/lib/actions/students";
-import { formatDate, formatMoney } from "@/lib/time";
+import { formatDate, formatMoney, formatTime } from "@/lib/time";
+import { currencyTotals } from "@/lib/data/derive";
 import { StudentAccess } from "@/components/StudentAccess";
 import type { Student } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
@@ -53,6 +54,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       {editing && (
         <Panel title={t("Editează · {name}", { name: editing.full_name })} closeHref="/students"
           aside={<form action={deleteStudent}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge elevul")} confirm={t("Șterge definitiv")} /></form>}>
+          <StudentSummary ws={ws} student={editing} t={t} />
           <StudentForm ws={ws} demo={demo} student={editing} t={t} />
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
@@ -162,6 +164,51 @@ function Enrollments({ ws, student, t }: { ws: Workspace; student: Student; t: T
           <SubmitButton className="tf-btn-ghost">{t("Înscrie")}</SubmitButton>
         </form>
       )}
+    </div>
+  );
+}
+
+/** At-a-glance history of one student (lessons, homework, money) with the usual next steps. */
+function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t: T }) {
+  const now = new Date();
+  const courseIds = new Set(ws.enrollments.filter(e => e.student_id === student.id && e.status === "active").map(e => e.course_id));
+  const lessons = ws.lessons.filter(l => l.student_id === student.id || (!l.student_id && l.course_id && courseIds.has(l.course_id)));
+  const held = lessons.filter(l => l.status === "completed").length;
+  const missed = lessons.filter(l => l.status === "no_show").length;
+  const next = lessons.find(l => l.status === "scheduled" && new Date(l.starts_at) > now);
+  const hw = ws.homework.filter(h => h.student_id === student.id);
+  const hwOpen = hw.filter(h => h.status !== "reviewed").length;
+  const pays = ws.payments.filter(p => p.student_id === student.id);
+  const money = (list: typeof pays) => list.length ? currencyTotals(list).map(x => formatMoney(x.amount, x.currency, t.locale)).join(" + ") : "—";
+  const tile = "rounded-2xl bg-soft px-4 py-3";
+  const action = "inline-flex items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb]";
+
+  return (
+    <div className="mb-6 border-b border-line pb-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Lecții ținute")}</p>
+          <p className="text-[16px] font-extrabold">{held}{missed > 0 && <span className="ml-1.5 text-[11px] font-bold text-[#c03a3a]">{t("· {n} absențe", { n: missed })}</span>}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Următoarea lecție:")}</p>
+          <p className="truncate text-[13px] font-extrabold">{next ? `${formatDate(next.starts_at, ws.timezone, t.locale)}, ${formatTime(next.starts_at, ws.timezone, t.locale)}` : "—"}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Teme")}</p>
+          <p className="text-[16px] font-extrabold">{hw.length}{hwOpen > 0 && <span className="ml-1.5 text-[11px] font-bold text-muted">{t("· {n} deschise", { n: hwOpen })}</span>}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Plătit / de încasat")}</p>
+          <p className="truncate text-[13px] font-extrabold">{money(pays.filter(p => p.status === "paid"))} <span className="text-[#a2660a]">/ {money(pays.filter(p => p.status === "pending"))}</span></p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link href={`/payments?new=1&student=${student.id}`} className={action}><Wallet className="h-3.5 w-3.5" /> {t("Înregistrează plată")}</Link>
+        <Link href={`/homework?new=1&student=${student.id}`} className={action}><ClipboardList className="h-3.5 w-3.5" /> {t("Dă temă")}</Link>
+        <Link href={`/calendar?new=1`} className={action}><CalendarDays className="h-3.5 w-3.5" /> {t("Lecție nouă")}</Link>
+        <Link href={`/messages?student=${student.id}`} className={action}><MessageCircle className="h-3.5 w-3.5" /> {t("Mesaje")}</Link>
+      </div>
     </div>
   );
 }

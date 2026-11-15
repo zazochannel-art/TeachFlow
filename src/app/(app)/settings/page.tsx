@@ -49,9 +49,9 @@ export default async function SettingsPage() {
             <span className="min-w-0 flex-1">
               <span className="block text-[11px] text-muted">{t("Abonament TeachFlow")}</span>
               <span className="block text-[14px] font-extrabold">{effectivePlan(ws.subscription).name}</span>
-              {ws.subscription && <span className="block truncate text-[10px] text-muted">{t(subStatus[ws.subscription.status])}{ws.subscription.current_period_end ? ` · ${t("până la {date}", { date: formatDate(ws.subscription.current_period_end, ws.timezone, t.locale) })}` : ""}</span>}
+              {ws.subscription && <span className="block text-[10px] text-muted">{t(subStatus[ws.subscription.status])}{ws.subscription.current_period_end ? ` · ${t("până la {date}", { date: formatDate(ws.subscription.current_period_end, ws.timezone, t.locale) })}` : ""}</span>}
+              <span className="mt-1 block text-[11px] font-bold text-primary">{t("Schimbă planul")} →</span>
             </span>
-            <span className="text-[11px] font-bold text-primary">{t("Schimbă planul")} →</span>
           </Link>
           {ws.mode === "live" && (
             <form action={signOut} className="mt-5">

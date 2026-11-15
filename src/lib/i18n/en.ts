@@ -643,4 +643,11 @@ export const en: Record<string, string> = {
   "Camere mai mari": "Larger cameras",
   "Arată camerele": "Show cameras",
   "Ascunde camerele": "Hide cameras",
+  "Lecție ținută": "Lesson held",
+  "Dă temă": "Assign homework",
+  "Editează lecția": "Edit lesson",
+  "Lecții ținute": "Lessons held",
+  "· {n} absențe": "· {n} missed",
+  "· {n} deschise": "· {n} open",
+  "Plătit / de încasat": "Paid / due"
 };

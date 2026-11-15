@@ -643,4 +643,11 @@ export const ru: Record<string, string> = {
   "Camere mai mari": "Камеры больше",
   "Arată camerele": "Показать камеры",
   "Ascunde camerele": "Скрыть камеры",
+  "Lecție ținută": "Урок проведён",
+  "Dă temă": "Задать ДЗ",
+  "Editează lecția": "Изменить урок",
+  "Lecții ținute": "Проведено уроков",
+  "· {n} absențe": "· пропусков: {n}",
+  "· {n} deschise": "· открытых: {n}",
+  "Plătit / de încasat": "Оплачено / к оплате"
 };

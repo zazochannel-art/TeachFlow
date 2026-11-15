@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Whiteboard } from "./Whiteboard";
 import { ScreenShare } from "./ScreenShare";
@@ -9,7 +10,7 @@ import { formatDate, formatTime } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 
 /** Lesson room: built-in video call, the teacher's screen share and the shared whiteboard. */
-export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoom; backHref: string; backLabel: string }) {
+export async function LessonRoom({ room, backHref, backLabel, toolbar }: { room: BoardRoom; backHref: string; backLabel: string; toolbar?: ReactNode }) {
   const t = await getT();
   const { lesson, timezone: tz } = room;
   const isTeacher = room.me.role === "teacher";
@@ -35,6 +36,8 @@ export async function LessonRoom({ room, backHref, backLabel }: { room: BoardRoo
           </a>
         )}
       </div>
+
+      {toolbar}
 
       {room.mode === "live" && !room.boardReady && (
         <p className="mb-4 rounded-[16px] border border-dashed border-[#f0c46b] bg-[#fff8e8] p-4 text-[12px] text-[#7a5208]">

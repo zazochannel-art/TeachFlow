@@ -37,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             avatarUrl={ws.profile?.avatar_url ?? null}
             current={current}
             unread={notifications(ws, now, t).length}
+            canSignOut={ws.mode === "live"}
           />
         </Suspense>
         {children}
