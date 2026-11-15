@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarPlus, Video } from "lucide-react";
 import type { Slot } from "@/lib/data/derive";
 import { useT } from "@/lib/i18n/client";
+import { colorVar } from "@/lib/colors";
 
 function StartButton({ slot }: { slot: Slot }) {
   const t = useT();
@@ -33,7 +34,7 @@ export function Timetable({ slots, className = "" }: { slots: Slot[]; className?
           return (
             <div key={slot.id} className="flex items-start gap-3">
               <span className="w-9 shrink-0 pt-2 text-[11px] font-semibold text-muted">{slot.start.replace(/^0/, "").replace(/:\d\d$/, ":00")}</span>
-              <div className={`min-w-0 flex-1 rounded-[18px] px-4 py-3 ${active ? "bg-primary text-white shadow-lift" : "bg-soft text-ink"} ${slot.state === "past" || cancelled ? "opacity-60" : ""}`}>
+              <div style={colorVar(slot.color)} className={`min-w-0 flex-1 rounded-[18px] px-4 py-3 ${active ? "tf-c-tile shadow-lift" : "tf-c-soft tf-c-edge text-ink"} ${slot.state === "past" || cancelled ? "opacity-60" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className={`truncate text-[13px] font-extrabold ${cancelled ? "line-through" : ""}`}>{slot.title}</span>
                   {active && <span className="shrink-0 text-[10px] font-semibold text-white/80">{slot.state === "now" ? t("Acum") : t("Urmează")}</span>}

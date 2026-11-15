@@ -28,6 +28,8 @@ export interface Workspace {
   missingTables: Array<"homework" | "messages" | "payments">;
   /** Homework file columns and the Storage bucket exist (migration 0010). */
   filesReady?: boolean;
+  /** Course colours, student photos and the avatars bucket exist (migration 0011). */
+  visualReady?: boolean;
 }
 
 /** Verified session claims for this request (deduplicated per render with React cache). */
@@ -85,6 +87,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
   if (!supabase || !userId) return buildDemoWorkspace();
 
   let filesReady = false;
+  let visualReady = false;
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
@@ -94,10 +97,15 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     ),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
     withFallback(
-      () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name"),
+      () => withFallback(
+        () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url").eq("teacher_id", userId).order("full_name"),
+        () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name")
+      ),
       () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at").eq("teacher_id", userId).order("full_name")
     ),
-    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at"),
+    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").eq("teacher_id", userId).order("created_at")
+      .then(r => { visualReady = !r.error; return r; })
+      .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at") : r),
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
     withFallback(
@@ -146,6 +154,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
     missingTables,
-    filesReady
+    filesReady,
+    visualReady
   };
 });

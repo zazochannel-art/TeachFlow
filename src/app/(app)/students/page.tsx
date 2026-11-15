@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { CalendarDays, ClipboardList, Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, PageHeader, Panel, Pill, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
@@ -83,7 +84,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             return (
               <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 border-b border-line/70 px-4 py-3.5 text-[12px] last:border-0 sm:px-5 lg:grid-cols-[1.6fr_1.4fr_1.6fr_.8fr_.9fr_96px] lg:gap-4 lg:py-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar name={s.full_name} size={38} />
+                  <Avatar name={s.full_name} src={s.avatar_url} size={38} />
                   <div className="min-w-0">
                     <div className="truncate font-extrabold text-ink">{s.full_name}</div>
                     <div className="truncate text-[11px] text-muted">{s.notes || t("din {date}", { date: formatDate(s.created_at, ws.timezone, t.locale) })}</div>
@@ -185,6 +186,9 @@ function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t
 
   return (
     <div className="mb-6 border-b border-line pb-6">
+      {ws.mode === "live" && ws.visualReady && (
+        <div className="mb-5"><AvatarUpload name={student.full_name} src={student.avatar_url ?? null} studentId={student.id} size={56} /></div>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className={tile}>
           <p className="text-[11px] text-muted">{t("Lecții ținute")}</p>

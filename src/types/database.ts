@@ -34,6 +34,8 @@ export interface Student {
   created_at: string;
   /** Linked auth user once the student accepted an invite (migration 0003). */
   user_id?: string | null;
+  /** Photo set by the teacher (migration 0011). */
+  avatar_url?: string | null;
 }
 
 export interface Course {
@@ -47,6 +49,8 @@ export interface Course {
   currency: Currency;
   is_active: boolean;
   created_at: string;
+  /** Colour picked by the teacher, #rrggbb (migration 0011); null = automatic. */
+  color?: string | null;
 }
 
 export interface Enrollment {

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode follows the .dark class on <html> (set from the theme cookie / system setting). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* TeachFlow design tokens — taken from the reference dashboard. */
 @theme {
   --color-navy: #11104f;
@@ -48,7 +51,7 @@
   /* Shared form styles (auth, settings, create course). */
   .tf-input {
     width: 100%; border: 1px solid var(--color-line); border-radius: 12px; padding: 11px 13px;
-    outline: none; background: #fff; font-size: 13px;
+    outline: none; background: var(--color-panel); font-size: 13px;
   }
   .tf-input:focus { border-color: #9aa8f2; box-shadow: 0 0 0 3px rgba(82, 105, 232, 0.14); }
   .tf-label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 7px; }
@@ -58,12 +61,65 @@
     padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 700;
     transition: background .15s;
   }
-  .tf-btn:hover { background: var(--color-primary-2); }
+  .tf-btn:hover { background: color-mix(in srgb, var(--color-primary) 82%, #000); }
   .tf-btn:disabled { opacity: .6; cursor: not-allowed; }
   .tf-btn-ghost {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    background: #fff; border: 1px solid var(--color-line); cursor: pointer;
+    background: var(--color-panel); border: 1px solid var(--color-line); cursor: pointer;
     padding: 9px 14px; border-radius: 12px; font-size: 13px; font-weight: 700;
   }
   .tf-btn-ghost:hover { background: var(--color-soft); }
 }
+
+/* ---------- Course colours: an element sets --c (lib/colors.ts colorVar) ---------- */
+.tf-c-bg { background-color: var(--c); color: #fff; }
+.tf-c-soft { background-color: color-mix(in srgb, var(--c) 12%, var(--color-panel)); }
+.tf-c-ink { color: color-mix(in srgb, var(--c) 78%, var(--color-ink)); }
+.tf-c-dot { background-color: var(--c); }
+.tf-c-edge { box-shadow: inset 4px 0 0 var(--c); }
+.tf-c-ring { --tw-ring-color: var(--c); }
+.tf-c-tile { background: linear-gradient(140deg, var(--c), color-mix(in srgb, var(--c) 72%, #11104f)); color: #fff; }
+
+/* Soft entrance for cards and panels. */
+@keyframes tf-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tf-rise { animation: tf-rise .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .tf-rise { animation: none; } }
+
+/* ---------- Dark theme ---------- */
+.dark {
+  color-scheme: dark;
+  --color-navy: #0b0a2b;
+  --color-navy-2: #16174a;
+  --color-canvas: #0e1027;
+  --color-panel: #161935;
+  --color-soft: #1d2042;
+  --color-tint: #262a57;
+  --color-primary: #6377f0;
+  --color-primary-2: #a5b1ff;
+  --color-ink: #e9ebff;
+  --color-muted: #8f95b9;
+  --color-line: #2a2e58;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-lift: 0 8px 20px rgba(60, 80, 220, 0.35);
+}
+.dark .bg-white { background-color: var(--color-panel); }
+.dark .bg-ink { background-color: var(--color-tint); }
+.dark .bg-white\/60 { background-color: color-mix(in srgb, var(--color-panel) 60%, transparent); }
+.dark .hover\:bg-white:hover { background-color: var(--color-tint); }
+.dark .ring-white { --tw-ring-color: var(--color-panel); }
+.dark .hover\:bg-primary-2:hover { background-color: color-mix(in srgb, var(--color-primary) 82%, #000); }
+.dark .hover\:bg-\[\#dfe4fb\]:hover, .dark .bg-\[\#dfe4fb\] { background-color: #2f3468; }
+.dark .bg-\[\#eef0fb\] { background-color: var(--color-soft); }
+.dark .bg-\[\#fff8e8\], .dark .bg-\[\#fff4de\] { background-color: #3a2e12; }
+.dark .bg-\[\#fdecec\] { background-color: #3d1c22; }
+.dark .bg-\[\#e7f6ee\], .dark .bg-\[\#e7f7ef\] { background-color: #12352a; }
+.dark .text-\[\#7a5410\], .dark .text-\[\#7a5208\], .dark .text-\[\#a2660a\] { color: #f3c46b; }
+.dark .text-\[\#c03a3a\] { color: #ff8b8b; }
+.dark .text-\[\#1b8a5a\], .dark .text-\[\#11603f\] { color: #5fd3a0; }
+.dark .text-\[\#3b4268\] { color: var(--color-ink); }
+.dark .border-\[\#f3dfb3\], .dark .border-\[\#f0c46b\] { border-color: #6b5420; }
+.dark .border-\[\#f1caca\] { border-color: #6b2a30; }
+.dark .border-\[\#d5d9ef\], .dark .border-\[\#cfd3e6\], .dark .border-\[\#c9cfee\] { border-color: var(--color-line); }
+.dark .tf-scroll { scrollbar-color: #2f3468 transparent; }
+.dark .tf-scroll::-webkit-scrollbar-thumb { background: #2f3468; }
+.dark .tf-scroll::-webkit-scrollbar-track { background: transparent; }

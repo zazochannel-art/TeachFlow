@@ -5,7 +5,8 @@ import { CourseForm } from "@/components/CourseForm";
 import { deleteCourse, setCourseActive } from "@/lib/actions/courses";
 import { enrollStudent, removeEnrollment } from "@/lib/actions/students";
 import { loadWorkspace } from "@/lib/data/workspace";
-import { courseCards } from "@/lib/data/derive";
+import { colorOf, courseCards } from "@/lib/data/derive";
+import { colorVar } from "@/lib/colors";
 import { formatDate, formatMoney, formatTime } from "@/lib/time";
 import Link from "next/link";
 import { getT } from "@/lib/i18n/server";
@@ -18,6 +19,8 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   const cards = courseCards(ws, true);
   const now = new Date();
   const studentName = new Map(ws.students.map(s => [s.id, s.full_name]));
+  const photo = new Map(ws.students.map(s => [s.id, s.avatar_url ?? null]));
+  const colors = demo || Boolean(ws.visualReady);
 
   return (
     <div>
@@ -35,13 +38,13 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
             <form action={deleteCourse}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Șterge cursul")} className="py-1.5" /></form>
           </>
         }>
-          <CourseForm demo={demo} course={editing} />
+          <CourseForm demo={demo} course={editing} colors={colors} autoColor={colorOf({ courses: ws.courses.map(c => c.id === editing.id ? { ...c, color: null } : c) }, editing.id)} />
           <div className="mt-6 border-t border-line pt-5">
             <h3 className="mb-3 text-[13px] font-extrabold">{t("Elevi înscriși")}</h3>
             <div className="flex flex-wrap gap-2">
               {ws.enrollments.filter(e => e.course_id === editing.id).map(e => (
                 <form key={e.id} action={removeEnrollment} className="flex items-center gap-2 rounded-xl bg-soft py-1.5 pl-2 pr-1.5 text-[12px] font-bold">
-                  <Avatar name={studentName.get(e.student_id) ?? "?"} size={22} />{studentName.get(e.student_id) ?? t("Elev")}
+                  <Avatar name={studentName.get(e.student_id) ?? "?"} src={photo.get(e.student_id)} size={22} />{studentName.get(e.student_id) ?? t("Elev")}
                   <input type="hidden" name="id" value={e.id} />
                   <SubmitButton className="rounded-lg px-2 py-0.5 text-muted hover:bg-white hover:text-[#c03a3a]">×</SubmitButton>
                 </form>
@@ -71,9 +74,10 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
               const enrolled = ws.enrollments.filter(e => e.course_id === course.id && e.status === "active");
               const next = ws.lessons.find(l => l.course_id === course.id && l.status === "scheduled" && new Date(l.starts_at) > now);
               return (
-                <Card key={course.id} className="scroll-mt-6 p-5">
+                <Card key={course.id} className="tf-rise scroll-mt-6 overflow-hidden p-5">
+                  <div className="tf-c-dot -mx-5 -mt-5 mb-4 h-1.5" style={colorVar(card.color)} />
                   <div id={course.id} className="flex items-start gap-3">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2"><SubjectIcon kind={card.subject} className="h-5 w-5" /></span>
+                    <span className="tf-c-soft tf-c-ink grid h-11 w-11 shrink-0 place-items-center rounded-full" style={colorVar(card.color)}><SubjectIcon kind={card.subject} className="h-5 w-5" /></span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="truncate text-[14px] font-extrabold text-ink">{course.title}</h3>
@@ -92,13 +96,13 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
 
                   <div className="mt-4">
                     <div className="mb-1.5 flex justify-between text-[11px] font-bold"><span className="text-muted">{t("Progres lecții")}</span><span>{card.progress == null ? "—" : `${card.progress}%`}</span></div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-primary" style={{ width: `${card.progress ?? 0}%` }} /></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-soft"><div className="tf-c-dot h-full rounded-full" style={{ ...colorVar(card.color), width: `${card.progress ?? 0}%` }} /></div>
                     <p className="mt-1 text-[10px] text-muted">{t("{done} din {total} lecții ținute", { done: card.lessonsDone, total: card.lessonsTotal })}</p>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex -space-x-1.5">
-                      {enrolled.slice(0, 5).map(e => <Avatar key={e.id} name={studentName.get(e.student_id) ?? "?"} size={28} className="ring-2 ring-white" />)}
+                      {enrolled.slice(0, 5).map(e => <Avatar key={e.id} name={studentName.get(e.student_id) ?? "?"} src={photo.get(e.student_id)} size={28} className="ring-2 ring-white" />)}
                       {enrolled.length === 0 && <span className="text-[11px] text-muted">{t("Niciun elev înscris")}</span>}
                     </div>
                     <span className="text-[12px] font-extrabold">{course.price != null ? t("{price} / lecție", { price: formatMoney(course.price, course.currency, t.locale) }) : "—"}</span>

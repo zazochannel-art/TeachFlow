@@ -17,7 +17,11 @@ export interface StudentPortal {
   userId: string | null;
   /** Homework files are enabled (migration 0010). */
   filesReady: boolean;
+  /** Course colours and the avatars bucket exist (migration 0011). */
+  visualReady: boolean;
   name: string;
+  /** Own profile photo (profiles.avatar_url). */
+  avatarUrl: string | null;
   timezone: string;
   links: StudentLink[];
   courses: Course[];
@@ -44,11 +48,14 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   // limits the data, and the role is enforced before anything is returned.
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   let filesReady = false;
+  let visualReady = false;
   const [role, profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
     supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
-    supabase.from("profiles").select("full_name, timezone").eq("id", userId).maybeSingle(),
+    supabase.from("profiles").select("full_name, timezone, avatar_url").eq("id", userId).maybeSingle(),
     supabase.from("students").select("id, teacher_id, full_name").eq("user_id", userId),
-    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title"),
+    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").order("title")
+      .then(r => { visualReady = !r.error; return r; })
+      .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title") : r),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").gte("starts_at", since).order("starts_at").limit(500),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").order("created_at", { ascending: false }).limit(300)
       .then(r => { filesReady = !r.error; return r; })
@@ -73,12 +80,14 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     : { data: [] as Array<{ id: string; full_name: string }> };
   const teacherName = new Map((teachers ?? []).map(t => [t.id, t.full_name || tr("Profesor")]));
 
-  const p = profile.data as { full_name: string; timezone: string } | null;
+  const p = profile.data as { full_name: string; timezone: string; avatar_url: string | null } | null;
   return {
     mode: "live",
     userId,
     filesReady,
+    visualReady,
     name: p?.full_name || (typeof data?.claims?.email === "string" ? data.claims.email.split("@")[0] : tr("Elev")),
+    avatarUrl: p?.avatar_url ?? null,
     timezone: p?.timezone || DEFAULT_TZ,
     links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? tr("Profesor"), studentName: r.full_name })),
     courses: (courses.data as Course[] | null) ?? [],
@@ -98,7 +107,9 @@ function demoPortal(): StudentPortal {
     mode: "demo",
     userId: null,
     filesReady: false,
+    visualReady: false,
     name: me.full_name,
+    avatarUrl: null,
     timezone: ws.timezone,
     links: [{ studentId: me.id, teacherId: "demo", teacherName: "Profesor Demo", studentName: me.full_name }],
     courses: ws.courses.filter(c => courseIds.has(c.id)),

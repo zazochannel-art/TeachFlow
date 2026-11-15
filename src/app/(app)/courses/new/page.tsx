@@ -11,7 +11,7 @@ export default async function NewCoursePage() {
       <PageHeader title={t("Curs sau grupă nouă")} subtitle={t("Cursul apare imediat în rândul de carduri de pe Dashboard.")}
         action={<Link href="/courses" className="tf-btn-ghost">{t("Înapoi")}</Link>} />
       <Card className="p-6">
-        <CourseForm demo={ws.mode === "demo"} defaultCurrency={ws.teacherProfile?.currency ?? "MDL"} />
+        <CourseForm demo={ws.mode === "demo"} defaultCurrency={ws.teacherProfile?.currency ?? "MDL"} colors={ws.mode === "demo" || Boolean(ws.visualReady)} />
       </Card>
     </div>
   );
