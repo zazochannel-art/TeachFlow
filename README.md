@@ -49,6 +49,13 @@ Every morning (05:00 UTC, `vercel.json`) Vercel Cron calls `/api/cron/reminders`
 
 Without these variables the endpoint answers 503 and sends nothing.
 
+## Push notifications, quizzes, library and monthly parent reports
+Apply `supabase/migrations/0013_library_quizzes_reports_push.sql`.
+- **Library** (`/library`): reusable files and links per course; shared items appear in the student portal under "Materiale" and can be attached to homework.
+- **Quizzes** (`/quizzes`): single choice, multiple choice and short answers. Students take them at `/student/quizzes`; `submit_quiz()` grades in the database, and students never read the correct answers before submitting.
+- **Push notifications** (Web Push): set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `SUPABASE_SECRET_KEY`. Users turn them on in Settings / "Profilul meu" (on iPhone after "Add to Home Screen"). Sent for new lessons and cancellations, homework (new, handed in, reviewed), quizzes and messages; `/api/cron/lesson-push` sends "today's lessons" every morning. `?mode=soon` sends "starts in N minutes"; call it every 5–10 minutes from an external scheduler (e.g. cron-job.org) with the `CRON_SECRET` header if you want those.
+- **Monthly parent reports**: `/api/cron/parent-reports` runs on the 1st of each month (Resend, same env as the reminders) and e-mails parent accounts and the parent e-mail on the student card. Teachers switch it off in Settings and preview it from the student card.
+
 ## Subscriptions (manual billing)
 Plans, prices and student limits live in `src/lib/plans.ts`. Teachers see their plan on `/billing` and send a plan request; an admin confirms the payment by hand on `/admin` and sets the plan, status and paid-until date. A paid plan applies only while it is active and inside its paid period; otherwise the Free limits apply, and adding or re-activating a student above the limit is refused. Admins are exempt.
 1. Apply `supabase/migrations/0005_manual_billing.sql`.

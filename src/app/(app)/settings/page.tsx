@@ -9,6 +9,8 @@ import { getT } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/time";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { ThemePicker } from "@/components/theme/ThemeToggle";
+import { PushToggle } from "@/components/PushToggle";
+import { vapidPublicKey } from "@/lib/push/server";
 
 const subStatus = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 
@@ -30,7 +32,8 @@ export default async function SettingsPage() {
               bio: ws.teacherProfile?.bio ?? "",
               hourly_rate: ws.teacherProfile?.hourly_rate?.toString() ?? "",
               currency: ws.teacherProfile?.currency ?? "MDL",
-              email_reminders: ws.teacherProfile?.email_reminders
+              email_reminders: ws.teacherProfile?.email_reminders,
+              parent_reports: ws.teacherProfile?.parent_reports
             }}
           />
         </Card>
@@ -71,6 +74,8 @@ export default async function SettingsPage() {
             </form>
           )}
         </Card>
+        <div className="mt-7"><SectionTitle>{t("Notificări pe telefon")}</SectionTitle></div>
+        <Card className="p-5"><PushToggle publicKey={ws.mode === "live" ? vapidPublicKey() : null} /></Card>
         <div className="mt-7"><SectionTitle>{t("Aspect")}</SectionTitle></div>
         <Card className="p-5"><ThemePicker /></Card>
         {ws.mode === "demo" && <DemoNotice />}

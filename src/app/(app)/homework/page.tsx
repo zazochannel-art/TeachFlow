@@ -12,10 +12,11 @@ import { FileAttach } from "@/components/FileAttach";
 import { FileList } from "@/components/FileList";
 import { storedFiles } from "@/lib/files";
 import { signFiles } from "@/lib/data/files";
+import { loadTeacherLibrary } from "@/lib/data/library";
 
 const labels: Record<HomeworkStatus, string> = { assigned: "Atribuită", submitted: "De verificat", reviewed: "Verificată" };
 const tones = { assigned: "blue", submitted: "amber", reviewed: "green" } as const;
-type Params = { status?: string; new?: string; edit?: string; review?: string; course?: string; student?: string; c?: string };
+type Params = { status?: string; new?: string; edit?: string; review?: string; course?: string; student?: string; c?: string; lib?: string };
 
 export default async function HomeworkPage({ searchParams }: { searchParams: Promise<Params> }) {
   const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
@@ -38,6 +39,9 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
   const files = ws.mode === "live" && ws.filesReady;
+  const lib = files && (sp.new || editing) ? await loadTeacherLibrary() : { ready: false, items: [] };
+  const libFiles = lib.items.filter(i => i.kind === "file").sort((a, b) => Number(b.course_id === (editing?.course_id ?? sp.course)) - Number(a.course_id === (editing?.course_id ?? sp.course)));
+  const attachedPaths = new Set(storedFiles(editing?.attachments).map(f => f.path));
   const links = files ? await signFiles([...list, ...(reviewing ? [reviewing] : [])].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : {};
 
   return (
@@ -71,6 +75,24 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
             <Field label={t("Termen")} htmlFor="due"><input id="due" name="due" type="date" defaultValue={editing?.due_at ? dateKey(new Date(editing.due_at), ws.timezone) : addDays(today, 7)} className="tf-input" /></Field>
             <Field label={t("Descriere")} htmlFor="description" wide><textarea id="description" name="description" rows={3} defaultValue={editing?.description ?? ""} className="tf-input" /></Field>
             {files && ws.userId && <FileAttach name="attachments" folder={`hw/${ws.userId}`} initial={storedFiles(editing?.attachments)} label={t("Atașează fișiere pentru elevi")} />}
+            {libFiles.length > 0 && (
+              <details className="rounded-[16px] bg-soft p-3.5 sm:col-span-2" open={!!sp.lib}>
+                <summary className="cursor-pointer text-[12px] font-bold text-primary-2">{t("Din bibliotecă")} · {libFiles.length}</summary>
+                <div className="mt-3 grid max-h-56 gap-1.5 overflow-y-auto sm:grid-cols-2">
+                  {libFiles.map(i => {
+                    const path = storedFiles([i.file])[0]?.path;
+                    if (!path || attachedPaths.has(path)) return null;
+                    return (
+                      <label key={i.id} className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold">
+                        <input type="checkbox" name="lib_items" value={i.id} defaultChecked={sp.lib === i.id} className="h-4 w-4 accent-[#5269e8]" />
+                        <span className="truncate">{i.title}</span>
+                        {i.course_id && <span className="ml-auto shrink-0 text-[10px] text-muted">{course.get(i.course_id)?.title}</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
           </ActionForm>
         </Panel>
       )}

@@ -20,7 +20,9 @@ const settingsSchema = z.object({
   hourly_rate: z.string().trim().optional(),
   currency: z.enum(["MDL", "EUR", "RON", "USD"]),
   email_reminders: z.literal("on").optional(),
-  has_reminders: z.literal("1").optional()
+  has_reminders: z.literal("1").optional(),
+  parent_reports: z.literal("on").optional(),
+  has_reports: z.literal("1").optional()
 });
 
 export async function updateSettings(_: FormState, formData: FormData): Promise<FormState> {
@@ -42,7 +44,12 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
   const [p, t] = await Promise.all([
     supabase.from("profiles").update({ full_name: v.full_name, preferred_language: v.preferred_language, timezone: v.timezone }).eq("id", userId),
     // The reminders switch only exists once migration 0004 is applied (has_reminders marks it in the form).
-    supabase.from("teacher_profiles").update(v.has_reminders ? { ...teacherFields, email_reminders: v.email_reminders === "on" } : teacherFields).eq("user_id", userId)
+    supabase.from("teacher_profiles").update({
+      ...teacherFields,
+      ...(v.has_reminders ? { email_reminders: v.email_reminders === "on" } : {}),
+      // Migration 0013 adds the monthly parent report switch.
+      ...(v.has_reports ? { parent_reports: v.parent_reports === "on" } : {})
+    }).eq("user_id", userId)
   ]);
   if (p.error || t.error) return { error: (p.error ?? t.error)!.message };
   await rememberLang(v.preferred_language);

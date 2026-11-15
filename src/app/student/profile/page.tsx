@@ -7,6 +7,8 @@ import { updateMyProfile } from "@/lib/actions/student";
 import { colorOf } from "@/lib/data/derive";
 import { formatDate } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
+import { PushToggle } from "@/components/PushToggle";
+import { vapidPublicKey } from "@/lib/push/server";
 
 /** "Profilul meu": photo, name and phone, teachers and courses, and the student's own numbers. */
 export default async function StudentProfile() {
@@ -70,6 +72,9 @@ export default async function StudentProfile() {
             <p className="text-[11px] text-muted sm:col-span-2">{t("Profesorii tăi văd numele, poza și telefonul.")}</p>
           </ActionForm>
         </Card>
+
+        <div className="mt-8"><SectionTitle>{t("Notificări pe telefon")}</SectionTitle></div>
+        <Card className="p-5"><PushToggle publicKey={p.mode === "live" ? vapidPublicKey() : null} /></Card>
 
         <div className="mt-8"><SectionTitle>{t("Profesorii mei")}</SectionTitle></div>
         <Card className="divide-y divide-line">

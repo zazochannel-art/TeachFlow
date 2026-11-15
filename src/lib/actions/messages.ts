@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { notifyMessage } from "@/lib/push/notify";
 import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx } from "./common";
 
 const messageSchema = z.object({
@@ -24,6 +25,7 @@ export async function addMessage(_: FormState, formData: FormData): Promise<Form
     ...v, teacher_id: ctx.userId, read_at: v.direction === "incoming" ? new Date().toISOString() : null
   });
   if (error) return { error: error.message };
+  if (v.direction === "outgoing") notifyMessage({ studentId: v.student_id, from: "teacher", channel, body: v.body });
   refresh();
   return { ok: "sent" };
 }

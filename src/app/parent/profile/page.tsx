@@ -4,6 +4,8 @@ import { AvatarUpload } from "@/components/AvatarUpload";
 import { loadParentPortal } from "@/lib/data/parent";
 import { updateMyProfile } from "@/lib/actions/student";
 import { getT } from "@/lib/i18n/server";
+import { PushToggle } from "@/components/PushToggle";
+import { vapidPublicKey } from "@/lib/push/server";
 
 /** Parent's own profile: photo, name and the children they follow. */
 export default async function ParentProfile() {
@@ -26,6 +28,9 @@ export default async function ParentProfile() {
           <p className="text-[11px] text-muted sm:col-span-2">{t("Profesorul vede numele și poza ta.")}</p>
         </ActionForm>
       </Card>
+
+      <div className="mt-8"><SectionTitle>{t("Notificări pe telefon")}</SectionTitle></div>
+      <Card className="p-5"><PushToggle publicKey={demo ? null : vapidPublicKey()} /></Card>
 
       <div className="mt-8"><SectionTitle>{t("Copiii mei")}</SectionTitle></div>
       <Card className="divide-y divide-line">

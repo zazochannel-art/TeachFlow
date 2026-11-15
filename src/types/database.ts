@@ -22,6 +22,8 @@ export interface TeacherProfile {
   currency: Currency;
   /** Migration 0004; undefined before it is applied. */
   email_reminders?: boolean;
+  /** Migration 0013; undefined before it is applied. */
+  parent_reports?: boolean;
 }
 
 export interface Student {
@@ -132,5 +134,56 @@ export interface Payment {
   paid_at: string | null;
   method: "cash" | "card" | "transfer" | "other" | null;
   note: string | null;
+  created_at: string;
+}
+
+/** Reusable course material (migration 0013). */
+export interface LibraryItem {
+  id: string;
+  course_id: string | null;
+  title: string;
+  description: string | null;
+  kind: "file" | "link";
+  file: unknown;
+  url: string | null;
+  shared: boolean;
+  created_at: string;
+}
+
+/** A quiz question (migration 0013). `correct` = option indexes, `accept` = accepted short answers. */
+export interface QuizQuestion {
+  id: string;
+  type: "single" | "multi" | "short";
+  text: string;
+  options: string[];
+  correct: number[];
+  accept: string[];
+  points: number;
+}
+
+export interface Quiz {
+  id: string;
+  course_id: string | null;
+  title: string;
+  description: string | null;
+  questions: QuizQuestion[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizAssignment {
+  id: string;
+  quiz_id: string;
+  student_id: string;
+  course_id: string | null;
+  title: string;
+  due_at: string | null;
+  status: "assigned" | "submitted";
+  answers: Record<string, unknown> | null;
+  questions: QuizQuestion[] | null;
+  correct_ids: string[] | null;
+  score: number | null;
+  max_score: number | null;
+  submitted_at: string | null;
   created_at: string;
 }
