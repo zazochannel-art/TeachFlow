@@ -17,6 +17,18 @@ const studentSchema = z.object({
   course_id: optId
 });
 
+const optEmail = z.string().trim().max(200).optional().transform(v => (v ? v : null)).refine(v => !v || /^\S+@\S+\.\S+$/.test(v), "Emailul părintelui este invalid.");
+
+/** Profile fields from migration 0012; the form only sends them once the migration is applied. */
+const profileSchema = z.object({
+  birth_date: z.string().trim().optional().transform(v => (v ? v : null)).refine(v => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= "1900-01-01" && v <= "2100-01-01"), "Data nașterii este invalidă."),
+  grade_level: optText(60),
+  goals: optText(1000),
+  parent_name: optText(120),
+  parent_phone: optText(40),
+  parent_email: optEmail
+});
+
 async function limitMessage(plan: Plan) {
   return (await getT())("Planul {plan} permite {n} elevi activi. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv.", { plan: plan.name, n: plan.studentLimit ?? 0 });
 }
@@ -36,7 +48,13 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
   if (!ctx) return DEMO_STATE;
   const parsed = parseForm(studentSchema, formData);
   if ("error" in parsed) return parsed;
-  const { id, course_id, ...fields } = parsed.data;
+  const { id, course_id, ...base } = parsed.data;
+  let fields: typeof base & Partial<z.infer<typeof profileSchema>> = base;
+  if (formData.has("grade_level")) {
+    const extra = parseForm(profileSchema, formData);
+    if ("error" in extra) return extra;
+    fields = { ...base, ...extra.data };
+  }
 
   // Plan limit: only when a student becomes active (new, or re-activated). Admins are exempt.
   if (fields.status === "active" && !(await requireTeacher()).isAdmin) {

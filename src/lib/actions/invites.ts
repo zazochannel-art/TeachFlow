@@ -43,3 +43,35 @@ export async function unlinkStudentAccount(formData: FormData) {
   await ctx.supabase.from("student_invites").delete().eq("student_id", id);
   refresh();
 }
+
+const PARENT_MIGRATION_MSG = "Aplică migrarea 0012 în Supabase ca să poți invita părinți.";
+
+/** Creates a fresh parent invite link for a student (older pending parent links stop working). */
+export async function createParentInvite(_: FormState, formData: FormData): Promise<FormState & { link?: string }> {
+  const ctx = await teacherCtx();
+  if (!ctx) return DEMO_STATE;
+  const parsed = parseForm(z.object({ student_id: z.string().uuid("Elev invalid.") }), formData);
+  if ("error" in parsed) return parsed;
+  const studentId = parsed.data.student_id;
+
+  const { data: student } = await ctx.supabase.from("students").select("id").eq("id", studentId).eq("teacher_id", ctx.userId).maybeSingle();
+  if (!student) return { error: "Elevul nu a fost găsit." };
+
+  const old = await ctx.supabase.from("parent_invites").delete().eq("student_id", studentId).is("accepted_at", null);
+  if (old.error) return { error: PARENT_MIGRATION_MSG };
+
+  const { token, hash } = newInviteToken();
+  const { error } = await ctx.supabase.from("parent_invites").insert({ teacher_id: ctx.userId, student_id: studentId, token_hash: hash });
+  if (error) return { error: error.message };
+  return { ok: "Link creat. Valabil 14 zile, o singură folosire.", link: `${await origin()}/invite/parent/${token}` };
+}
+
+/** Removes one parent's access to a student. The parent account stays. */
+export async function removeParentLink(formData: FormData) {
+  const ctx = await teacherCtx();
+  if (!ctx) return;
+  const id = String(formData.get("link_id") ?? "");
+  if (!id) return;
+  await ctx.supabase.from("parent_links").delete().eq("id", id).eq("teacher_id", ctx.userId);
+  refresh();
+}

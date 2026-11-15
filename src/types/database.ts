@@ -1,4 +1,4 @@
-export type AppRole = "teacher" | "student" | "admin";
+export type AppRole = "teacher" | "student" | "admin" | "parent";
 export type LessonStatus = "scheduled" | "completed" | "cancelled" | "no_show";
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "cancelled" | "expired";
 export type Currency = "MDL" | "EUR" | "RON" | "USD";
@@ -36,6 +36,13 @@ export interface Student {
   user_id?: string | null;
   /** Photo set by the teacher (migration 0011). */
   avatar_url?: string | null;
+  /** Profile fields (migration 0012). */
+  birth_date?: string | null;
+  grade_level?: string | null;
+  goals?: string | null;
+  parent_name?: string | null;
+  parent_phone?: string | null;
+  parent_email?: string | null;
 }
 
 export interface Course {
@@ -108,6 +115,10 @@ export interface Message {
   body: string;
   read_at: string | null;
   created_at: string;
+  /** Conversation with the student or with the student's parents (migration 0012; missing = "student"). */
+  channel?: "student" | "parent";
+  /** Parent account that wrote an incoming parent message (migration 0012). */
+  author_id?: string | null;
 }
 
 export interface Payment {

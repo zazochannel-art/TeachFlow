@@ -7,7 +7,7 @@ import { addMessage, markConversationRead } from "@/lib/actions/messages";
 import { dateKey, formatDate, formatTime } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 
-export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ student?: string; q?: string }> }) {
+export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ student?: string; q?: string; with?: string }> }) {
   const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
   const sp = await searchParams;
   const missing = ws.missingTables.includes("messages");
@@ -25,8 +25,15 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
     .sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "") || a.s.full_name.localeCompare(b.s.full_name));
 
   const active = ws.students.find(s => s.id === sp.student) ?? (sp.student ? undefined : threads.find(th => th.last)?.s);
-  const conversation = active ? ws.messages.filter(m => m.student_id === active.id) : [];
-  if (active && !demo && !missing) await markConversationRead(active.id);
+  // Migration 0012: a separate conversation with the student's parents.
+  const channels = Boolean(ws.parentsReady) || demo;
+  const channel = channels && sp.with === "parent" ? "parent" : "student";
+  const chanOf = (m: (typeof ws.messages)[number]) => m.channel ?? "student";
+  const mine = active ? ws.messages.filter(m => m.student_id === active.id) : [];
+  const conversation = mine.filter(m => chanOf(m) === channel);
+  const unreadIn = (c: string) => mine.filter(m => chanOf(m) === c && m.direction === "incoming" && !m.read_at).length;
+  const tabUnread = { student: unreadIn("student"), parent: unreadIn("parent") };
+  if (active && !demo && !missing) await markConversationRead(active.id, channels ? channel : undefined);
   const today = dateKey(new Date(), ws.timezone);
   // Phones show one pane at a time: the list, or the open conversation with a back link.
   const picked = Boolean(sp.student);
@@ -76,6 +83,17 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
               {active.phone && <a href={`tel:${active.phone}`} aria-label={t("Sună")} className="grid h-9 w-9 place-items-center rounded-full bg-tint text-primary-2"><Phone className="h-4 w-4" /></a>}
             </div>
 
+            {channels && (
+              <div className="flex gap-1 border-b border-line px-4 py-2 sm:px-5">
+                {(["student", "parent"] as const).map(c => (
+                  <Link key={c} href={`/messages?student=${active.id}${c === "parent" ? "&with=parent" : ""}`} aria-current={channel === c ? "page" : undefined}
+                    className={`rounded-xl px-3 py-1.5 text-[12px] font-bold ${channel === c ? "bg-primary text-white" : "text-muted hover:bg-soft"}`}>
+                    {c === "student" ? t("Cu elevul") : t("Cu părinții")}
+                    {channel !== c && tabUnread[c] > 0 && <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-extrabold text-white">{tabUnread[c]}</span>}
+                  </Link>
+                ))}
+              </div>
+            )}
             <div className="tf-scroll flex min-h-[280px] flex-1 flex-col gap-3 overflow-y-auto bg-soft/60 px-4 py-5 sm:px-5 lg:max-h-[520px]">
               {conversation.length === 0 && <p className="m-auto text-[12px] text-muted">{t("Începe conversația cu {name}.", { name: active.full_name.split(" ")[0] })}</p>}
               {conversation.map(m => (
@@ -92,13 +110,14 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
                   extra={
                     <select name="direction" defaultValue="outgoing" aria-label={t("Cine a scris")} className="tf-input w-auto py-2 text-[12px]">
                       <option value="outgoing">{t("Mesaj de la mine")}</option>
-                      <option value="incoming">{t("Primit de la elev / părinte")}</option>
+                      <option value="incoming">{t(channel === "parent" ? "Primit de la părinte" : "Primit de la elev / părinte")}</option>
                     </select>
                   }>
                   <input type="hidden" name="student_id" value={active.id} />
+                  {channel === "parent" && <input type="hidden" name="channel" value="parent" />}
                   <textarea name="body" required rows={2} placeholder={t("Scrie un mesaj…")} aria-label={t("Mesaj")} className="tf-input resize-none" />
                 </ActionForm>
-                <p className="mt-2 text-[10px] text-muted">{t(active.user_id ? "Elevul are cont și vede mesajele tale în portalul lui." : "Mesajele sunt salvate în istoricul elevului. Elevul nu are încă cont, așa că scrie-i și prin email sau telefon. Îl poți invita din pagina Elevi.")}</p>
+                <p className="mt-2 text-[10px] text-muted">{channel === "parent" ? t("Părinții cu cont văd această conversație în portalul lor. Elevul nu o vede.") : t(active.user_id ? "Elevul are cont și vede mesajele tale în portalul lui." : "Mesajele sunt salvate în istoricul elevului. Elevul nu are încă cont, așa că scrie-i și prin email sau telefon. Îl poți invita din pagina Elevi.")}</p>
               </div>
             )}
           </Card>

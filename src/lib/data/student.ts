@@ -9,7 +9,7 @@ import { pendingInviteToken } from "@/lib/invite-token";
 import type { Course, Homework, Lesson, Message, Payment } from "@/types/database";
 
 /** One teacher relationship of the signed-in student (a students row linked to their account). */
-export interface StudentLink { studentId: string; teacherId: string; teacherName: string; studentName: string }
+export interface StudentLink { studentId: string; teacherId: string; teacherName: string; studentName: string; phone?: string | null }
 
 export interface StudentPortal {
   mode: "live" | "demo";
@@ -52,7 +52,7 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const [role, profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
     supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("full_name, timezone, avatar_url").eq("id", userId).maybeSingle(),
-    supabase.from("students").select("id, teacher_id, full_name").eq("user_id", userId),
+    supabase.from("students").select("id, teacher_id, full_name, phone").eq("user_id", userId),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").order("title")
       .then(r => { visualReady = !r.error; return r; })
       .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title") : r),
@@ -64,9 +64,10 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false }).limit(300)
   ]);
 
+  if (role.data?.role === "parent") redirect("/parent");
   if (role.data?.role !== "student") redirect("/dashboard");
 
-  const rows = (students.data ?? []) as Array<{ id: string; teacher_id: string; full_name: string }>;
+  const rows = (students.data ?? []) as Array<{ id: string; teacher_id: string; full_name: string; phone: string | null }>;
 
   // Signed up from an invite but not linked yet: link now instead of showing an empty portal.
   const inviteToken = pendingInviteToken(data?.claims);
@@ -89,7 +90,7 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
     name: p?.full_name || (typeof data?.claims?.email === "string" ? data.claims.email.split("@")[0] : tr("Elev")),
     avatarUrl: p?.avatar_url ?? null,
     timezone: p?.timezone || DEFAULT_TZ,
-    links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? tr("Profesor"), studentName: r.full_name })),
+    links: rows.map(r => ({ studentId: r.id, teacherId: r.teacher_id, teacherName: teacherName.get(r.teacher_id) ?? tr("Profesor"), studentName: r.full_name, phone: r.phone })),
     courses: (courses.data as Course[] | null) ?? [],
     lessons: (lessons.data as Lesson[] | null) ?? [],
     homework: (homework.data as Homework[] | null) ?? [],

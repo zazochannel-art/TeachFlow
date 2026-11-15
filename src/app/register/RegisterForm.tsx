@@ -11,8 +11,10 @@ import { setLanguage } from "@/lib/actions/language";
 import { useT } from "@/lib/i18n/client";
 
 export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
-  const asStudent = next.startsWith("/invite/");
-  const inviteToken = asStudent ? next.slice("/invite/".length).split(/[?#/]/)[0] : "";
+  const asParent = next.startsWith("/invite/parent/");
+  const asStudent = next.startsWith("/invite/") && !asParent;
+  const inviteToken = asParent ? next.slice("/invite/parent/".length).split(/[?#/]/)[0]
+    : asStudent ? next.slice("/invite/".length).split(/[?#/]/)[0] : "";
   const router = useRouter();
   const t = useT();
   const [name, setName] = useState("");
@@ -61,8 +63,8 @@ export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
   return (
     <form onSubmit={submit} className="mx-auto w-full max-w-[380px]">
       <Link href="/" className="text-[20px] font-extrabold text-primary md:hidden">TeachFlow</Link>
-      <h1 className="mt-6 text-[24px] font-extrabold tracking-tight text-ink md:mt-0">{asStudent ? t("Creează contul de elev") : t("Creează cont de profesor")}</h1>
-      <p className="mb-7 mt-1.5 text-[13px] text-muted">{asStudent ? t("După confirmare, revii la invitație și o accepți.") : t("Începe să-ți organizezi lecțiile într-un singur loc.")}</p>
+      <h1 className="mt-6 text-[24px] font-extrabold tracking-tight text-ink md:mt-0">{asParent ? t("Creează contul de părinte") : asStudent ? t("Creează contul de elev") : t("Creează cont de profesor")}</h1>
+      <p className="mb-7 mt-1.5 text-[13px] text-muted">{asStudent || asParent ? t("După confirmare, revii la invitație și o accepți.") : t("Începe să-ți organizezi lecțiile într-un singur loc.")}</p>
       <label className="tf-label" htmlFor="name">{t("Nume complet")}</label>
       <input id="name" className="tf-input mb-4" autoComplete="name" required value={name} onChange={e => setName(e.target.value)} />
       <label className="tf-label" htmlFor="email">{t("Email")}</label>

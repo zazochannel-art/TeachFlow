@@ -8,6 +8,8 @@ import { deleteStudent, enrollStudent, removeEnrollment, saveStudent } from "@/l
 import { formatDate, formatMoney, formatTime } from "@/lib/time";
 import { currencyTotals } from "@/lib/data/derive";
 import { StudentAccess } from "@/components/StudentAccess";
+import { ParentAccess, type LinkedParent } from "@/components/ParentAccess";
+import { ageOn } from "@/lib/time";
 import type { Student } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
@@ -27,6 +29,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const coursesOf = (id: string) => ws.enrollments.filter(e => e.student_id === id && e.status === "active").map(e => courseTitle.get(e.course_id)).filter(Boolean) as string[];
   const editing = sp.edit ? ws.students.find(s => s.id === sp.edit) : undefined;
   const demo = ws.mode === "demo";
+  const parents = editing && ws.parentsReady ? await loadParents(editing.id) : [];
   const qs = (status: string) => `/students?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   return (
@@ -59,6 +62,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           <StudentForm ws={ws} demo={demo} student={editing} t={t} />
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
+          {(ws.parentsReady || demo) && <ParentAccess studentId={editing.id} parents={parents} demo={demo} />}
         </Panel>
       )}
 
@@ -133,7 +137,17 @@ function StudentForm({ ws, demo, student, t }: { ws: Workspace; demo: boolean; s
           </select>
         </Field>
       )}
-      <Field label={t("Notițe")} htmlFor="notes" wide><textarea id="notes" name="notes" rows={2} defaultValue={student?.notes ?? ""} className="tf-input" placeholder={t("ex. părinte: Ana, preferă lecții după 16:00")} /></Field>
+      {(ws.parentsReady || demo) && (
+        <>
+          <Field label={t("Data nașterii")} htmlFor="birth_date"><input id="birth_date" name="birth_date" type="date" min="1900-01-01" max="2100-01-01" defaultValue={student?.birth_date ?? ""} className="tf-input" /></Field>
+          <Field label={t("Clasa / nivelul")} htmlFor="grade_level"><input id="grade_level" name="grade_level" maxLength={60} defaultValue={student?.grade_level ?? ""} className="tf-input" placeholder={t("ex. clasa a 7-a, B1")} /></Field>
+          <Field label={t("Obiective")} htmlFor="goals" wide><textarea id="goals" name="goals" rows={2} maxLength={1000} defaultValue={student?.goals ?? ""} className="tf-input" placeholder={t("ex. pregătire pentru BAC, vorbire liberă")} /></Field>
+          <Field label={t("Părinte: nume")} htmlFor="parent_name"><input id="parent_name" name="parent_name" maxLength={120} defaultValue={student?.parent_name ?? ""} className="tf-input" /></Field>
+          <Field label={t("Părinte: telefon")} htmlFor="parent_phone"><input id="parent_phone" name="parent_phone" type="tel" maxLength={40} defaultValue={student?.parent_phone ?? ""} className="tf-input" /></Field>
+          <Field label={t("Părinte: email")} htmlFor="parent_email" wide><input id="parent_email" name="parent_email" type="email" maxLength={200} defaultValue={student?.parent_email ?? ""} className="tf-input" /></Field>
+        </>
+      )}
+      <Field label={t("Notițe")} htmlFor="notes" wide><textarea id="notes" name="notes" rows={2} defaultValue={student?.notes ?? ""} className="tf-input" placeholder={t("ex. preferă lecții după 16:00")} /></Field>
     </ActionForm>
   );
 }
@@ -189,6 +203,7 @@ function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t
       {ws.mode === "live" && ws.visualReady && (
         <div className="mb-5"><AvatarUpload name={student.full_name} src={student.avatar_url ?? null} studentId={student.id} size={56} /></div>
       )}
+      <ProfileFacts student={student} t={t} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className={tile}>
           <p className="text-[11px] text-muted">{t("Lecții ținute")}</p>
@@ -213,6 +228,34 @@ function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t
         <Link href={`/calendar?new=1`} className={action}><CalendarDays className="h-3.5 w-3.5" /> {t("Lecție nouă")}</Link>
         <Link href={`/messages?student=${student.id}`} className={action}><MessageCircle className="h-3.5 w-3.5" /> {t("Mesaje")}</Link>
       </div>
+    </div>
+  );
+}
+
+/** Parent accounts linked to one student (migration 0012), with their sign-in email. */
+async function loadParents(studentId: string): Promise<LinkedParent[]> {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("student_parents", { p_student_id: studentId });
+  if (error || !Array.isArray(data)) return [];
+  return (data as Array<{ link_id: string; full_name: string; email: string | null }>).map(p => ({ link_id: p.link_id, full_name: p.full_name, email: p.email }));
+}
+
+/** Age, class, goals and the parent contact, when the teacher filled them in. */
+function ProfileFacts({ student, t }: { student: Student; t: T }) {
+  const age = student.birth_date ? ageOn(student.birth_date, new Date()) : null;
+  const facts = [
+    age != null ? t.n("{n} an|{n} ani|{n} de ani", age) : null,
+    student.grade_level || null
+  ].filter(Boolean) as string[];
+  const parent = [student.parent_name, student.parent_phone, student.parent_email].filter(Boolean).join(" · ");
+  if (!facts.length && !student.goals && !parent) return null;
+  return (
+    <div className="mb-4 grid gap-1.5 rounded-2xl bg-soft px-4 py-3 text-[12px]">
+      {facts.length > 0 && <p className="font-extrabold text-ink">{facts.join(" · ")}</p>}
+      {student.goals && <p><span className="text-muted">{t("Obiective")}:</span> {student.goals}</p>}
+      {parent && <p><span className="text-muted">{t("Părinte")}:</span> {parent}</p>}
     </div>
   );
 }
