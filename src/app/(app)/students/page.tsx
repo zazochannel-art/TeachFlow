@@ -13,6 +13,8 @@ import { ageOn } from "@/lib/time";
 import type { Student } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
+import { StudentPoints } from "@/components/StudentPoints";
+import { loadTeacherExtras } from "@/lib/data/teacher-extras";
 
 type Params = { q?: string; new?: string; edit?: string; status?: string };
 
@@ -29,7 +31,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const coursesOf = (id: string) => ws.enrollments.filter(e => e.student_id === id && e.status === "active").map(e => courseTitle.get(e.course_id)).filter(Boolean) as string[];
   const editing = sp.edit ? ws.students.find(s => s.id === sp.edit) : undefined;
   const demo = ws.mode === "demo";
-  const parents = editing && ws.parentsReady ? await loadParents(editing.id) : [];
+  const [parents, extras] = await Promise.all([editing && ws.parentsReady ? loadParents(editing.id) : Promise.resolve([]), editing ? loadTeacherExtras() : Promise.resolve(null)]);
   const qs = (status: string) => `/students?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   return (
@@ -62,6 +64,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           <StudentForm ws={ws} demo={demo} student={editing} t={t} />
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
+          {extras?.gamification && <StudentPoints studentId={editing.id} timezone={ws.timezone} t={t} />}
           {(ws.parentsReady || demo) && <ParentAccess studentId={editing.id} parents={parents} demo={demo} />}
           {ws.parentsReady && (
             <div className="mt-6 border-t border-line pt-5">

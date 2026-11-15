@@ -131,7 +131,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
       () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at, channel, author_id").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
       () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000)
     ),
-    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
+    withFallback(
+      () => supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at, invoice_no").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000),
+      () => supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
+    )
   ]);
 
   enforceTeacherRole(role);

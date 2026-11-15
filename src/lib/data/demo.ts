@@ -1,5 +1,6 @@
 import { DEFAULT_TZ, addDays, dateKey, zonedToUtc } from "@/lib/time";
 import type { Workspace } from "./workspace";
+import type { PublicPage } from "./public-page";
 import type { Course, Enrollment, Homework, Lesson, Message, Payment, Student } from "@/types/database";
 
 // Shown only when Supabase is not configured (see README). The UI labels it as demo data.
@@ -103,3 +104,26 @@ export function buildDemoWorkspace(): Workspace {
     students, courses, enrollments, lessons, homework, messages, payments, missingTables: []
   };
 }
+
+/** Demo mode only (no Supabase): /p/demo shows an example page. */
+export const DEMO_PUBLIC_PAGE: PublicPage = {
+  teacher_id: "demo", slug: "demo", name: "Ana Popescu", avatar_url: null,
+  headline: "Profesoară de engleză și matematică · pregătire BAC și IELTS",
+  bio: "Predau de 8 ani, online și la Chișinău. Lecții clare, teme cu feedback în aceeași zi și un raport lunar pentru părinți.",
+  specialties: ["Engleză", "Matematică", "IELTS"], hourly_rate: 300, currency: "MDL", city: "Chișinău", phone: "+373 69 123 456", prices: true,
+  lessons_done: 1240, students: 34,
+  courses: [
+    { id: "00000000-0000-0000-0000-000000000001", title: "Engleză B2", description: "Grupă de 4–6 elevi, de două ori pe săptămână. Vorbire, gramatică și pregătire pentru examene.", subject: "Engleză", level: "B2", format: "group", color: "#5269e8", price: 250, currency: "MDL" },
+    { id: "00000000-0000-0000-0000-000000000002", title: "Matematică BAC", description: "Pregătire intensivă pentru bacalaureat, cu teste de antrenament în fiecare lună.", subject: "Matematică", level: "Clasa XII", format: "group", color: "#1b8a5a", price: 300, currency: "MDL" },
+    { id: "00000000-0000-0000-0000-000000000003", title: "Engleză individual", description: "Lecții unu la unu, în ritmul tău.", subject: "Engleză", level: "A1–C1", format: "individual", color: "#c0661b", price: 350, currency: "MDL" }
+  ]
+};
+
+/** Demo mode only: the teacher's billing details printed on demo invoices. */
+export const DEMO_INVOICE_DETAILS = {
+  invoice_name: "Profesor Demo", invoice_code: "2003600123456", invoice_address: "str. Ștefan cel Mare 1, Chișinău",
+  invoice_bank: "MAIB", invoice_iban: "MD24AG000225100013104168", invoice_note: null
+};
+
+/** Demo mode only: a sample bonus from the teacher. */
+export const DEMO_REWARD_REASON = "Activ la lecție";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ClipboardCheck, ListChecks, MessageCircle, Wallet, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardCheck, ListChecks, MessageCircle, Wallet, XCircle, FileText } from "lucide-react";
 import { loadMyQuizAssignments } from "@/lib/data/quizzes";
 import { percent } from "@/lib/quiz";
 import { Avatar, Card, DemoNotice, EmptyNote, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
@@ -9,6 +9,8 @@ import { colorVar } from "@/lib/colors";
 import { ageOn, dateKey, formatDate, formatMoney, formatTime } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 import { ChildPicker } from "./ChildPicker";
+import { demoProgress, loadPortalProgress } from "@/lib/data/progress";
+import { ProgressSummary } from "@/components/ProgressView";
 
 const hwLabel = { assigned: "De făcut", submitted: "Predată", reviewed: "Verificată" } as const;
 const hwTone = { assigned: "amber", submitted: "blue", reviewed: "green" } as const;
@@ -47,6 +49,9 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
   const unread = p.messages.filter(m => m.student_id === child.studentId && m.direction === "outgoing" && !m.read_at).length;
   const q = p.children.length > 1 ? `?c=${child.studentId}` : "";
   const quizzes = quizData.assignments.filter(a => a.student_id === child.studentId).slice(0, 10);
+  const progress = p.mode === "demo"
+    ? demoProgress({ homework, lessons }, tz)
+    : await loadPortalProgress([{ studentId: child.studentId, teacherId: child.teacherId }], tz);
 
   return (
     <div>
@@ -138,6 +143,16 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
         </div>
 
         <aside className="space-y-8">
+          {progress && (
+            <section>
+              <SectionTitle>{t("Puncte și insigne")}</SectionTitle>
+              <ProgressSummary p={progress} t={t} />
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {progress.badges.filter(b => b.earned).map(b => <Pill key={b.id} tone="amber">{t(b.title)}</Pill>)}
+                {!progress.badges.some(b => b.earned) && <p className="text-[11px] text-muted">{t("Nicio insignă încă.")}</p>}
+              </div>
+            </section>
+          )}
           <section>
             <SectionTitle>{t("Orar")}</SectionTitle>
             <Card className="overflow-hidden">
@@ -171,6 +186,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
                       <p className="truncate text-muted">{x.status === "paid" ? t("achitat {date}", { date: x.paid_at ? formatDate(x.paid_at, tz, t.locale) : "" }) : x.due_date ? t("termen {date}", { date: formatDate(`${x.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("de achitat")}{x.course_id && course.get(x.course_id) ? ` · ${course.get(x.course_id)!.title}` : ""}</p>
                     </div>
                     <Pill tone={x.status === "paid" ? "green" : late ? "red" : "amber"}>{x.status === "paid" ? t("Achitat") : late ? t("Restant") : t("De achitat")}</Pill>
+                    <a href={`/invoices/${x.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("Factura PDF")} title={t("Factura PDF")} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-soft text-muted hover:text-primary"><FileText className="h-3.5 w-3.5" /></a>
                   </div>
                 );
               })}

@@ -135,6 +135,8 @@ export interface Payment {
   method: "cash" | "card" | "transfer" | "other" | null;
   note: string | null;
   created_at: string;
+  /** Invoice number, e.g. TF-2026-0007 (migration 0015). */
+  invoice_no?: string | null;
 }
 
 /** Reusable course material (migration 0013). */
