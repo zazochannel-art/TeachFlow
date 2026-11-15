@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
+import { CalendarDays, ClipboardList, Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, PageHeader, Panel, Pill, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace, type Workspace } from "@/lib/data/workspace";
 import { deleteStudent, enrollStudent, removeEnrollment, saveStudent } from "@/lib/actions/students";
-import { formatDate, formatMoney } from "@/lib/time";
+import { formatDate, formatMoney, formatTime } from "@/lib/time";
+import { currencyTotals } from "@/lib/data/derive";
 import { StudentAccess } from "@/components/StudentAccess";
 import type { Student } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
@@ -33,14 +34,14 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         title={t("Elevi")}
         subtitle={t("{total} elevi · {active} activi", { total: ws.students.length, active: ws.students.filter(s => s.status === "active").length })}
         action={
-          <div className="flex flex-wrap items-center gap-3">
-            <form className="flex h-11 items-center gap-2 rounded-2xl bg-white px-4 shadow-card" action="/students">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <form className="flex h-11 w-full items-center gap-2 rounded-2xl bg-white px-4 shadow-card sm:w-auto" action="/students">
               <Search className="h-4 w-4 text-muted" />
-              <input name="q" defaultValue={q} placeholder={t("Caută după nume, email, telefon")} aria-label={t("Caută elevi")} className="w-48 bg-transparent text-[12px] outline-none sm:w-56" />
+              <input name="q" defaultValue={q} placeholder={t("Caută după nume, email, telefon")} aria-label={t("Caută elevi")} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none sm:w-56 sm:flex-none" />
               {filter !== "active" && <input type="hidden" name="status" value={filter} />}
             </form>
-            {ws.students.length > 0 && <a href="/students/export" download className="tf-btn-ghost h-11" title={t("Descarcă lista de elevi (CSV, se deschide în Excel)")}><Download className="h-4 w-4" /> {t("Exportă")}</a>}
-            <Link href="/students?new=1" className="tf-btn h-11"><Plus className="h-4 w-4" /> {t("Elev nou")}</Link>
+            {ws.students.length > 0 && <a href="/students/export" download className="tf-btn-ghost h-11 flex-1 sm:flex-none" title={t("Descarcă lista de elevi (CSV, se deschide în Excel)")}><Download className="h-4 w-4" /> {t("Exportă")}</a>}
+            <Link href="/students?new=1" className="tf-btn h-11 flex-1 sm:flex-none"><Plus className="h-4 w-4" /> {t("Elev nou")}</Link>
           </div>
         }
       />
@@ -53,6 +54,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       {editing && (
         <Panel title={t("Editează · {name}", { name: editing.full_name })} closeHref="/students"
           aside={<form action={deleteStudent}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge elevul")} confirm={t("Șterge definitiv")} /></form>}>
+          <StudentSummary ws={ws} student={editing} t={t} />
           <StudentForm ws={ws} demo={demo} student={editing} t={t} />
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
@@ -79,23 +81,23 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             const due = ws.payments.filter(p => p.student_id === s.id && p.status === "pending");
             const unread = ws.messages.filter(m => m.student_id === s.id && m.direction === "incoming" && !m.read_at).length;
             return (
-              <div key={s.id} className="grid gap-3 border-b border-line/70 px-5 py-4 text-[12px] last:border-0 lg:grid-cols-[1.6fr_1.4fr_1.6fr_.8fr_.9fr_96px] lg:items-center lg:gap-4">
-                <div className="flex items-center gap-3">
+              <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 border-b border-line/70 px-4 py-3.5 text-[12px] last:border-0 sm:px-5 lg:grid-cols-[1.6fr_1.4fr_1.6fr_.8fr_.9fr_96px] lg:gap-4 lg:py-4">
+                <div className="flex min-w-0 items-center gap-3">
                   <Avatar name={s.full_name} size={38} />
                   <div className="min-w-0">
                     <div className="truncate font-extrabold text-ink">{s.full_name}</div>
                     <div className="truncate text-[11px] text-muted">{s.notes || t("din {date}", { date: formatDate(s.created_at, ws.timezone, t.locale) })}</div>
                   </div>
                 </div>
-                <div className="space-y-1 text-muted">
+                <div className={`col-span-2 min-w-0 space-y-1 text-muted lg:col-span-1 ${!s.email && !s.phone ? "hidden lg:block" : ""}`}>
                   {s.email && <a href={`mailto:${s.email}`} className="flex items-center gap-2 truncate hover:text-primary"><Mail className="h-3.5 w-3.5 shrink-0" />{s.email}</a>}
                   {s.phone && <a href={`tel:${s.phone}`} className="flex items-center gap-2 hover:text-primary"><Phone className="h-3.5 w-3.5" />{s.phone}</a>}
                   {!s.email && !s.phone && <span>—</span>}
                 </div>
-                <div className="flex flex-wrap gap-1.5">{courses.length ? courses.map(c => <Pill key={c}>{c}</Pill>) : <Pill tone="amber">{t("Fără curs")}</Pill>}</div>
+                <div className="col-span-2 flex flex-wrap gap-1.5 lg:col-span-1">{courses.length ? courses.map(c => <Pill key={c}>{c}</Pill>) : <Pill tone="amber">{t("Fără curs")}</Pill>}</div>
                 <div><Pill tone={s.status === "active" ? "green" : "gray"}>{s.status === "active" ? t("Activ") : t("Inactiv")}</Pill></div>
-                <div>{due.length ? <Link href="/payments?status=pending" className="inline-flex items-center gap-1.5 font-bold text-[#a2660a]"><Wallet className="h-3.5 w-3.5" />{due.map(p => formatMoney(p.amount, p.currency, t.locale)).join(" + ")}</Link> : <span className="text-muted">{t("La zi")}</span>}</div>
-                <div className="flex items-center gap-2 lg:justify-end">
+                <div className="text-right lg:text-left">{due.length ? <Link href="/payments?status=pending" className="inline-flex items-center gap-1.5 font-bold text-[#a2660a]"><Wallet className="h-3.5 w-3.5" />{due.map(p => formatMoney(p.amount, p.currency, t.locale)).join(" + ")}</Link> : <span className="text-muted">{t("La zi")}</span>}</div>
+                <div className="col-start-2 row-start-1 flex items-center gap-2 lg:col-start-auto lg:row-start-auto lg:justify-end">
                   <Link href={`/messages?student=${s.id}`} aria-label={t("Mesaje · {name}", { name: s.full_name })} className="relative grid h-8 w-8 place-items-center rounded-full bg-tint text-primary-2 hover:bg-[#dfe4fb]">
                     <MessageCircle className="h-3.5 w-3.5" />
                     {unread > 0 && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white" />}
@@ -162,6 +164,51 @@ function Enrollments({ ws, student, t }: { ws: Workspace; student: Student; t: T
           <SubmitButton className="tf-btn-ghost">{t("Înscrie")}</SubmitButton>
         </form>
       )}
+    </div>
+  );
+}
+
+/** At-a-glance history of one student (lessons, homework, money) with the usual next steps. */
+function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t: T }) {
+  const now = new Date();
+  const courseIds = new Set(ws.enrollments.filter(e => e.student_id === student.id && e.status === "active").map(e => e.course_id));
+  const lessons = ws.lessons.filter(l => l.student_id === student.id || (!l.student_id && l.course_id && courseIds.has(l.course_id)));
+  const held = lessons.filter(l => l.status === "completed").length;
+  const missed = lessons.filter(l => l.status === "no_show").length;
+  const next = lessons.find(l => l.status === "scheduled" && new Date(l.starts_at) > now);
+  const hw = ws.homework.filter(h => h.student_id === student.id);
+  const hwOpen = hw.filter(h => h.status !== "reviewed").length;
+  const pays = ws.payments.filter(p => p.student_id === student.id);
+  const money = (list: typeof pays) => list.length ? currencyTotals(list).map(x => formatMoney(x.amount, x.currency, t.locale)).join(" + ") : "—";
+  const tile = "rounded-2xl bg-soft px-4 py-3";
+  const action = "inline-flex items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb]";
+
+  return (
+    <div className="mb-6 border-b border-line pb-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Lecții ținute")}</p>
+          <p className="text-[16px] font-extrabold">{held}{missed > 0 && <span className="ml-1.5 text-[11px] font-bold text-[#c03a3a]">{t("· {n} absențe", { n: missed })}</span>}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Următoarea lecție:")}</p>
+          <p className="truncate text-[13px] font-extrabold">{next ? `${formatDate(next.starts_at, ws.timezone, t.locale)}, ${formatTime(next.starts_at, ws.timezone, t.locale)}` : "—"}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Teme")}</p>
+          <p className="text-[16px] font-extrabold">{hw.length}{hwOpen > 0 && <span className="ml-1.5 text-[11px] font-bold text-muted">{t("· {n} deschise", { n: hwOpen })}</span>}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[11px] text-muted">{t("Plătit / de încasat")}</p>
+          <p className="truncate text-[13px] font-extrabold">{money(pays.filter(p => p.status === "paid"))} <span className="text-[#a2660a]">/ {money(pays.filter(p => p.status === "pending"))}</span></p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link href={`/payments?new=1&student=${student.id}`} className={action}><Wallet className="h-3.5 w-3.5" /> {t("Înregistrează plată")}</Link>
+        <Link href={`/homework?new=1&student=${student.id}`} className={action}><ClipboardList className="h-3.5 w-3.5" /> {t("Dă temă")}</Link>
+        <Link href={`/calendar?new=1`} className={action}><CalendarDays className="h-3.5 w-3.5" /> {t("Lecție nouă")}</Link>
+        <Link href={`/messages?student=${student.id}`} className={action}><MessageCircle className="h-3.5 w-3.5" /> {t("Mesaje")}</Link>
+      </div>
     </div>
   );
 }

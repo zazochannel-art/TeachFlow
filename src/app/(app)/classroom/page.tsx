@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Video } from "lucide-react";
+import { Pencil, Video, Plus } from "lucide-react";
 import { Card, DemoNotice, EmptyState, PageHeader, SectionTitle, SubjectIcon } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, toSlot } from "@/lib/data/derive";
@@ -18,7 +18,7 @@ export default async function ClassroomPage() {
 
   return (
     <div>
-      <PageHeader title={t("Lecții online")} subtitle={t("Intră în lecție cu un singur clic.")} action={<Link href="/calendar?new=1&back=/classroom" className="tf-btn">+ {t("Lecție nouă")}</Link>} />
+      <PageHeader title={t("Lecții online")} subtitle={t("Intră în lecție cu un singur clic.")} action={<Link href="/calendar?new=1&back=/classroom" className="tf-btn"><Plus className="h-4 w-4" /> {t("Lecție nouă")}</Link>} />
 
       {hero ? (
         <div className="mb-8 flex flex-wrap items-center justify-between gap-5 rounded-[26px] bg-primary p-6 text-white shadow-lift">

@@ -261,6 +261,7 @@ export const ru: Record<string, string> = {
   "Mergi la contul tău": "Перейти в аккаунт",
   "Mesaj": "Сообщение",
   "Mesaj de la mine": "Моё сообщение",
+  "Mai mult": "Ещё",
   "Mesaje": "Сообщения",
   "Mesaje cu {name}": "Переписка с {name}",
   "Mesaje · {name}": "Сообщения · {name}",
@@ -520,6 +521,7 @@ export const ru: Record<string, string> = {
   "Înscrie elevul la curs": "Запишите ученика на курс",
   "Înscrie la curs (opțional)": "Записать на курс (необязательно)",
   "Întârziată": "Просрочено",
+  "Șterge tema": "Удалить задание",
   "Șterge": "Удалить",
   "Șterge cursul": "Удалить курс",
   "Șterge căutarea": "Сбросить поиск",
@@ -641,4 +643,11 @@ export const ru: Record<string, string> = {
   "Camere mai mari": "Камеры больше",
   "Arată camerele": "Показать камеры",
   "Ascunde camerele": "Скрыть камеры",
+  "Lecție ținută": "Урок проведён",
+  "Dă temă": "Задать ДЗ",
+  "Editează lecția": "Изменить урок",
+  "Lecții ținute": "Проведено уроков",
+  "· {n} absențe": "· пропусков: {n}",
+  "· {n} deschise": "· открытых: {n}",
+  "Plătit / de încasat": "Оплачено / к оплате"
 };

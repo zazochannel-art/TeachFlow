@@ -261,6 +261,7 @@ export const en: Record<string, string> = {
   "Mergi la contul tău": "Go to your account",
   "Mesaj": "Message",
   "Mesaj de la mine": "Message from me",
+  "Mai mult": "More",
   "Mesaje": "Messages",
   "Mesaje cu {name}": "Messages with {name}",
   "Mesaje · {name}": "Messages · {name}",
@@ -520,6 +521,7 @@ export const en: Record<string, string> = {
   "Înscrie elevul la curs": "Enrol the student in a course",
   "Înscrie la curs (opțional)": "Enrol in a course (optional)",
   "Întârziată": "Late",
+  "Șterge tema": "Delete assignment",
   "Șterge": "Delete",
   "Șterge cursul": "Delete course",
   "Șterge căutarea": "Clear search",
@@ -641,4 +643,11 @@ export const en: Record<string, string> = {
   "Camere mai mari": "Larger cameras",
   "Arată camerele": "Show cameras",
   "Ascunde camerele": "Hide cameras",
+  "Lecție ținută": "Lesson held",
+  "Dă temă": "Assign homework",
+  "Editează lecția": "Edit lesson",
+  "Lecții ținute": "Lessons held",
+  "· {n} absențe": "· {n} missed",
+  "· {n} deschise": "· {n} open",
+  "Plătit / de încasat": "Paid / due"
 };

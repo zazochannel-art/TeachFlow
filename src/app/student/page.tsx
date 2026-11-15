@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ClipboardCheck, MessageCircle, Video, Wallet } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Video, Wallet } from "lucide-react";
 import { Card, DemoNotice, EmptyNote, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
 import { ActionForm } from "@/components/forms";
 import { loadStudentPortal } from "@/lib/data/student";
@@ -28,7 +28,6 @@ export default async function StudentHome() {
   const todo = p.homework.filter(h => h.status === "assigned").sort((a, b) => (a.due_at ?? "9").localeCompare(b.due_at ?? "9"));
   const done = p.homework.filter(h => h.status !== "assigned").slice(0, 6);
   const pending = p.payments.filter(x => x.status === "pending");
-  const unread = p.messages.filter(m => m.direction === "outgoing" && !m.read_at);
   const first = p.name.split(" ")[0];
 
   if (p.mode === "live" && p.links.length === 0) {
@@ -46,16 +45,16 @@ export default async function StudentHome() {
         <h1 className="text-[24px] font-extrabold tracking-tight">{t("Bună, {name}!", { name: first })}</h1>
         <p className="mt-1 text-[13px] text-muted">{formatDayHeading(today, t.locale).weekday}, {formatDayHeading(today, t.locale).rest}</p>
 
-        <section className="mt-6 rounded-[24px] bg-primary p-6 text-white shadow-lift">
+        <section className="mt-6 rounded-[24px] bg-primary p-5 text-white shadow-lift sm:p-6">
           {next ? (
-            <div className="flex flex-wrap items-center gap-5">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/20"><Video className="h-6 w-6" /></span>
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+              <span className="grid h-12 w-12 shrink-0 sm:h-14 sm:w-14 place-items-center rounded-full bg-white/20"><Video className="h-6 w-6" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] text-white/80">{live ? t("Lecția începe acum") : t("Lecția următoare")}</p>
                 <p className="truncate text-[19px] font-extrabold">{next.title}</p>
                 <p className="text-[12px] text-white/80">{dateKey(new Date(next.starts_at), tz) === today ? t("Astăzi") : formatDate(next.starts_at, tz, t.locale)}, {formatTime(next.starts_at, tz, t.locale)}–{formatTime(next.ends_at, tz, t.locale)}{multiTeacher && next.student_id ? ` · ${teacherOf.get(next.student_id) ?? ""}` : ""}</p>
               </div>
-              <Link href={`/student/lesson/${next.id}`} className="rounded-xl bg-white px-5 py-2.5 text-[13px] font-extrabold text-primary-2 hover:bg-tint">{t("Intră în lecție")}</Link>
+              <Link href={`/student/lesson/${next.id}`} className="w-full rounded-xl bg-white px-5 py-3 text-center text-[13px] font-extrabold text-primary-2 hover:bg-tint sm:w-auto sm:py-2.5">{t("Intră în lecție")}</Link>
             </div>
           ) : <p className="text-[14px] font-bold">{t("Nu ai lecții programate deocamdată.")}</p>}
         </section>
@@ -117,11 +116,6 @@ export default async function StudentHome() {
           </Card>
         </section>
 
-        <Link href="/student/messages" className="flex items-center gap-3 rounded-[20px] border border-line/70 bg-white p-4 shadow-card hover:border-primary">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-tint text-primary-2"><MessageCircle className="h-4 w-4" /></span>
-          <span className="flex-1 text-[13px] font-extrabold">{t("Scrie-i profesorului")}</span>
-          {unread.length > 0 && <Pill tone="blue">{t("{n} noi", { n: unread.length })}</Pill>}
-        </Link>
       </aside>
     </div>
   );

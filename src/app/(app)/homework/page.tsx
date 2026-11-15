@@ -11,7 +11,7 @@ import { getT } from "@/lib/i18n/server";
 
 const labels: Record<HomeworkStatus, string> = { assigned: "Atribuită", submitted: "De verificat", reviewed: "Verificată" };
 const tones = { assigned: "blue", submitted: "amber", reviewed: "green" } as const;
-type Params = { status?: string; new?: string; edit?: string; review?: string; course?: string; student?: string };
+type Params = { status?: string; new?: string; edit?: string; review?: string; course?: string; student?: string; c?: string };
 
 export default async function HomeworkPage({ searchParams }: { searchParams: Promise<Params> }) {
   const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
@@ -20,13 +20,18 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   const missing = ws.missingTables.includes("homework");
   const now = new Date();
   const filter = (["submitted", "assigned", "reviewed", "all"] as const).find(f => f === sp.status) ?? "submitted";
-  const list = ws.homework.filter(h => filter === "all" || h.status === filter);
+  // Optional course filter (?c=<course id>) on top of the status tabs.
+  const courseFilter = ws.courses.some(c => c.id === sp.c) ? sp.c : undefined;
+  const withC = (q: string) => `/homework?${q}${courseFilter ? `&c=${courseFilter}` : ""}`;
+  const inCourse = ws.homework.filter(h => !courseFilter || h.course_id === courseFilter);
+  const list = inCourse.filter(h => filter === "all" || h.status === filter);
   const student = new Map(ws.students.map(s => [s.id, s]));
   const course = new Map(ws.courses.map(c => [c.id, c]));
   const count = (st: HomeworkStatus) => ws.homework.filter(h => h.status === st).length;
+  const countIn = (st: HomeworkStatus) => inCourse.filter(h => h.status === st).length;
   const editing = sp.edit ? ws.homework.find(h => h.id === sp.edit) : undefined;
   const reviewing = sp.review ? ws.homework.find(h => h.id === sp.review) : undefined;
-  const close = `/homework?status=${filter}`;
+  const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
 
   return (
@@ -36,7 +41,8 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
       {missing && <MigrationNotice table="homework" />}
 
       {(sp.new || editing) && !missing && (
-        <Panel title={editing ? t("Editează tema") : t("Temă nouă")} closeHref={close}>
+        <Panel title={editing ? t("Editează tema") : t("Temă nouă")} closeHref={close}
+          aside={editing && <form action={deleteHomework}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge tema")} confirm={t("Confirmă")} className="py-1.5" /></form>}>
           <ActionForm action={saveHomework} demo={demo} submitLabel={editing ? t("Salvează") : t("Atribuie tema")}>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <Field label={t("Titlu")} htmlFor="title" wide><input id="title" name="title" required defaultValue={editing?.title} className="tf-input" placeholder={t("ex. Exercițiile 3–7, pagina 42")} /></Field>
@@ -86,11 +92,20 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
 
       {!missing && (
         <Tabs active={filter} items={[
-          { key: "submitted", label: t("De verificat"), href: "/homework?status=submitted", count: count("submitted") },
-          { key: "assigned", label: t("În lucru"), href: "/homework?status=assigned", count: count("assigned") },
-          { key: "reviewed", label: t("Verificate"), href: "/homework?status=reviewed", count: count("reviewed") },
-          { key: "all", label: t("Toate"), href: "/homework?status=all", count: ws.homework.length }
+          { key: "submitted", label: t("De verificat"), href: withC("status=submitted"), count: countIn("submitted") },
+          { key: "assigned", label: t("În lucru"), href: withC("status=assigned"), count: countIn("assigned") },
+          { key: "reviewed", label: t("Verificate"), href: withC("status=reviewed"), count: countIn("reviewed") },
+          { key: "all", label: t("Toate"), href: withC("status=all"), count: inCourse.length }
         ]} />
+      )}
+      {!missing && ws.courses.length > 1 && (
+        <div className="tf-scroll -mt-2 mb-5 flex items-center gap-2 overflow-x-auto pb-1 text-[11px] font-bold">
+          <span className="shrink-0 text-muted">{t("Curs")}:</span>
+          <Link href={`/homework?status=${filter}`} className={`shrink-0 rounded-full px-3 py-1.5 ${!courseFilter ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{t("Toate")}</Link>
+          {ws.courses.map(c => (
+            <Link key={c.id} href={`/homework?status=${filter}&c=${c.id}`} className={`shrink-0 rounded-full px-3 py-1.5 ${courseFilter === c.id ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{c.title}</Link>
+          ))}
+        </div>
       )}
 
       {!missing && list.length === 0 && (
@@ -126,9 +141,8 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
                         <SubmitButton className="inline-flex items-center gap-1.5 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><CheckCheck className="h-3.5 w-3.5" /> {t("Predată")}</SubmitButton>
                       </form>
                     )}
-                    <Link href={`/homework?status=${filter}&review=${h.id}`} className="rounded-xl bg-primary px-3 py-1.5 font-bold text-white hover:bg-primary-2">{h.status === "reviewed" ? t("Editează nota") : t("Verifică")}</Link>
-                    <Link href={`/homework?status=${filter}&edit=${h.id}`} aria-label={t("Editează tema")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
-                    <form action={deleteHomework} className="ml-auto"><input type="hidden" name="id" value={h.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Confirmă")} className="py-1.5" /></form>
+                    <Link href={withC(`status=${filter}&review=${h.id}`)} className="rounded-xl bg-primary px-3 py-1.5 font-bold text-white hover:bg-primary-2">{h.status === "reviewed" ? t("Editează nota") : t("Verifică")}</Link>
+                    <Link href={withC(`status=${filter}&edit=${h.id}`)} aria-label={t("Editează tema")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
                   </div>
                 </div>
               </div>
