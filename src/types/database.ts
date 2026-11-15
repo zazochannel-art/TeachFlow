@@ -92,6 +92,9 @@ export interface Homework {
   created_at: string;
   /** Text the student submitted from the portal (migration 0003). */
   submission?: string | null;
+  /** Files the teacher attached / the student handed in (migration 0010). */
+  attachments?: unknown;
+  submission_files?: unknown;
 }
 
 export interface Message {

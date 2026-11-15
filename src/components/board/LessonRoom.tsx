@@ -51,7 +51,7 @@ export async function LessonRoom({ room, backHref, backLabel, toolbar }: { room:
 
       <ScreenShare lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 
-      <Whiteboard lessonId={lesson.id} initial={room.board} live={live} me={room.me} title={lesson.title} />
+      <Whiteboard lessonId={lesson.id} initial={room.board} live={live} me={room.me} title={lesson.title} filesReady={room.filesReady} />
 
       <p className="mt-3 text-[11px] text-muted">
         {isTeacher

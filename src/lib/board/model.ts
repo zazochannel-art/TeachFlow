@@ -8,8 +8,11 @@ export const MAX_STROKES = 4000;
 export const MAX_POINTS = 3000;
 export const MAX_TEXT = 300;
 
-export type Tool = "pen" | "highlighter" | "line" | "arrow" | "rect" | "ellipse" | "text";
-export const TOOLS: readonly Tool[] = ["pen", "highlighter", "line", "arrow", "rect", "ellipse", "text"];
+export type Tool = "pen" | "highlighter" | "line" | "arrow" | "rect" | "ellipse" | "text" | "image";
+export const TOOLS: readonly Tool[] = ["pen", "highlighter", "line", "arrow", "rect", "ellipse", "text", "image"];
+
+/** Image source: a lesson file in Storage (lesson/<lesson id>/<file>), or a local blob: URL in demo mode. */
+const IMAGE_SRC_RE = /^(lesson\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9._-]{1,140}|blob:[A-Za-z0-9:/._%-]{1,200})$/i;
 
 export interface Stroke {
   id: string;
@@ -19,6 +22,8 @@ export interface Stroke {
   /** Flat [x0, y0, x1, y1, ...] in board coordinates. Shapes and text use the first two (or four) values. */
   points: number[];
   text?: string;
+  /** Image strokes: where the picture is stored. points = [x0, y0, x1, y1] (the box). */
+  src?: string;
 }
 
 export interface BoardData { v: 1; strokes: Stroke[] }
@@ -57,6 +62,11 @@ export function sanitizeStroke(raw: unknown): Stroke | null {
   if (tool === "text") {
     if (typeof s.text !== "string" || s.text.trim() === "") return null;
     stroke.text = s.text.slice(0, MAX_TEXT);
+  }
+  if (tool === "image") {
+    if (typeof s.src !== "string" || !IMAGE_SRC_RE.test(s.src) || points.length < 4) return null;
+    stroke.points = points.slice(0, 4);
+    stroke.src = s.src;
   }
   return stroke;
 }
@@ -165,6 +175,10 @@ export function outline(s: Stroke): number[] {
 
 /** True when the point (x, y) is within `radius` of what the stroke draws. */
 export function hitStroke(s: Stroke, x: number, y: number, radius: number): boolean {
+  if (s.tool === "image") {
+    const [x0, y0, x1, y1] = s.points;
+    return x >= Math.min(x0, x1) - radius && x <= Math.max(x0, x1) + radius && y >= Math.min(y0, y1) - radius && y <= Math.max(y0, y1) + radius;
+  }
   if (s.tool === "text") {
     const b = textBox(s);
     return x >= b.x - radius && x <= b.x + b.w + radius && y >= b.y - radius && y <= b.y + b.h + radius;
