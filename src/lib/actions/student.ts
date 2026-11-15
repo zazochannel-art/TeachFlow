@@ -7,6 +7,7 @@ import { parseFileRefs } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
 import { isInviteToken } from "@/lib/invite-token";
 import type { FormState } from "./common";
+import { notifyHomeworkSubmitted, notifyMessage } from "@/lib/push/notify";
 
 const ERRORS: Record<string, string> = {
   invite_invalid: "Linkul de invitație nu mai este valabil. Cere profesorului unul nou.",
@@ -77,6 +78,7 @@ export async function submitHomework(_: FormState, formData: FormData): Promise<
     const { error } = await supabase.rpc("submit_homework", { p_homework_id: homework_id, p_submission: submission });
     if (error) return { error: friendly(error.message) };
   }
+  notifyHomeworkSubmitted(homework_id);
   revalidatePath("/student", "layout");
   return { ok: "Tema a fost predată. Profesorul a primit-o." };
 }
@@ -93,6 +95,7 @@ export async function sendStudentMessage(_: FormState, formData: FormData): Prom
   if (!supabase) return { error: "Mod demonstrativ: mesajul nu se poate trimite." };
   const { error } = await supabase.rpc("send_student_message", { p_student_id: parsed.data.student_id, p_body: parsed.data.body });
   if (error) return { error: friendly(error.message) };
+  notifyMessage({ studentId: parsed.data.student_id, from: "student", channel: "student", body: parsed.data.body });
   revalidatePath("/student", "layout");
   return { ok: "sent" };
 }
@@ -127,6 +130,7 @@ export async function sendParentMessage(_: FormState, formData: FormData): Promi
   if (!supabase) return { error: "Mod demonstrativ: mesajul nu se poate trimite." };
   const { error } = await supabase.rpc("send_parent_message", { p_student_id: parsed.data.student_id, p_body: parsed.data.body });
   if (error) return { error: friendly(error.message) };
+  notifyMessage({ studentId: parsed.data.student_id, from: "parent", channel: "parent", body: parsed.data.body });
   revalidatePath("/parent", "layout");
   return { ok: "sent" };
 }

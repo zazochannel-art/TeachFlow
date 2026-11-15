@@ -11,6 +11,8 @@ interface Values {
   headline: string; bio: string; hourly_rate: string; currency: string;
   /** undefined until migration 0004 is applied. */
   email_reminders?: boolean;
+  /** undefined until migration 0013 is applied. */
+  parent_reports?: boolean;
 }
 
 export function SettingsForm({ values, demo }: { values: Values; demo: boolean }) {
@@ -58,6 +60,18 @@ export function SettingsForm({ values, demo }: { values: Values; demo: boolean }
             <span>
               <span className="block text-[13px] font-bold text-ink">{t("Reminder zilnic pe email")}</span>
               <span className="mt-0.5 block text-[12px] text-muted">{t("Dimineața primești lecțiile de mâine, temele de verificat și plățile restante. Nu primești nimic în zilele fără noutăți.")}</span>
+            </span>
+          </label>
+        </div>
+      )}
+      {values.parent_reports !== undefined && (
+        <div className="sm:col-span-2">
+          <input type="hidden" name="has_reports" value="1" />
+          <label className="flex cursor-pointer items-start gap-3 rounded-[16px] bg-soft p-4">
+            <input type="checkbox" name="parent_reports" defaultChecked={values.parent_reports} className="mt-0.5 h-4 w-4 accent-[#5269e8]" />
+            <span>
+              <span className="block text-[13px] font-bold text-ink">{t("Raport lunar pentru părinți")}</span>
+              <span className="mt-0.5 block text-[12px] text-muted">{t("Pe 1 ale lunii, părinții primesc automat pe email prezența, temele, notele și testele copilului din luna trecută.")}</span>
             </span>
           </label>
         </div>

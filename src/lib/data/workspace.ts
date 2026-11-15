@@ -96,7 +96,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
     withFallback(
-      () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders").eq("user_id", userId).maybeSingle(),
+      () => withFallback(
+        () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders, parent_reports").eq("user_id", userId).maybeSingle(),
+        () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders").eq("user_id", userId).maybeSingle()
+      ),
       () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle()
     ),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),

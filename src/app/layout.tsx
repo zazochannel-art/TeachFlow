@@ -12,7 +12,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
     title: t("TeachFlow — Predă mai simplu"),
-    description: t("Platforma ta pentru lecții online, elevi și organizarea activității didactice.")
+    description: t("Platforma ta pentru lecții online, elevi și organizarea activității didactice."),
+    manifest: "/manifest.webmanifest",
+    icons: { apple: "/icons/apple-touch-icon.png" },
+    appleWebApp: { capable: true, title: "TeachFlow", statusBarStyle: "black-translucent" }
   };
 }
 

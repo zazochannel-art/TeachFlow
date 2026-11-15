@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { zonedToUtc } from "@/lib/time";
-import { parseFileRefs } from "@/lib/files";
+import { MAX_FILES, parseFileRefs, storedFiles, type FileRef } from "@/lib/files";
+import { notifyHomeworkAssigned, notifyHomeworkReviewed } from "@/lib/push/notify";
 import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
 
 const homeworkSchema = z.object({
@@ -32,7 +33,17 @@ export async function saveHomework(_: FormState, formData: FormData): Promise<Fo
   }
   const fields: Record<string, unknown> = { title: v.title, description: v.description, course_id: v.course_id, lesson_id: v.lesson_id, due_at };
   // Attachments only when the form has the picker (migration 0010 applied); only the teacher's own folder.
-  if (formData.has("attachments")) fields.attachments = parseFileRefs(formData.get("attachments"), `hw/${ctx.userId}/`);
+  if (formData.has("attachments")) {
+    const raw = formData.get("attachments");
+    const files: FileRef[] = [...parseFileRefs(raw, `hw/${ctx.userId}/`), ...parseFileRefs(raw, `lib/${ctx.userId}/`)];
+    // Materials picked from the library (migration 0013): their files join the attachments.
+    const libIds = formData.getAll("lib_items").map(String).filter(Boolean).slice(0, MAX_FILES);
+    if (libIds.length) {
+      const { data } = await ctx.supabase.from("library_items").select("file").eq("teacher_id", ctx.userId).eq("kind", "file").in("id", libIds);
+      for (const f of storedFiles((data ?? []).map(r => r.file))) if (f.path.startsWith(`lib/${ctx.userId}/`)) files.push(f);
+    }
+    fields.attachments = files.filter((f, i) => files.findIndex(x => x.path === f.path) === i).slice(0, MAX_FILES);
+  }
 
   if (v.id) {
     const { error } = await ctx.supabase.from("homework").update(fields).eq("id", v.id).eq("teacher_id", ctx.userId);
@@ -47,6 +58,7 @@ export async function saveHomework(_: FormState, formData: FormData): Promise<Fo
     if (!studentIds.length) return { error: "Alege un elev sau un curs cu elevi înscriși." };
     const { error } = await ctx.supabase.from("homework").insert(studentIds.map(student_id => ({ ...fields, student_id, teacher_id: ctx.userId })));
     if (error) return { error: error.message };
+    notifyHomeworkAssigned(studentIds, v.title);
   }
   refresh();
   redirect("/homework");
@@ -67,6 +79,7 @@ export async function reviewHomework(_: FormState, formData: FormData): Promise<
   const { id, ...fields } = parsed.data;
   const { error } = await ctx.supabase.from("homework").update(fields).eq("id", id).eq("teacher_id", ctx.userId);
   if (error) return { error: error.message };
+  if (fields.status === "reviewed") notifyHomeworkReviewed(id);
   refresh();
   redirect("/homework");
 }

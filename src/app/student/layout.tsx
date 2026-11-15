@@ -20,7 +20,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
             <GraduationCap className="h-8 w-8 text-primary" fill="rgba(82,105,232,.3)" strokeWidth={1.8} />
             <span className="hidden text-[17px] font-extrabold tracking-tight min-[400px]:inline">TeachFlow</span>
           </Link>
-          <PortalNav home="/student" messages="/student/messages" extra={[{ href: "/student/profile", label: "Profilul meu" }]} unread={unread} label="Portal elev" />
+          <PortalNav home="/student" messages="/student/messages" extra={[{ href: "/student/quizzes", label: "Teste" }, { href: "/student/materials", label: "Materiale" }, { href: "/student/profile", label: "Profilul meu" }]} unread={unread} label="Portal elev" />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher dark />
             <ThemeToggle onDark />

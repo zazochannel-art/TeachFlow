@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, Wallet, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardCheck, ListChecks, MessageCircle, Wallet, XCircle } from "lucide-react";
+import { loadMyQuizAssignments } from "@/lib/data/quizzes";
+import { percent } from "@/lib/quiz";
 import { Avatar, Card, DemoNotice, EmptyNote, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
 import { loadParentPortal, lessonsOfChild } from "@/lib/data/parent";
 import { colorOf, currencyTotals, subjectKind } from "@/lib/data/derive";
@@ -12,7 +14,7 @@ const hwLabel = { assigned: "De făcut", submitted: "Predată", reviewed: "Verif
 const hwTone = { assigned: "amber", submitted: "blue", reviewed: "green" } as const;
 
 export default async function ParentHome({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
-  const [p, t, sp] = await Promise.all([loadParentPortal(), getT(), searchParams]);
+  const [p, t, sp, quizData] = await Promise.all([loadParentPortal(), getT(), searchParams, loadMyQuizAssignments()]);
   const now = new Date();
   const tz = p.timezone;
   const today = dateKey(now, tz);
@@ -44,6 +46,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
   const age = child.birthDate ? ageOn(child.birthDate, now) : null;
   const unread = p.messages.filter(m => m.student_id === child.studentId && m.direction === "outgoing" && !m.read_at).length;
   const q = p.children.length > 1 ? `?c=${child.studentId}` : "";
+  const quizzes = quizData.assignments.filter(a => a.student_id === child.studentId).slice(0, 10);
 
   return (
     <div>
@@ -109,6 +112,26 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
                 );
               })}
             </Card>
+          )}
+          {quizzes.length > 0 && (
+            <>
+              <div className="mt-8"><SectionTitle>{t("Teste")}</SectionTitle></div>
+              <Card className="divide-y divide-line">
+                {quizzes.map(a => {
+                  const pc = percent(a.score, a.max_score);
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 px-4 py-3 text-[12px]">
+                      <ListChecks className="h-4 w-4 shrink-0 text-primary-2" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-extrabold text-ink">{a.title}</p>
+                        <p className="truncate text-[11px] text-muted">{a.status === "submitted" && a.submitted_at ? t("trimis {date}", { date: formatDate(a.submitted_at, tz, t.locale) }) : a.due_at ? t("termen {date}", { date: formatDate(a.due_at, tz, t.locale) }) : null}</p>
+                      </div>
+                      {a.status === "submitted" ? <Pill tone={pc != null && pc >= 50 ? "green" : "amber"}>{`${a.score}/${a.max_score} · ${pc}%`}</Pill> : <Pill tone="blue">{t("De rezolvat")}</Pill>}
+                    </div>
+                  );
+                })}
+              </Card>
+            </>
           )}
           {p.mode === "demo" && <DemoNotice />}
         </div>

@@ -63,6 +63,13 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
           {(ws.parentsReady || demo) && <ParentAccess studentId={editing.id} parents={parents} demo={demo} />}
+          {ws.parentsReady && (
+            <div className="mt-6 border-t border-line pt-5">
+              <h3 className="mb-1 text-[13px] font-extrabold">{t("Raport lunar pentru părinți")}</h3>
+              <p className="mb-3 text-[12px] text-muted">{t("Pe 1 ale fiecărei luni, părinții primesc pe email lecțiile, absențele, notele și rezultatele la teste din luna trecută. Se trimite părinților cu cont și la emailul părintelui din fișă.")}</p>
+              <a href={`/students/report?student=${editing.id}`} target="_blank" rel="noopener noreferrer" className="tf-btn-ghost py-2 text-[12px]">{t("Previzualizează raportul")}</a>
+            </div>
+          )}
         </Panel>
       )}
 

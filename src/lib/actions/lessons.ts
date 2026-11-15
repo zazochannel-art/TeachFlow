@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addDays, zonedToUtc } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
+import { notifyLessons } from "@/lib/push/notify";
 import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
 
 const lessonSchema = z.object({
@@ -50,10 +51,11 @@ export async function saveLesson(_: FormState, formData: FormData): Promise<Form
     };
   });
 
-  const { error } = v.id
-    ? await ctx.supabase.from("lessons").update(rows[0]).eq("id", v.id).eq("teacher_id", ctx.userId)
-    : await ctx.supabase.from("lessons").insert(rows.map(r => ({ ...r, teacher_id: ctx.userId })));
+  const { data: saved, error } = v.id
+    ? await ctx.supabase.from("lessons").update(rows[0]).eq("id", v.id).eq("teacher_id", ctx.userId).select("id")
+    : await ctx.supabase.from("lessons").insert(rows.map(r => ({ ...r, teacher_id: ctx.userId }))).select("id");
   if (error) return { error: error.message };
+  if (!v.id) notifyLessons((saved ?? []).map(r => r.id as string), "new");
 
   refresh();
   redirect(v.back?.startsWith("/") ? v.back : `/calendar?date=${v.date}`);
@@ -66,7 +68,8 @@ export async function setLessonStatus(formData: FormData) {
   if (!ctx) return;
   const parsed = statusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
-  await ctx.supabase.from("lessons").update({ status: parsed.data.status }).eq("id", parsed.data.id).eq("teacher_id", ctx.userId);
+  const { error } = await ctx.supabase.from("lessons").update({ status: parsed.data.status }).eq("id", parsed.data.id).eq("teacher_id", ctx.userId);
+  if (!error && parsed.data.status === "cancelled") notifyLessons([parsed.data.id], "cancelled");
   refresh();
 }
 
