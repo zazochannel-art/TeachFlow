@@ -15,3 +15,8 @@ export async function signFiles(files: FileRef[]): Promise<Record<string, string
   for (const row of data ?? []) if (row.path && row.signedUrl && !row.error) out[row.path] = row.signedUrl;
   return out;
 }
+
+/** Signed links for storage paths (e.g. question images), keyed by path. */
+export async function signPaths(paths: Array<string | null | undefined>): Promise<Record<string, string>> {
+  return signFiles([...new Set(paths.filter((p): p is string => !!p))].map(path => ({ path, name: path, size: 0, type: "" })));
+}

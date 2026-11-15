@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import {
-  BookOpen, CalendarDays, ClipboardList, GraduationCap, LayoutGrid, Library, ListChecks,
+  BookOpen, CalendarDays, ClipboardList, GraduationCap, LayoutGrid, Library, Sparkles,
   Menu, MessageCircle, Settings, X, ShieldCheck, Users, Video, Wallet
 } from "lucide-react";
 
@@ -16,7 +16,7 @@ export const navItems = [
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
   { label: "Lecții online", href: "/classroom", icon: Video },
   { label: "Teme", href: "/homework", icon: ClipboardList },
-  { label: "Teste", href: "/quizzes", icon: ListChecks },
+  { label: "Teste AI", href: "/quizzes", icon: Sparkles },
   { label: "Bibliotecă", href: "/library", icon: Library },
   { label: "Mesaje", href: "/messages", icon: MessageCircle },
   { label: "Finanțe", href: "/payments", icon: Wallet },
