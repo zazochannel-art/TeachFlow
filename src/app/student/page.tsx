@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ClipboardCheck, MessageCircle, Video, Wallet } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Video, Wallet } from "lucide-react";
 import { Card, DemoNotice, EmptyNote, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
 import { ActionForm } from "@/components/forms";
 import { loadStudentPortal } from "@/lib/data/student";
@@ -28,7 +28,6 @@ export default async function StudentHome() {
   const todo = p.homework.filter(h => h.status === "assigned").sort((a, b) => (a.due_at ?? "9").localeCompare(b.due_at ?? "9"));
   const done = p.homework.filter(h => h.status !== "assigned").slice(0, 6);
   const pending = p.payments.filter(x => x.status === "pending");
-  const unread = p.messages.filter(m => m.direction === "outgoing" && !m.read_at);
   const first = p.name.split(" ")[0];
 
   if (p.mode === "live" && p.links.length === 0) {
@@ -117,11 +116,6 @@ export default async function StudentHome() {
           </Card>
         </section>
 
-        <Link href="/student/messages" className="flex items-center gap-3 rounded-[20px] border border-line/70 bg-white p-4 shadow-card hover:border-primary">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-tint text-primary-2"><MessageCircle className="h-4 w-4" /></span>
-          <span className="flex-1 text-[13px] font-extrabold">{t("Scrie-i profesorului")}</span>
-          {unread.length > 0 && <Pill tone="blue">{t("{n} noi", { n: unread.length })}</Pill>}
-        </Link>
       </aside>
     </div>
   );

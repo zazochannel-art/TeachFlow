@@ -15,7 +15,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const cards = courseCards(ws);
   const slots = daySlots(ws, key, now, t);
-  const notes = notifications(ws, now, t);
+  // The next lesson is already in the timetable and the top bar; submitted homework and
+  // overdue payments are already in "De făcut astăzi", so the feed skips them here.
+  const notes = notifications(ws, now, t).filter(n => n.kind !== "lesson" && !n.id.startsWith("n-hw-") && !n.id.startsWith("n-pay-"));
   const todo = tasks(ws, now, t);
 
   // Layout: on wide screens the timetable is a separate right column; on phones and tablets

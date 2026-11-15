@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { CreditCard, LogOut } from "lucide-react";
 import { Avatar, Card, DemoNotice, PageHeader, SectionTitle } from "@/components/ui";
 import { loadWorkspace } from "@/lib/data/workspace";
 import { signOut } from "@/lib/actions/settings";
 import { SettingsForm } from "./SettingsForm";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { effectivePlan } from "@/lib/plans";
 import { getT } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/time";
+
+const subStatus = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 
 export default async function SettingsPage() {
   const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
@@ -40,11 +43,16 @@ export default async function SettingsPage() {
               <div className="truncate text-[11px] text-muted">{ws.email ?? "—"}</div>
             </div>
           </div>
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-line pt-4">
-            <span className="text-[12px] font-bold text-muted">{t("Limba")}</span>
-            <LanguageSwitcher />
-          </div>
-          <Link href="/billing" className="tf-btn-ghost mt-4 w-full">{t("Abonament TeachFlow")}</Link>
+          {/* The TeachFlow subscription lives here (account), not in Finanțe (money from students). */}
+          <Link href="/billing" className="mt-5 flex items-center gap-3 rounded-2xl border border-line p-3.5 transition-colors hover:bg-soft">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tint text-primary-2"><CreditCard className="h-[18px] w-[18px]" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] text-muted">{t("Abonament TeachFlow")}</span>
+              <span className="block text-[14px] font-extrabold">{effectivePlan(ws.subscription).name}</span>
+              {ws.subscription && <span className="block truncate text-[10px] text-muted">{t(subStatus[ws.subscription.status])}{ws.subscription.current_period_end ? ` · ${t("până la {date}", { date: formatDate(ws.subscription.current_period_end, ws.timezone, t.locale) })}` : ""}</span>}
+            </span>
+            <span className="text-[11px] font-bold text-primary">{t("Schimbă planul")} →</span>
+          </Link>
           {ws.mode === "live" && (
             <form action={signOut} className="mt-5">
               <button className="tf-btn-ghost w-full"><LogOut className="h-4 w-4" /> {t("Deconectare")}</button>

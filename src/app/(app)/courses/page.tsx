@@ -1,5 +1,5 @@
-import { BookOpen, CalendarClock, CalendarPlus, Pencil } from "lucide-react";
-import { Avatar, Card, CourseTile, CreateCourseTile, DemoNotice, EmptyState, PageHeader, Panel, Pill, SectionTitle, SubjectIcon } from "@/components/ui";
+import { BookOpen, CalendarClock, CalendarPlus, Pencil, Plus } from "lucide-react";
+import { Avatar, Card, DemoNotice, EmptyState, PageHeader, Panel, Pill, SubjectIcon } from "@/components/ui";
 import { ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { CourseForm } from "@/components/CourseForm";
 import { deleteCourse, setCourseActive } from "@/lib/actions/courses";
@@ -22,7 +22,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <PageHeader title={t("Cursuri și grupe")} subtitle={t("{active} active · {total} în total", { active: ws.courses.filter(c => c.is_active).length, total: ws.courses.length })}
-        action={<Link href="/courses/new" className="tf-btn">+ {t("Curs nou")}</Link>} />
+        action={<Link href="/courses/new" className="tf-btn"><Plus className="h-4 w-4" /> {t("Curs nou")}</Link>} />
 
       {editing && (
         <Panel title={t("Editează · {name}", { name: editing.title })} closeHref="/courses" aside={
@@ -60,17 +60,11 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
         </Panel>
       )}
 
-      <div className="tf-scroll mb-8 grid auto-cols-[minmax(140px,calc((100%-5rem)/6))] grid-flow-col gap-4 overflow-x-auto pb-1">
-        {cards.map((c, i) => <CourseTile key={c.id} card={c} index={i} />)}
-        <CreateCourseTile />
-      </div>
-
       {ws.courses.length === 0 ? (
         <EmptyState icon={BookOpen} title={t("Niciun curs încă")} text={t("Creează primul curs individual sau prima grupă. Elevii înscriși și progresul lecțiilor vor apărea pe card.")}
           action={<Link href="/courses/new" className="tf-btn">{t("Creează un curs")}</Link>} />
       ) : (
         <>
-          <SectionTitle>{t("Detalii")}</SectionTitle>
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {ws.courses.map(course => {
               const card = cards.find(c => c.id === course.id)!;
@@ -107,7 +101,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
                       {enrolled.slice(0, 5).map(e => <Avatar key={e.id} name={studentName.get(e.student_id) ?? "?"} size={28} className="ring-2 ring-white" />)}
                       {enrolled.length === 0 && <span className="text-[11px] text-muted">{t("Niciun elev înscris")}</span>}
                     </div>
-                    <span className="text-[12px] font-extrabold">{course.price != null ? formatMoney(course.price, course.currency, t.locale) : "—"}</span>
+                    <span className="text-[12px] font-extrabold">{course.price != null ? t("{price} / lecție", { price: formatMoney(course.price, course.currency, t.locale) }) : "—"}</span>
                   </div>
                   {next && (
                     <div className="mt-4 flex items-center gap-2 rounded-xl bg-soft px-3 py-2 text-[11px] text-muted">

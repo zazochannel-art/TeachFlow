@@ -33,7 +33,7 @@ export default async function BillingPage() {
   return (
     <div>
       <PageHeader title={t("Abonament TeachFlow")} subtitle={t("Planul tău, limitele și schimbarea planului")}
-        action={<Link href="/payments" className="tf-btn-ghost">{t("Înapoi")}</Link>} />
+        action={<Link href="/settings" className="tf-btn-ghost">{t("Înapoi")}</Link>} />
 
       <div className="mb-8 grid gap-4 md:grid-cols-3">
         <div className="flex items-center gap-4 rounded-[20px] bg-primary p-5 text-white shadow-lift">

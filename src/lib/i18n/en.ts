@@ -521,6 +521,7 @@ export const en: Record<string, string> = {
   "Înscrie elevul la curs": "Enrol the student in a course",
   "Înscrie la curs (opțional)": "Enrol in a course (optional)",
   "Întârziată": "Late",
+  "Șterge tema": "Delete assignment",
   "Șterge": "Delete",
   "Șterge cursul": "Delete course",
   "Șterge căutarea": "Clear search",

@@ -521,6 +521,7 @@ export const ru: Record<string, string> = {
   "Înscrie elevul la curs": "Запишите ученика на курс",
   "Înscrie la curs (opțional)": "Записать на курс (необязательно)",
   "Întârziată": "Просрочено",
+  "Șterge tema": "Удалить задание",
   "Șterge": "Удалить",
   "Șterge cursul": "Удалить курс",
   "Șterge căutarea": "Сбросить поиск",

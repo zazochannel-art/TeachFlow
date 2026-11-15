@@ -1,17 +1,15 @@
 import Link from "next/link";
-import { AlertCircle, CalendarCheck, Check, CreditCard, Download, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
-import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, SubjectIcon, Tabs } from "@/components/ui";
+import { AlertCircle, CalendarCheck, Check, Download, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
+import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { loadWorkspace } from "@/lib/data/workspace";
-import { courseCards, currencyTotals } from "@/lib/data/derive";
+import { currencyTotals } from "@/lib/data/derive";
 import { deletePayment, markPaymentPaid, savePayment } from "@/lib/actions/payments";
 import { dateKey, dayRange, formatDate, formatMoney } from "@/lib/time";
-import { effectivePlan } from "@/lib/plans";
 import type { Lesson, Payment } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
 
-const statusNames = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "Altă metodă" } as const;
 type Params = { status?: string; new?: string; edit?: string; student?: string };
 
@@ -46,8 +44,6 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const filter = (["all", "paid", "pending", "overdue"] as const).find(f => f === sp.status) ?? "all";
   const list = filter === "all" ? ws.payments : filter === "overdue" ? overdue : ws.payments.filter(p => p.status === filter);
   const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit) : undefined;
-  const sub = ws.subscription;
-  const cards = courseCards(ws, true);
   const stat = "flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5";
   const icon = "grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
 
@@ -63,7 +59,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         </Panel>
       )}
 
-      <div className="mb-8 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <div className={`${stat} rounded-[20px] bg-primary text-white shadow-lift`}>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20 sm:h-11 sm:w-11"><Wallet className="h-5 w-5" /></span>
           <div><p className="text-[11px] text-white/80">{t("Încasat luna aceasta")}</p><p className="text-[18px] font-extrabold">{missing ? "—" : money(paidThisMonth)}</p></div>
@@ -71,16 +67,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         <Card className={stat}><span className={`${icon} ${overdue.length ? "bg-[#fdecec] text-[#c03a3a]" : ""}`}><AlertCircle className="h-5 w-5" /></span><div>
           <p className="text-[11px] text-muted">{t("De încasat")}{overdue.length ? ` · ${t.n("{n} restantă|{n} restante|{n} de restante", overdue.length)}` : ""}</p><p className="text-[18px] font-extrabold">{money(pending)}</p>
         </div></Card>
-        <Card className={stat}><span className={icon}><TrendingUp className="h-5 w-5" /></span><div>
+        <Card className={`${stat} col-span-2 md:col-span-1`}><span className={icon}><TrendingUp className="h-5 w-5" /></span><div>
           <p className="text-[11px] text-muted">{t("Valoarea lecțiilor ținute")}</p><p className="text-[18px] font-extrabold">{money(estimate)}</p>
           <p className="text-[10px] text-muted">{t("{n} lecții × preț curs", { n: inMonth.filter(l => l.status === "completed").length })}</p>
         </div></Card>
-        <Link href="/billing" className="block rounded-[20px] transition-shadow hover:shadow-md"><Card className={`${stat} h-full`}><span className={icon}><CreditCard className="h-5 w-5" /></span><div>
-          <p className="text-[11px] text-muted">{t("Abonament TeachFlow")}</p>
-          <p className="text-[18px] font-extrabold">{effectivePlan(sub).name}</p>
-          {sub && <p className="text-[10px] text-muted">{t(statusNames[sub.status])}{sub.current_period_end ? ` · ${t("până la {date}", { date: formatDate(sub.current_period_end, ws.timezone, t.locale) })}` : ""}</p>}
-          <p className="mt-1 text-[10px] font-bold text-primary">{t("Schimbă planul")} →</p>
-        </div></Card></Link>
       </div>
 
       {!missing && (
@@ -106,10 +96,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                       <div className="truncate font-extrabold">{st?.full_name ?? t("Elev șters")}</div>
                       <div className="truncate text-muted">{[p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
                     </div>
-                    <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
-                    <Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill></div>
+                    <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted md:w-28 md:text-right">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
+                    <span className="md:w-24"><Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill></span></div>
                     <div className="col-start-3 row-start-1 text-right text-[13px] font-extrabold md:w-28">{formatMoney(p.amount, p.currency, t.locale)}</div>
-                    <div className="col-start-3 row-start-2 flex items-center justify-end gap-2">
+                    <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 md:w-[188px]">
                       {p.status === "pending" && (
                         <form action={markPaymentPaid}><input type="hidden" name="id" value={p.id} />
                           <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Încasată")}</span></SubmitButton>
@@ -126,24 +116,6 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         </>
       )}
 
-      <SectionTitle>{t("Prețuri pe curs")}</SectionTitle>
-      <Card className="overflow-hidden">
-        {ws.courses.length === 0 && <p className="p-5 text-[12px] text-muted">{t("Niciun curs încă.")}</p>}
-        {ws.courses.map(c => {
-          const card = cards.find(x => x.id === c.id)!;
-          return (
-            <div key={c.id} className="flex items-center gap-3 border-b border-line/70 px-4 py-3.5 sm:gap-4 sm:px-5 sm:py-4 text-[12px] last:border-0">
-              <span className={icon}><SubjectIcon kind={card.subject} className="h-[18px] w-[18px]" /></span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-extrabold">{c.title}</div>
-                <div className="text-muted">{c.format === "group" ? `${t("Grupă")} · ${t.n("{n} elev|{n} elevi|{n} de elevi", card.studentCount)}` : t("Individual")}</div>
-              </div>
-              <span className="hidden sm:inline-flex"><Pill tone={c.is_active ? "green" : "gray"}>{c.is_active ? t("Activ") : t("Inactiv")}</Pill></span>
-              <Link href={`/courses?edit=${c.id}`} className="shrink-0 text-right sm:w-32 font-extrabold hover:text-primary">{c.price != null ? t("{price} / lecție", { price: formatMoney(c.price, c.currency, t.locale) }) : t("Setează prețul")}</Link>
-            </div>
-          );
-        })}
-      </Card>
       {demo && <DemoNotice />}
     </div>
   );
