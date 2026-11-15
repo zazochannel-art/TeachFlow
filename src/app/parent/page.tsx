@@ -126,6 +126,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
                         <p className="truncate font-extrabold text-ink">{a.title}</p>
                         <p className="truncate text-[11px] text-muted">{a.status === "submitted" && a.submitted_at ? t("trimis {date}", { date: formatDate(a.submitted_at, tz, t.locale) }) : a.due_at ? t("termen {date}", { date: formatDate(a.due_at, tz, t.locale) }) : null}</p>
                       </div>
+                      {a.needs_review && <Pill tone="amber">{t("De verificat")}</Pill>}
                       {a.status === "submitted" ? <Pill tone={pc != null && pc >= 50 ? "green" : "amber"}>{`${a.score}/${a.max_score} · ${pc}%`}</Pill> : <Pill tone="blue">{t("De rezolvat")}</Pill>}
                     </div>
                   );

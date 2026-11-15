@@ -98,7 +98,7 @@ export function notifyQuizSubmitted(assignmentId: string) {
     if (!a) return;
     const { data: s } = await db.from("students").select("full_name").eq("id", a.student_id).maybeSingle();
     return pushToUsers(db, [a.teacher_id], t => ({
-      title: t("Test rezolvat"), body: clip(`${s?.full_name ?? t("Elev")} · ${a.title} · ${Number(a.score)}/${Number(a.max_score)}`), url: `/quizzes?view=${a.quiz_id}`, tag: "quiz-result"
+      title: t("Test rezolvat"), body: clip(`${s?.full_name ?? t("Elev")} · ${a.title} · ${Number(a.score)}/${Number(a.max_score)}`), url: `/quizzes/${a.quiz_id}`, tag: "quiz-result"
     }));
   });
 }

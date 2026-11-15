@@ -122,3 +122,11 @@ export function ageOn(birthDate: string, on: Date) {
   if (on.getUTCMonth() + 1 < mo || (on.getUTCMonth() + 1 === mo && on.getUTCDate() < d)) age--;
   return age >= 0 && age < 130 ? age : null;
 }
+
+/** "YYYY-MM-DDTHH:mm" of an instant in `tz`, for <input type="datetime-local">. */
+export function localInputValue(iso: string | null | undefined, tz: string) {
+  if (!iso) return "";
+  const p = partsInTz(new Date(iso), tz);
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${p.y}-${two(p.m)}-${two(p.d)}T${two(p.h)}:${two(p.min)}`;
+}

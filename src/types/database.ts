@@ -151,14 +151,50 @@ export interface LibraryItem {
 }
 
 /** A quiz question (migration 0013). `correct` = option indexes, `accept` = accepted short answers. */
+export type QuizType = "single" | "multi" | "truefalse" | "short" | "open" | "fill" | "match" | "order" | "numeric";
+export type QuizDifficulty = "easy" | "medium" | "hard";
+export type QuizStatus = "draft" | "published" | "finished" | "archived";
+export type ShowAnswers = "after_submit" | "after_due" | "never";
+export interface QuizPair { left: string; right: string }
+
+/** A question with its answer key (teacher side, quizzes.questions and attempt snapshots). */
 export interface QuizQuestion {
   id: string;
-  type: "single" | "multi" | "short";
+  type: QuizType;
   text: string;
+  /** Choices (single, multi, truefalse) or the steps in the right order (order). */
   options: string[];
+  /** Indexes of the right choices. */
   correct: number[];
+  /** Accepted answers (short). */
   accept: string[];
+  /** Accepted answers per blank `___` (fill). */
+  blanks: string[][];
+  /** Left item and its right match (match). */
+  pairs: QuizPair[];
+  answer_num: number | null;
+  tolerance: number;
+  unit: string;
+  /** Model answer or marking notes (open). */
+  model_answer: string;
+  explanation: string;
+  difficulty: QuizDifficulty | null;
+  /** Storage path qz/<teacher>/<quiz>/<file>. */
+  image: string | null;
   points: number;
+}
+
+/** A question as the student gets it from the database: no answers. */
+export interface PublicQuestion {
+  id: string;
+  type: QuizType;
+  text: string;
+  points: number;
+  image?: string;
+  unit?: string;
+  options?: string[];
+  left?: string[];
+  blanks_count?: number;
 }
 
 export interface Quiz {
@@ -169,6 +205,22 @@ export interface Quiz {
   questions: QuizQuestion[];
   created_at: string;
   updated_at: string;
+  subject: string | null;
+  level: string | null;
+  language: string | null;
+  topic: string | null;
+  difficulty: "easy" | "medium" | "hard" | "mixed" | null;
+  time_limit_min: number | null;
+  pass_percent: number;
+  status: QuizStatus;
+  version: number;
+  parent_id: string | null;
+  share_code: string | null;
+  ai_prompt: string | null;
+  question_types: QuizType[];
+  max_attempts: number;
+  shuffle: boolean;
+  show_answers: ShowAnswers;
 }
 
 export interface QuizAssignment {
@@ -178,12 +230,41 @@ export interface QuizAssignment {
   course_id: string | null;
   title: string;
   due_at: string | null;
+  starts_at: string | null;
   status: "assigned" | "submitted";
   answers: Record<string, unknown> | null;
-  questions: QuizQuestion[] | null;
   correct_ids: string[] | null;
   score: number | null;
   max_score: number | null;
   submitted_at: string | null;
   created_at: string;
+  time_limit_min: number | null;
+  max_attempts: number;
+  shuffle: boolean;
+  show_answers: ShowAnswers;
+  attempts_used: number;
+  needs_review: boolean;
+  last_attempt_id: string | null;
+  time_spent_sec: number | null;
+}
+
+export interface QuizAttempt {
+  id: string;
+  assignment_id: string;
+  quiz_id: string;
+  student_id: string;
+  attempt_no: number;
+  status: "in_progress" | "submitted";
+  questions: QuizQuestion[];
+  answers: Record<string, unknown>;
+  question_scores: Record<string, number>;
+  manual_scores: Record<string, number>;
+  feedback: Record<string, string>;
+  auto_score: number | null;
+  score: number | null;
+  max_score: number | null;
+  needs_review: boolean;
+  started_at: string;
+  deadline_at: string | null;
+  submitted_at: string | null;
 }
