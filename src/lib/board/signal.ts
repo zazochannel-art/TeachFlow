@@ -27,6 +27,10 @@ export interface SignalHandle { send: (payload: unknown) => void; leave: () => v
 
 /** Joins the shared channel `topic`. `onReady` runs on every (re)subscribe. Returns null without Supabase. */
 export function joinSignal(topic: string, event: SignalEvent, onMessage: Handler, onReady?: () => void): SignalHandle | null {
+  // Automated two-browser tests only (scripts/rtc-e2e): a local WebSocket relay instead of Supabase.
+  // The variable is inlined at build time and never set for real deployments.
+  const testBus = process.env.NEXT_PUBLIC_RTC_TEST_BUS;
+  if (testBus) return joinTestBus(testBus, topic, event, onMessage, onReady);
   const supabase = createClient();
   if (!supabase) return null;
 
@@ -78,17 +82,43 @@ export function joinSignal(topic: string, event: SignalEvent, onMessage: Handler
   };
 }
 
-let iceCache: Promise<RTCIceServer[]> | null = null;
+function joinTestBus(url: string, topic: string, event: SignalEvent, onMessage: Handler, onReady?: () => void): SignalHandle {
+  let ws: WebSocket | null = null;
+  let left = false;
+  const open = () => {
+    ws = new WebSocket(`${url}?topic=${encodeURIComponent(topic)}`);
+    ws.onopen = () => onReady?.();
+    ws.onmessage = e => {
+      try {
+        const m = JSON.parse(String(e.data)) as { event?: string; payload?: unknown };
+        if (m.event === event) onMessage(m.payload);
+      } catch { /* ignore */ }
+    };
+    ws.onclose = () => { if (!left) setTimeout(open, 500); };
+  };
+  open();
+  return {
+    send: payload => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event, payload })); },
+    leave: () => { left = true; ws?.close(); }
+  };
+}
 
-/** STUN plus, when configured on the server (/api/turn), short-lived TURN relay credentials. */
-export function getIceServers(): Promise<RTCIceServer[]> {
-  if (!iceCache) {
-    iceCache = fetch("/api/turn", { cache: "no-store" })
+const iceCache = new Map<string, Promise<RTCIceServer[]>>();
+
+/**
+ * STUN plus, when configured on the server, short-lived TURN relay credentials for this lesson
+ * (/api/turn checks that the user is the lesson's teacher or one of its students).
+ */
+export function getIceServers(lessonId: string): Promise<RTCIceServer[]> {
+  let p = iceCache.get(lessonId);
+  if (!p) {
+    p = fetch(`/api/turn?lesson=${encodeURIComponent(lessonId)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
       .then((d: { iceServers?: RTCIceServer[] } | null) => (d?.iceServers?.length ? d.iceServers : ICE_SERVERS))
       .catch(() => ICE_SERVERS);
-    // Credentials expire; refresh them for calls started much later.
-    setTimeout(() => { iceCache = null; }, 6 * 3600 * 1000);
+    iceCache.set(lessonId, p);
+    // Credentials expire after 4 h; refresh them for calls started much later.
+    setTimeout(() => { iceCache.delete(lessonId); }, 3 * 3600 * 1000);
   }
-  return iceCache;
+  return p;
 }

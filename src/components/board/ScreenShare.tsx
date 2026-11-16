@@ -181,7 +181,7 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
       }
     };
 
-    void getIceServers().then(servers => { iceRef.current = servers; });
+    void getIceServers(lessonId).then(servers => { iceRef.current = servers; });
     // A student joining mid-lesson asks for the share; a teacher already sharing re-announces it.
     const handle = joinSignal(`screen:${lessonId}`, "rtc", payload => { void onSignal(payload).catch(() => {}); }, () => {
       if (!isTeacher) send({ type: "want", from: keyRef.current });

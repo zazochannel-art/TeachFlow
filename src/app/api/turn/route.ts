@@ -1,21 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ICE_SERVERS } from "@/lib/board/rtc";
+import { CREDENTIAL_TTL_S, coturnCredentials, lessonCallIdentity, parseTurnUrls } from "@/lib/call/tokens";
 
 export const dynamic = "force-dynamic";
 
+const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+
 /**
- * ICE servers for the lesson video call and screen share, for signed-in users only.
- * - CLOUDFLARE_TURN_KEY_ID + CLOUDFLARE_TURN_KEY_API_TOKEN: short-lived Cloudflare TURN credentials.
- * - or TURN_URLS (comma separated) + TURN_USERNAME + TURN_CREDENTIAL: a fixed TURN server.
- * - otherwise: public STUN only (works on most home networks, not behind strict firewalls).
+ * ICE servers for a lesson call: STUN always, plus short-lived TURN relay credentials when a TURN
+ * server is configured. Only the lesson's teacher and its students get TURN credentials
+ * (checked in the database, migration 0018). Options, first match wins:
+ * - CLOUDFLARE_TURN_KEY_ID + CLOUDFLARE_TURN_KEY_API_TOKEN: Cloudflare Realtime TURN;
+ * - TURN_URLS + TURN_SECRET: own coturn server with `use-auth-secret` (time-limited HMAC credentials);
+ * - TURN_URLS + TURN_USERNAME + TURN_CREDENTIAL: fixed account (development only; not time-limited).
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  if (supabase) {
-    const { data } = await supabase.auth.getClaims();
-    if (!data?.claims?.sub) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!supabase) return json({ iceServers: ICE_SERVERS, relay: false });
+
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return json({ error: "unauthorized" }, 401);
+
+  const lessonId = req.nextUrl.searchParams.get("lesson") ?? "";
+  const who = await lessonCallIdentity(supabase, userId, lessonId);
+  // Before migration 0018 the membership check is not available: fall back to "signed in".
+  if (who === null) return json({ error: "forbidden" }, 403);
 
   const cfId = process.env.CLOUDFLARE_TURN_KEY_ID;
   const cfToken = process.env.CLOUDFLARE_TURN_KEY_API_TOKEN;
@@ -24,24 +35,26 @@ export async function GET() {
       const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(cfId)}/credentials/generate-ice-servers`, {
         method: "POST",
         headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ ttl: 8 * 3600 }),
+        body: JSON.stringify({ ttl: CREDENTIAL_TTL_S }),
         cache: "no-store"
       });
       if (res.ok) {
-        const body = (await res.json()) as { iceServers?: RTCIceServer[] };
-        if (body.iceServers?.length) return NextResponse.json({ iceServers: body.iceServers }, { headers: { "Cache-Control": "no-store" } });
+        const body = (await res.json()) as { iceServers?: RTCIceServer[] | RTCIceServer };
+        const servers = Array.isArray(body.iceServers) ? body.iceServers : body.iceServers ? [body.iceServers] : [];
+        if (servers.length) return json({ iceServers: [...ICE_SERVERS, ...servers], relay: true, ttl: CREDENTIAL_TTL_S });
       }
     } catch {
       // fall through to the other options
     }
   }
 
-  const urls = process.env.TURN_URLS?.split(",").map(s => s.trim()).filter(Boolean);
-  if (urls?.length && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
-    return NextResponse.json(
-      { iceServers: [...ICE_SERVERS, { urls, username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL }] },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+  const urls = parseTurnUrls(process.env.TURN_URLS);
+  if (urls.length && process.env.TURN_SECRET) {
+    const cred = coturnCredentials(process.env.TURN_SECRET, userId);
+    return json({ iceServers: [...ICE_SERVERS, { urls, ...cred }], relay: true, ttl: CREDENTIAL_TTL_S });
   }
-  return NextResponse.json({ iceServers: ICE_SERVERS }, { headers: { "Cache-Control": "no-store" } });
+  if (urls.length && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+    return json({ iceServers: [...ICE_SERVERS, { urls, username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL }], relay: true });
+  }
+  return json({ iceServers: ICE_SERVERS, relay: false });
 }
