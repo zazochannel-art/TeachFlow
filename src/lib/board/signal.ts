@@ -9,7 +9,7 @@ import { ICE_SERVERS } from "./rtc";
 // cannot subscribe on its own). Messages are routed by broadcast event name.
 
 type Handler = (payload: unknown) => void;
-const EVENTS = ["rtc", "call"] as const;
+const EVENTS = ["rtc", "call", "access"] as const;
 export type SignalEvent = (typeof EVENTS)[number];
 
 interface Bus {

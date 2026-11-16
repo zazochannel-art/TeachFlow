@@ -58,6 +58,12 @@ Decided on the server from the lesson, so everybody in a lesson uses the same on
   cannot pretend to be the teacher.
 - Attendance rows can only be written through the RPCs `call_join` / `call_heartbeat` / `call_leave`
   (no insert/update policies); teachers read their lessons' rows, everybody reads their own.
+- Screen sharing in the call (migration 0021): only the teacher shares by default. The teacher allows
+  each student from "Participanți" → "Cine poate partaja ecranul" in the call (table
+  `lesson_screen_access`, same rules as `lesson_board_access`). A change is announced on the lesson's
+  signalling channel (event `access`) and clients read the list again; a student who loses access
+  stops sharing. This is enforced in the app, not by the media path: a tampered client could still
+  send a screen as its "camera" (as with any virtual camera). Before 0021 everybody can share.
 - Whiteboard (migration 0019): all lesson members see the board; only the teacher draws by default.
   The teacher gives drawing access per student from "Acces elevi" above the board (table
   `lesson_board_access`, one row per lesson and student account; only the lesson's teacher can insert

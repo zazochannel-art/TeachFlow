@@ -31,22 +31,29 @@ export interface BoardAccess {
   writers: string[];
   /** The lesson's students, for the teacher's access list (empty for students). */
   students: { userId: string | null; name: string }[];
+  /** false before migration 0021 (and in demo mode): everybody may share the screen in the call, as before. */
+  shareReady: boolean;
+  /** Auth user ids of the students the teacher allowed to share their screen in the call. */
+  sharers: string[];
 }
 
-const NO_ACCESS: BoardAccess = { ready: false, writers: [], students: [] };
+const NO_ACCESS: BoardAccess = { ready: false, writers: [], students: [], shareReady: false, sharers: [] };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function loadBoard(lessonId: string) {
   const supabase = await createClient();
   if (!supabase) return { board: null, boardReady: false, access: NO_ACCESS };
-  const [{ data, error }, writers] = await Promise.all([
+  const [{ data, error }, writers, sharers] = await Promise.all([
     supabase.from("lesson_boards").select("data").eq("lesson_id", lessonId).maybeSingle(),
-    supabase.from("lesson_board_access").select("user_id").eq("lesson_id", lessonId)
+    supabase.from("lesson_board_access").select("user_id").eq("lesson_id", lessonId),
+    supabase.from("lesson_screen_access").select("user_id").eq("lesson_id", lessonId)
   ]);
-  const access: BoardAccess = writers.error
-    ? NO_ACCESS
-    : { ready: true, writers: ((writers.data as { user_id: string }[] | null) ?? []).map(r => r.user_id), students: [] };
+  const ids = (rows: unknown) => ((rows as { user_id: string }[] | null) ?? []).map(r => r.user_id);
+  const access: BoardAccess = {
+    ready: !writers.error, writers: writers.error ? [] : ids(writers.data), students: [],
+    shareReady: !sharers.error, sharers: sharers.error ? [] : ids(sharers.data)
+  };
   return { board: data?.data ?? null, boardReady: !error, access };
 }
 

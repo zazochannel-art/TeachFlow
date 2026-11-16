@@ -48,7 +48,7 @@ export async function LessonRoom({ room, backHref, backLabel, toolbar }: { room:
         </p>
       )}
 
-      <VideoCall lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} transport={room.transport} lessonTitle={lesson.title} />
+      <VideoCall lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} transport={room.transport} lessonTitle={lesson.title} access={room.access} />
 
       {isTeacher && room.mode === "live" && <CallAttendance lessonId={lesson.id} timezone={tz} />}
 

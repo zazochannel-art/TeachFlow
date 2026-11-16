@@ -8,13 +8,15 @@ import {
 import { MAX_CHAT } from "@/lib/board/rtc";
 import type { Quality } from "@/lib/call/quality";
 import { useT } from "@/lib/i18n/client";
-import type { CallEngine, CallParticipant, ChatLine, PeerStatus } from "./types";
+import type { CallEngine, CallParticipant, ChatLine, PeerStatus, ScreenAccess } from "./types";
 
 interface Props {
   engine: CallEngine;
   me: { id: string; name: string; role: "teacher" | "student" };
   live: boolean;
   lessonTitle?: string;
+  /** Screen sharing rights; without it everybody may share. */
+  screen?: ScreenAccess;
 }
 
 type Layout = "stage" | "panel";
@@ -24,7 +26,7 @@ function loadLayout(): Layout {
 }
 
 /** The call UI, the same for the P2P mesh and the SFU: a join bar, then a full call view or a small panel. */
-export function CallView({ engine, me, live, lessonTitle }: Props) {
+export function CallView({ engine, me, live, lessonTitle, screen }: Props) {
   const t = useT();
   const [layout, setLayoutState] = useState<Layout>(loadLayout);
   const [side, setSide] = useState<"chat" | "people" | null>(null);
@@ -49,7 +51,7 @@ export function CallView({ engine, me, live, lessonTitle }: Props) {
 
   if (!engine.joined) return <JoinBar engine={engine} />;
 
-  const common = { engine, me, live, side, openSide };
+  const common = { engine, me, live, side, openSide, screen };
   return layout === "stage"
     ? <Stage {...common} lessonTitle={lessonTitle} onBoard={() => setLayout("panel")} />
     : <Panel {...common} onStage={() => setLayout("stage")} t={t} />;
@@ -100,6 +102,7 @@ interface ViewProps {
   live: boolean;
   side: "chat" | "people" | null;
   openSide: (s: "chat" | "people" | null) => void;
+  screen?: ScreenAccess;
 }
 
 interface TileModel {
@@ -120,7 +123,7 @@ function useTiles(engine: CallEngine, me: Props["me"]): TileModel[] {
   ], [local, mic, cam, hasCamera, sharing, peers, myQuality, me.role, t]);
 }
 
-function Stage({ engine, me, live, side, openSide, onBoard, lessonTitle }: ViewProps & { onBoard: () => void; lessonTitle?: string }) {
+function Stage({ engine, me, live, side, openSide, screen, onBoard, lessonTitle }: ViewProps & { onBoard: () => void; lessonTitle?: string }) {
   const t = useT();
   const tiles = useTiles(engine, me);
   const [pinned, setPinned] = useState<string | null>(null);
@@ -194,14 +197,14 @@ function Stage({ engine, me, live, side, openSide, onBoard, lessonTitle }: ViewP
               <SideTab active={side === "people"} onClick={() => openSide("people")} icon={Users} label={`${t("Participanți")} (${tiles.length})`} />
               <button type="button" onClick={() => openSide(null)} aria-label={t("Închide")} className="ml-auto grid h-8 w-8 cursor-pointer place-items-center rounded-full text-white/70 hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
-            {side === "chat" ? <ChatBox lines={engine.chat} onSend={engine.sendChat} disabled={!live} roomy /> : <People tiles={tiles} me={me} />}
+            {side === "chat" ? <ChatBox lines={engine.chat} onSend={engine.sendChat} disabled={!live} roomy /> : <People tiles={tiles} me={me} screen={screen} />}
           </aside>
         )}
       </div>
 
       {/* control bar */}
       <footer className="flex items-center justify-center gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:gap-3">
-        <Controls engine={engine} size="lg" />
+        <Controls engine={engine} size="lg" canShare={screen?.canShare ?? true} />
         <span className="mx-1 h-8 w-px bg-white/10" aria-hidden />
         <BarButton onClick={() => openSide("chat")} active={side === "chat"} label={t("Chat")} icon={MessageSquare} badge={engine.unread} />
         <BarButton onClick={() => openSide("people")} active={side === "people"} label={t("Participanți")} icon={Users} className="hidden sm:grid" />
@@ -225,7 +228,7 @@ function SideTab({ active, onClick, icon: Icon, label }: { active: boolean; onCl
 // Small movable panel (so the whiteboard keeps the page)
 // ---------------------------------------------------------------------------
 
-function Panel({ engine, me, live, side, openSide, onStage, t }: ViewProps & { onStage: () => void; t: ReturnType<typeof useT> }) {
+function Panel({ engine, me, live, side, openSide, screen, onStage, t }: ViewProps & { onStage: () => void; t: ReturnType<typeof useT> }) {
   const tiles = useTiles(engine, me);
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -314,11 +317,11 @@ function Panel({ engine, me, live, side, openSide, onStage, t }: ViewProps & { o
         <StatusLines engine={engine} me={me} live={live} />
       </div>
 
-      {side === "people" && <div className="mx-2 mt-1 w-[260px] rounded-[10px] bg-white/5"><People tiles={tiles} me={me} compact /></div>}
+      {side === "people" && <div className="mx-2 mt-1 w-[260px] rounded-[10px] bg-white/5"><People tiles={tiles} me={me} screen={screen} compact /></div>}
       {side === "chat" && <div className="mx-2 mt-1 w-[260px] rounded-[10px] bg-white/5"><ChatBox lines={engine.chat} onSend={engine.sendChat} disabled={!live} /></div>}
 
       <div className="flex items-center justify-center gap-1.5 px-2 py-1.5">
-        <Controls engine={engine} size="sm" />
+        <Controls engine={engine} size="sm" canShare={screen?.canShare ?? true} />
         <CallButton onClick={onStage} active label={t("Mod apel: video mare")} icon={PanelsTopLeft} />
         <button type="button" onClick={engine.leave} aria-label={t("Ieși din apel")} title={t("Ieși din apel")} className="grid h-8 w-10 cursor-pointer place-items-center rounded-full bg-[#e5484d] text-white hover:bg-[#c93a3f]">
           <PhoneOff className="h-4 w-4" />
@@ -332,7 +335,7 @@ function Panel({ engine, me, live, side, openSide, onStage, t }: ViewProps & { o
 // Shared pieces
 // ---------------------------------------------------------------------------
 
-function Controls({ engine, size }: { engine: CallEngine; size: "sm" | "lg" }) {
+function Controls({ engine, size, canShare }: { engine: CallEngine; size: "sm" | "lg"; canShare: boolean }) {
   const t = useT();
   const { mic, cam, sharing, local } = engine;
   const hasCamera = (local?.getVideoTracks().length ?? 0) > 0;
@@ -341,7 +344,7 @@ function Controls({ engine, size }: { engine: CallEngine; size: "sm" | "lg" }) {
     <>
       <B onClick={engine.toggleMic} off={!mic} label={mic ? t("Oprește microfonul") : t("Pornește microfonul")} icon={mic ? Mic : MicOff} />
       <B onClick={() => void engine.toggleCam()} off={!(cam && hasCamera)} label={!hasCamera ? t("Pornește camera") : cam ? t("Oprește camera") : t("Pornește camera")} icon={cam && hasCamera ? Video : VideoOff} />
-      <B onClick={() => void engine.toggleScreen()} active={sharing} label={sharing ? t("Oprește partajarea ecranului") : t("Arată ecranul în apel")} icon={sharing ? MonitorX : MonitorUp} className={size === "lg" ? "hidden sm:grid" : undefined} />
+      {canShare && <B onClick={() => void engine.toggleScreen()} active={sharing} label={sharing ? t("Oprește partajarea ecranului") : t("Arată ecranul în apel")} icon={sharing ? MonitorX : MonitorUp} className={size === "lg" ? "hidden sm:grid" : undefined} />}
     </>
   );
 }
@@ -384,12 +387,14 @@ function StatusLines({ engine, me, live, dark }: { engine: CallEngine; me: Props
   return <div className={`space-y-1 leading-snug ${size} ${dark ? "rounded-[12px] bg-white/5 px-3 py-2" : ""}`}>{lines}</div>;
 }
 
-function People({ tiles, me, compact }: { tiles: TileModel[]; me: Props["me"]; compact?: boolean }) {
+function People({ tiles, me, compact, screen }: { tiles: TileModel[]; me: Props["me"]; compact?: boolean; screen?: ScreenAccess }) {
   const t = useT();
   const statusText = (s?: PeerStatus) =>
     !s || s === "connected" ? t("Conectat") : s === "reconnecting" ? t("Se reconectează…") : s === "failed" ? t("Nu se poate conecta") : t("Se conectează…");
+  const manage = screen?.manage;
   return (
-    <ul className={`tf-scroll overflow-y-auto ${compact ? "max-h-[30vh] space-y-1 p-2 text-[11px]" : "flex-1 space-y-1 p-3 text-[13px]"}`}>
+    <div className={`tf-scroll overflow-y-auto ${compact ? "max-h-[30vh] text-[11px]" : "flex-1 text-[13px]"}`}>
+    <ul className={compact ? "space-y-1 p-2" : "space-y-1 p-3"}>
       {tiles.map(x => (
         <li key={x.key} className={`flex items-center gap-2 rounded-[10px] ${compact ? "" : "bg-white/5 px-3 py-2"}`}>
           {!compact && <Avatar name={x.mine ? me.name : x.name} small />}
@@ -402,6 +407,33 @@ function People({ tiles, me, compact }: { tiles: TileModel[]; me: Props["me"]; c
         </li>
       ))}
     </ul>
+    {manage && (
+      <section data-testid="screen-access" className={`border-t border-white/10 ${compact ? "p-2" : "p-3"}`}>
+        <h3 className="flex items-center gap-1.5 font-extrabold"><MonitorUp className="h-3.5 w-3.5" /> {t("Cine poate partaja ecranul")}</h3>
+        <p className="mt-0.5 text-[11px] text-white/60">{t("Doar tu partajezi ecranul. Pornește comutatorul pentru elevul care are voie să își arate ecranul.")}</p>
+        {manage.students.length === 0 && <p className="mt-2 text-[11px] text-white/60">{t("Lecția nu are încă elevi.")}</p>}
+        <ul className="mt-2 space-y-1">
+          {manage.students.map((s, i) => {
+            const on = !!s.userId && manage.sharers.includes(s.userId);
+            return (
+              <li key={s.userId ?? `none-${i}`} className={`flex items-center gap-2 rounded-[10px] ${compact ? "" : "bg-white/5 px-3 py-2"}`}>
+                <span className="min-w-0 flex-1 truncate font-bold">{s.name}</span>
+                {s.userId ? (
+                  <button type="button" role="switch" aria-checked={on} disabled={manage.busy === s.userId}
+                    aria-label={t("{name} poate partaja ecranul", { name: s.name })} data-testid="screen-access-switch" data-name={s.name}
+                    onClick={() => manage.toggle(s.userId!, !on)}
+                    className={`relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50 ${on ? "bg-[#3ecf8e]" : "bg-white/25"}`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
+                  </button>
+                ) : <span className="shrink-0 text-[10px] text-white/50">{t("fără cont")}</span>}
+              </li>
+            );
+          })}
+        </ul>
+        {manage.failed && <p role="alert" className="mt-2 text-[11px] font-bold text-[#ff8b8b]">{t("Nu s-a putut schimba accesul. Încearcă din nou.")}</p>}
+      </section>
+    )}
+    </div>
   );
 }
 

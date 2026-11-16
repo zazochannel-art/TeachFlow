@@ -23,6 +23,10 @@ export default async function CallHarness({ searchParams }: { searchParams: Prom
         teacherId="teacher-1"
         transport={sp.transport === "sfu" ? "sfu" : "p2p"}
         lessonTitle="Test call"
+        access={sp.share ? {
+          shareReady: true, sharers: sp.share === "on" ? [id] : [],
+          students: [{ userId: "student-1", name: "Ana Popescu" }, { userId: null, name: "Mihai Ceban" }]
+        } : undefined}
         tokenUrl={`/dev/call/token?id=${id}&name=${encodeURIComponent(sp.name ?? id)}&role=${role}&lesson=${lessonId}`}
       />
     </main>
