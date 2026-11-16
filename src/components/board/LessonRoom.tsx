@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Whiteboard } from "./Whiteboard";
 import { ScreenShare } from "./ScreenShare";
 import { VideoCall } from "./VideoCall";
+import { CallAttendance } from "@/components/call/CallAttendance";
 import { DemoNotice } from "@/components/ui";
 import type { BoardRoom } from "@/lib/data/board";
 import { formatDate, formatTime } from "@/lib/time";
@@ -47,7 +48,9 @@ export async function LessonRoom({ room, backHref, backLabel, toolbar }: { room:
         </p>
       )}
 
-      <VideoCall lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
+      <VideoCall lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} transport={room.transport} lessonTitle={lesson.title} />
+
+      {isTeacher && room.mode === "live" && <CallAttendance lessonId={lesson.id} timezone={tz} />}
 
       <ScreenShare lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 

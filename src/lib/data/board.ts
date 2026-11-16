@@ -4,6 +4,7 @@ import { loadWorkspace } from "./workspace";
 import { loadStudentPortal } from "./student";
 import { lessonSubtitle } from "./derive";
 import type { Lesson } from "@/types/database";
+import { callTransport, type CallTransport } from "@/lib/call/tokens";
 
 export interface BoardRoom {
   mode: "live" | "demo";
@@ -19,6 +20,8 @@ export interface BoardRoom {
   me: { id: string; name: string; role: "teacher" | "student" };
   /** Auth user id of the lesson's teacher: only their screen share is accepted by students. */
   teacherId: string;
+  /** How the lesson's call carries media: P2P (1:1) or the LiveKit SFU (group lessons, when configured). */
+  transport: CallTransport;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,7 +39,7 @@ export async function loadTeacherRoom(lessonId: string): Promise<BoardRoom> {
   const lesson = ws.lessons.find(l => l.id === lessonId);
   if (!lesson) notFound();
   const me = { id: ws.userId ?? "demo-teacher", name: ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor", role: "teacher" as const };
-  const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me, teacherId: me.id };
+  const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me, teacherId: me.id, transport: callTransport(lesson) };
   if (ws.mode === "demo") return { ...base, mode: "demo", board: null, boardReady: false };
   return { ...base, mode: "live", filesReady: Boolean(ws.filesReady), ...(await loadBoard(lessonId)) };
 }
@@ -54,7 +57,7 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
     if (!lesson) notFound();
     return {
       mode: "demo", lesson, subtitle: courseTitle(lesson) ?? "", timezone: portal.timezone,
-      board: null, boardReady: false, me: { id: "demo-student", name: portal.name, role: "student" }, teacherId: "demo-teacher"
+      board: null, boardReady: false, me: { id: "demo-student", name: portal.name, role: "student" }, teacherId: "demo-teacher", transport: "p2p"
     };
   }
 
@@ -69,7 +72,7 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
   const teacher = portal.links.find(x => x.studentId === l.student_id)?.teacherName;
   return {
     mode: "live", lesson: l, subtitle: [courseTitle(l), teacher].filter(Boolean).join(" · "), timezone: portal.timezone,
-    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" }, teacherId, filesReady: portal.filesReady,
+    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" }, teacherId, filesReady: portal.filesReady, transport: callTransport(l),
     ...(await loadBoard(lessonId))
   };
 }
