@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
   // Before migration 0018 the membership check is not available: fall back to "signed in".
   if (who === null) return json({ error: "forbidden" }, 403);
 
-  const cfId = process.env.CLOUDFLARE_TURN_KEY_ID;
-  const cfToken = process.env.CLOUDFLARE_TURN_KEY_API_TOKEN;
+  // Values pasted into the dashboard often carry a stray space or newline.
+  const cfId = process.env.CLOUDFLARE_TURN_KEY_ID?.trim();
+  const cfToken = process.env.CLOUDFLARE_TURN_KEY_API_TOKEN?.trim();
   if (cfId && cfToken) {
     try {
       const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(cfId)}/credentials/generate-ice-servers`, {
@@ -42,8 +43,14 @@ export async function GET(req: NextRequest) {
         const body = (await res.json()) as { iceServers?: RTCIceServer[] | RTCIceServer };
         const servers = Array.isArray(body.iceServers) ? body.iceServers : body.iceServers ? [body.iceServers] : [];
         if (servers.length) return json({ iceServers: [...ICE_SERVERS, ...servers], relay: true, ttl: CREDENTIAL_TTL_S });
+        console.error("[turn] Cloudflare answered without iceServers");
+      } else {
+        // Status and Cloudflare's error text only (never the token), so a wrong key shows in the logs.
+        const detail = (await res.text().catch(() => "")).slice(0, 300);
+        console.error(`[turn] Cloudflare TURN refused: HTTP ${res.status} ${detail}`);
       }
-    } catch {
+    } catch (err) {
+      console.error("[turn] Cloudflare TURN unreachable:", err instanceof Error ? err.message : err);
       // fall through to the other options
     }
   }
