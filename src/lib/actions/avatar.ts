@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { dbError } from "./common";
 import { createClient } from "@/lib/supabase/server";
 import { AVATARS_BUCKET } from "@/lib/avatars";
 
@@ -22,7 +23,7 @@ export async function saveAvatar(studentId: string, url: string | null): Promise
   const { error } = studentId
     ? await supabase.from("students").update({ avatar_url: url }).eq("id", studentId).eq("teacher_id", uid)
     : await supabase.from("profiles").update({ avatar_url: url }).eq("id", uid);
-  if (error) return { error: /avatar_url/.test(error.message) ? "Pozele de profil nu sunt activate încă (lipsește migrarea 0011)." : error.message };
+  if (error) return { error: /avatar_url/.test(error.message) ? "Pozele de profil nu sunt activate încă (lipsește migrarea 0011)." : dbError(error) };
 
   revalidatePath("/", "layout");
   return {};

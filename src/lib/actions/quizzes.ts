@@ -6,7 +6,7 @@ import { zonedToUtc } from "@/lib/time";
 import { QUIZ_TYPES, cleanAnswers, parseQuestions, publicQuestions } from "@/lib/quiz";
 import { createClient } from "@/lib/supabase/server";
 import { notifyQuizAssigned, notifyQuizSubmitted } from "@/lib/push/notify";
-import { DEMO_STATE, type FormState, optId, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
+import { DEMO_STATE, type FormState, optId, parseForm, refresh, teacherCtx, teacherTimezone, dbError } from "./common";
 
 // Tests (migrations 0013 + 0014): the teacher saves, publishes and marks; students start,
 // auto-save and hand in through database functions that never expose the answer key early.
@@ -54,7 +54,7 @@ export async function saveQuizDraft(input: unknown): Promise<{ id?: string; erro
   };
   if (v.id && !v.is_new) {
     const { error } = await ctx.supabase.from("quizzes").update(fields).eq("id", v.id).eq("teacher_id", ctx.userId);
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
     // Students who have not answered yet see the new title.
     await ctx.supabase.from("quiz_assignments").update({ title: v.title }).eq("quiz_id", v.id).eq("teacher_id", ctx.userId).eq("status", "assigned");
     refresh();
@@ -70,7 +70,7 @@ export async function saveQuizDraft(input: unknown): Promise<{ id?: string; erro
     }
   }
   const { data, error } = await ctx.supabase.from("quizzes").insert({ ...fields, ...family, ...(v.id ? { id: v.id } : {}), teacher_id: ctx.userId, status: "draft" }).select("id").single();
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   refresh();
   return { id: data.id as string };
 }
@@ -193,11 +193,11 @@ export async function publishQuiz(_: FormState, formData: FormData): Promise<For
     const { error } = await ctx.supabase.from("quiz_assignments").insert(fresh.map(student_id => ({
       ...settings, quiz_id: quiz.id, teacher_id: ctx.userId, student_id, course_id: v.course_id ?? quiz.course_id
     })));
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   }
   if (again.length) {
     const { error } = await ctx.supabase.from("quiz_assignments").update(settings).in("id", again).eq("teacher_id", ctx.userId);
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   }
   await ctx.supabase.from("quizzes").update({
     status: "published", share_code: quiz.share_code ?? shareCode(), updated_at: new Date().toISOString(),
@@ -254,7 +254,7 @@ export async function gradeOpenAnswers(_: FormState, formData: FormData): Promis
   }
   if (Object.values(scores).some(v => v != null && (!Number.isFinite(v) || v < 0))) return { error: "Punctajul trebuie să fie un număr pozitiv." };
   const { error } = await ctx.supabase.rpc("quiz_grade_open", { p_attempt_id: attemptId, p_scores: scores, p_feedback: feedback });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   refresh();
   return { ok: "Notele au fost salvate." };
 }

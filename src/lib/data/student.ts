@@ -52,7 +52,8 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   const [role, profile, students, courses, lessons, homework, messages, payments] = await Promise.all([
     supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
     supabase.from("profiles").select("full_name, timezone, avatar_url").eq("id", userId).maybeSingle(),
-    supabase.from("students").select("id, teacher_id, full_name, phone").eq("user_id", userId),
+    // Own students rows without the teacher's notes (migration 0016); before it, the table directly.
+    supabase.rpc("my_student_records").then(r => r.error ? supabase.from("students").select("id, teacher_id, full_name, phone").eq("user_id", userId) : r),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").order("title")
       .then(r => { visualReady = !r.error; return r; })
       .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").order("title") : r),

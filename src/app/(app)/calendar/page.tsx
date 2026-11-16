@@ -7,6 +7,7 @@ import { loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, lessonsBetween, toSlot } from "@/lib/data/derive";
 import { deleteLesson, setLessonStatus } from "@/lib/actions/lessons";
 import { getT } from "@/lib/i18n/server";
+import { safeNext } from "@/lib/auth-errors";
 import { addDays, dateKey, dayRange, formatDayHeading, formatShortDay, formatTime, isDateKey, minutesInTz, startOfWeek } from "@/lib/time";
 import { WeekGrid, type WeekDay } from "@/components/WeekGrid";
 import { colorVar } from "@/lib/colors";
@@ -27,7 +28,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const cur = currentLesson(ws, now);
   const live = ws.mode === "live";
-  const back = sp.back?.startsWith("/") ? sp.back : undefined;
+  const back = safeNext(sp.back, "") || undefined;
   const self = `/calendar${key === today ? "" : `?date=${key}`}`;
   const week: WeekDay[] = days.map(day => {
     const { start, end } = dayRange(day, ws.timezone);

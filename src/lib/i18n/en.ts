@@ -1423,5 +1423,10 @@ export const en: Record<string, string> = {
   "Fidel": "Loyal",
   "Un test rezolvat 100%": "A test with 100%",
   "5 teme cu nota 9 sau 10": "5 homework graded 9 or 10",
-  "Factura": "Invoice"
+  "Factura": "Invoice",
+  "Nu am putut salva. Încearcă din nou.": "Could not save. Please try again.",
+  "Există deja o înregistrare la fel.": "The same entry already exists.",
+  "Un element legat nu mai există. Reîncarcă pagina și încearcă din nou.": "A linked item no longer exists. Reload the page and try again.",
+  "Nu ai acces la această înregistrare. Reîncarcă pagina.": "You don't have access to this entry. Reload the page.",
+  "Unele câmpuri au valori invalide. Verifică formularul.": "Some fields have invalid values. Check the form."
 };

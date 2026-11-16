@@ -1423,5 +1423,10 @@ export const ru: Record<string, string> = {
   "Fidel": "Верный",
   "Un test rezolvat 100%": "Тест на 100%",
   "5 teme cu nota 9 sau 10": "5 заданий с оценкой 9 или 10",
-  "Factura": "Счёт"
+  "Factura": "Счёт",
+  "Nu am putut salva. Încearcă din nou.": "Не удалось сохранить. Попробуйте ещё раз.",
+  "Există deja o înregistrare la fel.": "Такая запись уже существует.",
+  "Un element legat nu mai există. Reîncarcă pagina și încearcă din nou.": "Связанный элемент больше не существует. Обновите страницу и попробуйте снова.",
+  "Nu ai acces la această înregistrare. Reîncarcă pagina.": "У вас нет доступа к этой записи. Обновите страницу.",
+  "Unele câmpuri au valori invalide. Verifică formularul.": "Некоторые поля заполнены неверно. Проверьте форму."
 };

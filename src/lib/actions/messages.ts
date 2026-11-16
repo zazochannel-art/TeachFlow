@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { notifyMessage } from "@/lib/push/notify";
-import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const messageSchema = z.object({
   student_id: z.string().min(1),
@@ -24,7 +24,7 @@ export async function addMessage(_: FormState, formData: FormData): Promise<Form
     // An incoming message the teacher logs by hand is already read by the teacher.
     ...v, teacher_id: ctx.userId, read_at: v.direction === "incoming" ? new Date().toISOString() : null
   });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   if (v.direction === "outgoing") notifyMessage({ studentId: v.student_id, from: "teacher", channel, body: v.body });
   refresh();
   return { ok: "sent" };

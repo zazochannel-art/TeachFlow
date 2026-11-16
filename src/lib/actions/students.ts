@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getT } from "@/lib/i18n/server";
 import { requireTeacher } from "@/lib/data/workspace";
 import { effectivePlan, overStudentLimit, type Plan } from "@/lib/plans";
-import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const studentSchema = z.object({
   id: optId,
@@ -35,7 +35,7 @@ async function limitMessage(plan: Plan) {
 
 /** The database refuses a new active student over the plan limit (migration 0009); explain it like the check above. */
 async function studentError(message: string) {
-  if (!message.includes("student_limit_reached")) return message;
+  if (!message.includes("student_limit_reached")) return dbError({ message });
   const { supabase, userId } = await requireTeacher();
   const { data: sub } = supabase && userId
     ? await supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle()
@@ -77,7 +77,7 @@ export async function saveStudent(_: FormState, formData: FormData): Promise<For
     if (error) return { error: await studentError(error.message) };
     if (course_id) {
       const enr = await ctx.supabase.from("course_enrollments").insert({ teacher_id: ctx.userId, course_id, student_id: data.id });
-      if (enr.error) return { error: (await getT())("Elevul a fost adăugat, dar nu și înscris: {reason}", { reason: enr.error.message }) };
+      if (enr.error) return { error: (await getT())("Elevul a fost adăugat, dar nu și înscris: {reason}", { reason: (await getT())(dbError(enr.error)) }) };
     }
   }
   refresh();

@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addDays, zonedToUtc } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
+import { safeNext } from "@/lib/auth-errors";
 import { notifyLessons } from "@/lib/push/notify";
-import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
+import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx, teacherTimezone, dbError } from "./common";
 
 const lessonSchema = z.object({
   id: optId,
@@ -54,11 +55,11 @@ export async function saveLesson(_: FormState, formData: FormData): Promise<Form
   const { data: saved, error } = v.id
     ? await ctx.supabase.from("lessons").update(rows[0]).eq("id", v.id).eq("teacher_id", ctx.userId).select("id")
     : await ctx.supabase.from("lessons").insert(rows.map(r => ({ ...r, teacher_id: ctx.userId }))).select("id");
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   if (!v.id) notifyLessons((saved ?? []).map(r => r.id as string), "new");
 
   refresh();
-  redirect(v.back?.startsWith("/") ? v.back : `/calendar?date=${v.date}`);
+  redirect(safeNext(v.back, `/calendar?date=${v.date}`));
 }
 
 const statusSchema = z.object({ id: z.string().min(1), status: z.enum(["scheduled", "completed", "cancelled", "no_show"]) });
@@ -79,7 +80,7 @@ export async function setMeetingUrl(_: FormState, formData: FormData): Promise<F
   const parsed = parseForm(z.object({ id: z.string().min(1), meeting_url: optUrl }), formData);
   if ("error" in parsed) return parsed;
   const { error } = await ctx.supabase.from("lessons").update({ meeting_url: parsed.data.meeting_url }).eq("id", parsed.data.id).eq("teacher_id", ctx.userId);
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   refresh();
   return { ok: "Link salvat." };
 }

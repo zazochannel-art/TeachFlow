@@ -12,7 +12,7 @@ import {
   textFontSize, type BoardEvent, type Stroke, type Tool
 } from "@/lib/board/model";
 import { drawGrid, drawStroke } from "@/lib/board/draw";
-import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, isImage, storageName } from "@/lib/files";
+import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, isImage, storageName, uploadContentType } from "@/lib/files";
 import { LessonFiles, type LessonFile } from "./LessonFiles";
 import { useT } from "@/lib/i18n/client";
 
@@ -489,7 +489,7 @@ export function Whiteboard({ lessonId, initial, live, me, title, filesReady = fa
       if (!supabase) return;
       src = `lesson/${lessonId}/${storageName(file.name, newId())}`;
       setUploading(n => n + 1);
-      const { error } = await supabase.storage.from(FILES_BUCKET).upload(src, file, { contentType: file.type || undefined });
+      const { error } = await supabase.storage.from(FILES_BUCKET).upload(src, file, { contentType: uploadContentType(file.type) });
       setUploading(n => n - 1);
       if (error) { setFileError(t("Nu s-a putut încărca „{name}”.", { name: file.name })); return; }
       const ch = channelRef.current;
