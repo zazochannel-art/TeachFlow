@@ -58,6 +58,15 @@ Decided on the server from the lesson, so everybody in a lesson uses the same on
   cannot pretend to be the teacher.
 - Attendance rows can only be written through the RPCs `call_join` / `call_heartbeat` / `call_leave`
   (no insert/update policies); teachers read their lessons' rows, everybody reads their own.
+- Whiteboard (migration 0019): all lesson members see the board; only the teacher draws by default.
+  The teacher gives drawing access per student from "Acces elevi" above the board (table
+  `lesson_board_access`, one row per lesson and student account; only the lesson's teacher can insert
+  or delete). The database enforces it: saving the board and sending strokes on the `board:` channel
+  need `private.can_draw_on_board()`. Realtime checks the right to send when a channel is joined, so a
+  student's page rejoins the channel when access changes; a tampered client that keeps an old
+  connection after access is turned off could still send live strokes until it reconnects, but
+  cannot save them. Before 0019 is applied every student can draw, as before, and the teacher sees
+  a notice.
 - Camera and microphone are requested only when the person presses "Intră în apel" (or "Doar audio"
   for the microphone only); a refusal is explained and the call continues with what is allowed.
 
@@ -102,7 +111,7 @@ teacher and at least one student both in the call.
 
 ## Configuration
 
-Required: the Supabase variables already used by the app, and migrations 0006 and 0018 applied.
+Required: the Supabase variables already used by the app, and migrations 0006, 0018 and 0019 applied.
 
 All call variables are **server-only** (Vercel → Project → Settings → Environment Variables,
 Production; never `NEXT_PUBLIC_`). Redeploy after changing them.

@@ -18,17 +18,36 @@ export interface BoardRoom {
   me: { id: string; name: string; role: "teacher" | "student" };
   /** Auth user id of the lesson's teacher: only their screen share is accepted by students. */
   teacherId: string;
+  /** Who may draw on the board (migration 0019). */
+  access: BoardAccess;
   /** How the lesson's call carries media: P2P (1:1) or the LiveKit SFU (group lessons, when configured). */
   transport: CallTransport;
 }
+
+export interface BoardAccess {
+  /** false before migration 0019 (and in demo mode): everybody in the lesson draws, as before. */
+  ready: boolean;
+  /** Auth user ids of the students the teacher allowed to draw. */
+  writers: string[];
+  /** The lesson's students, for the teacher's access list (empty for students). */
+  students: { userId: string | null; name: string }[];
+}
+
+const NO_ACCESS: BoardAccess = { ready: false, writers: [], students: [] };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function loadBoard(lessonId: string) {
   const supabase = await createClient();
-  if (!supabase) return { board: null, boardReady: false };
-  const { data, error } = await supabase.from("lesson_boards").select("data").eq("lesson_id", lessonId).maybeSingle();
-  return { board: data?.data ?? null, boardReady: !error };
+  if (!supabase) return { board: null, boardReady: false, access: NO_ACCESS };
+  const [{ data, error }, writers] = await Promise.all([
+    supabase.from("lesson_boards").select("data").eq("lesson_id", lessonId).maybeSingle(),
+    supabase.from("lesson_board_access").select("user_id").eq("lesson_id", lessonId)
+  ]);
+  const access: BoardAccess = writers.error
+    ? NO_ACCESS
+    : { ready: true, writers: ((writers.data as { user_id: string }[] | null) ?? []).map(r => r.user_id), students: [] };
+  return { board: data?.data ?? null, boardReady: !error, access };
 }
 
 /** Lesson room for the teacher who owns the lesson. */
@@ -38,8 +57,13 @@ export async function loadTeacherRoom(lessonId: string): Promise<BoardRoom> {
   if (!lesson) notFound();
   const me = { id: ws.userId ?? "demo-teacher", name: ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor", role: "teacher" as const };
   const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me, teacherId: me.id, transport: callTransport(lesson) };
-  if (ws.mode === "demo") return { ...base, mode: "demo", board: null, boardReady: false };
-  return { ...base, mode: "live", ...(await loadBoard(lessonId)) };
+  const ids = lesson.student_id
+    ? [lesson.student_id]
+    : ws.enrollments.filter(e => e.course_id === lesson.course_id && (e.status === "active" || e.status === "paused")).map(e => e.student_id);
+  const students = ws.students.filter(s => ids.includes(s.id)).map(s => ({ userId: s.user_id ?? null, name: s.full_name }));
+  if (ws.mode === "demo") return { ...base, mode: "demo", board: null, boardReady: false, access: { ...NO_ACCESS, students } };
+  const loaded = await loadBoard(lessonId);
+  return { ...base, mode: "live", ...loaded, access: { ...loaded.access, students } };
 }
 
 /** Lesson room for a student of the lesson (RLS from migration 0003 decides access). */
@@ -55,7 +79,7 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
     if (!lesson) notFound();
     return {
       mode: "demo", lesson, subtitle: courseTitle(lesson) ?? "", timezone: portal.timezone,
-      board: null, boardReady: false, me: { id: "demo-student", name: portal.name, role: "student" }, teacherId: "demo-teacher", transport: "p2p"
+      board: null, boardReady: false, access: NO_ACCESS, me: { id: "demo-student", name: portal.name, role: "student" }, teacherId: "demo-teacher", transport: "p2p"
     };
   }
 

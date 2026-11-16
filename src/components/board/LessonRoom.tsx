@@ -54,12 +54,16 @@ export async function LessonRoom({ room, backHref, backLabel, toolbar }: { room:
 
       <ScreenShare lessonId={lesson.id} live={live} me={room.me} teacherId={room.teacherId} />
 
-      <Whiteboard lessonId={lesson.id} initial={room.board} live={live} me={room.me} title={lesson.title} />
+      <Whiteboard lessonId={lesson.id} initial={room.board} live={live} me={room.me} title={lesson.title} access={room.access} />
 
       <p className="mt-3 text-[11px] text-muted">
         {isTeacher
-          ? t("Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pot desena și ei pe tablă. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.")
-          : t("Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")}
+          ? room.access.ready
+            ? t("Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pe tablă desenează doar elevii cărora le dai acces din „Acces elevi”. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.")
+            : t("Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pot desena și ei pe tablă. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.")
+          : room.access.ready
+            ? t("Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie. Poți desena și tu când profesorul îți dă acces. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")
+            : t("Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie și poți desena și tu. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.")}
       </p>
       {room.mode === "demo" && <DemoNotice />}
     </div>
