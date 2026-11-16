@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   Circle, Download, Eraser, Grid3x3, Highlighter, ImagePlus, Loader2, Maximize2, Minimize2, Minus, MoveUpRight,
-  Paperclip, Pen, Redo2, Square, Trash2, Type, Undo2, type LucideIcon
+  Paperclip, Pen, PencilLine, PencilOff, Redo2, Square, Trash2, Type, Undo2, X, type LucideIcon
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -15,6 +15,7 @@ import { drawGrid, drawStroke } from "@/lib/board/draw";
 import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, isImage, storageName, uploadContentType } from "@/lib/files";
 import { LessonFiles, type LessonFile } from "./LessonFiles";
 import { useT } from "@/lib/i18n/client";
+import type { BoardAccess } from "@/lib/data/board";
 
 type ToolOrEraser = Tool | "eraser";
 type HistoryEntry = { kind: "add" | "remove"; strokes: Stroke[] };
@@ -53,14 +54,26 @@ interface Props {
   live: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
   title: string;
+  /** Who may draw (migration 0019). When not ready, everybody in the lesson draws, as before. */
+  access: BoardAccess;
 }
 
 /**
  * Shared lesson whiteboard. Strokes are sent to the other participants over a private
  * Supabase Realtime channel and the full board is saved to `lesson_boards` (debounced).
  */
-export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
+export function Whiteboard({ lessonId, initial, live, me, title, access }: Props) {
   const t = useT();
+  const isTeacher = me.role === "teacher";
+  // Drawing access is enforced only on a live board with migration 0019; the database decides, this mirrors it.
+  const enforced = live && access.ready;
+  const [writers, setWriters] = useState<string[]>(access.writers);
+  const canDraw = isTeacher || !enforced || writers.includes(me.id);
+  const canDrawRef = useRef(canDraw);
+  const [rejoin, setRejoin] = useState(0);
+  const [showAccess, setShowAccess] = useState(false);
+  const [accessBusy, setAccessBusy] = useState("");
+  const [accessNote, setAccessNote] = useState("");
   const [strokes, setStrokes] = useState<Stroke[]>(() => sanitizeBoard(initial));
   const [tool, setTool] = useState<ToolOrEraser>("pen");
   const [color, setColor] = useState(COLORS[0].value);
@@ -213,6 +226,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   const flushSave = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     if (!live) return;
+    if (!canDrawRef.current) { setSave("idle"); return; }
     const supabase = createClient();
     if (!supabase) return;
     setSave("saving");
@@ -247,12 +261,59 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
 
   /** Applies a committed change made here: state, history, peers and the saved copy. */
   const commit = useCallback((ev: BoardEvent) => {
+    if (!canDrawRef.current) return;
     const next = applyEvent(strokesRef.current, ev);
     strokesRef.current = next;
     setStrokes(next);
     send(ev);
     scheduleSave();
   }, [send, scheduleSave]);
+
+  // ---------- drawing access ----------
+
+  /**
+   * Reads who may draw from the database (the teacher's change arrives as a ping on the channel).
+   * A student who gains or loses access is told, loses what was in progress, and joins the channel
+   * again: Realtime checks the right to send when the channel is joined.
+   */
+  const refreshAccess = useCallback(async () => {
+    if (!enforced) return;
+    const supabase = createClient();
+    if (!supabase) return;
+    const { data, error } = await supabase.from("lesson_board_access").select("user_id").eq("lesson_id", lessonId);
+    if (error) return;
+    const next = ((data as { user_id: string }[] | null) ?? []).map(r => r.user_id);
+    setWriters(next);
+    if (isTeacher) return;
+    const allowed = next.includes(me.id);
+    if (allowed === canDrawRef.current) return;
+    canDrawRef.current = allowed;
+    currentRef.current = null;
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    setTextDraft(null);
+    setUndoStack([]);
+    setRedoStack([]);
+    setSave("idle");
+    setAccessNote(allowed ? t("Profesorul ți-a dat acces: acum poți desena și scrie pe tablă.") : t("Profesorul a oprit accesul tău la desenare. Vezi în continuare tabla."));
+    setRejoin(n => n + 1);
+  }, [enforced, lessonId, isTeacher, me.id, t]);
+
+  /** Teacher: lets one student draw, or stops it. */
+  const setStudentAccess = useCallback(async (userId: string, allow: boolean) => {
+    const supabase = createClient();
+    if (!supabase || !isTeacher) return;
+    setAccessBusy(userId);
+    setAccessNote("");
+    const q = allow
+      ? supabase.from("lesson_board_access").upsert({ lesson_id: lessonId, user_id: userId }, { onConflict: "lesson_id,user_id", ignoreDuplicates: true })
+      : supabase.from("lesson_board_access").delete().eq("lesson_id", lessonId).eq("user_id", userId);
+    const { error } = await q;
+    setAccessBusy("");
+    if (error) { setAccessNote(t("Nu s-a putut schimba accesul. Încearcă din nou.")); return; }
+    setWriters(list => (allow ? [...new Set([...list, userId])] : list.filter(id => id !== userId)));
+    const ch = channelRef.current;
+    if (ch) void ch.send({ type: "broadcast", event: "access", payload: {} });
+  }, [isTeacher, lessonId, t]);
 
   useEffect(() => {
     if (!live) return;
@@ -288,6 +349,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
       channel
         .on("broadcast", { event: "board" }, ({ payload }) => onRemote(payload))
         .on("broadcast", { event: "files" }, () => setFilesVersion(v => v + 1))
+        .on("broadcast", { event: "access" }, () => { void refreshAccess(); })
         .on("presence", { event: "sync" }, () => {
           const state = channel.presenceState<{ name: string; role: string }>();
           const list: BoardPeer[] = [];
@@ -304,6 +366,8 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
           if (status === "SUBSCRIBED") {
             setConn("live");
             await channel.track({ name: me.name, role: me.role });
+            // The access list may have changed while this tab was not listening.
+            void refreshAccess();
             // Catch up with whatever was saved between page load and joining the channel.
             const { data } = await supabase.from("lesson_boards").select("data").eq("lesson_id", lessonId).maybeSingle();
             if (cancelled) return;
@@ -333,7 +397,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
       channelRef.current = null;
       if (ch) void supabase.removeChannel(ch);
     };
-  }, [live, lessonId, me.id, me.name, me.role, requestDraw]);
+  }, [live, lessonId, me.id, me.name, me.role, requestDraw, refreshAccess, rejoin]);
 
   // ---------- history ----------
 
@@ -410,6 +474,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   }, [color, size, commit, pushHistory]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!canDraw) return;
     if (e.button !== 0 && e.pointerType === "mouse") return;
     // Keep focus where it is (e.g. in the text box) and skip emulated mouse events.
     e.preventDefault();
@@ -477,6 +542,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
 
   /** Uploads one file: pictures are placed on the board, other files go to the lesson's file list. */
   const addFile = useCallback(async (file: File, at?: { x: number; y: number }) => {
+    if (!canDrawRef.current) return;
     setFileError("");
     if (file.size > MAX_FILE_BYTES) { setFileError(t("„{name}” e prea mare (maxim 25 MB).", { name: file.name })); return; }
     const picture = isImage(file) && file.type !== "image/svg+xml";
@@ -540,6 +606,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (!canDrawRef.current) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (mod && k === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
@@ -579,11 +646,18 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   };
 
   const scale = cssSize.w / BOARD_W;
-  const cursor = tool === "text" ? "text" : tool === "eraser" ? "cell" : "crosshair";
+  const cursor = !canDraw ? "default" : tool === "text" ? "text" : tool === "eraser" ? "cell" : "crosshair";
+  const onlineUsers = new Set(peers.map(p => p.key.split(":")[0]));
 
   return (
     <div ref={frameRef} className={`flex flex-col gap-3 ${fullscreen ? "h-screen bg-canvas p-4" : ""}`}>
       <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-line/70 bg-white p-2 shadow-card">
+        {!canDraw && (
+          <span className="flex items-center gap-1.5 rounded-xl bg-soft px-3 py-2 text-[12px] font-bold text-muted" data-testid="board-readonly">
+            <PencilOff className="h-4 w-4 shrink-0" /> {t("Doar vizualizare: profesorul îți poate da acces la desenare.")}
+          </span>
+        )}
+        {canDraw && <>
         <div role="toolbar" aria-label={t("Instrumente")} className="flex flex-wrap items-center gap-1">
           {TOOL_BUTTONS.map(({ tool: tb, label, icon: Icon, key }) => (
             <button
@@ -637,16 +711,18 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
           ))}
         </div>
 
+        </>}
+
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading > 0}
+          {canDraw && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading > 0}
             title={t("Adaugă poză sau fișier (sau Ctrl+V / trage pe tablă)")}
             aria-label={t("Adaugă poză sau fișier")}
             className="flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-tint px-2.5 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb] disabled:cursor-not-allowed disabled:opacity-40">
             {uploading > 0 ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : <ImagePlus className="h-[17px] w-[17px]" />}
             <span className="hidden lg:inline">{t("Adaugă")}</span>
-          </button>
+          </button>}
           <input ref={fileInputRef} type="file" multiple accept={FILE_ACCEPT} className="sr-only" tabIndex={-1}
             onChange={e => { addFiles(e.target.files); e.target.value = ""; }} />
           <IconButton label={t("Fișierele lecției")} icon={Paperclip} onClick={() => setShowFiles(v => !v)} pressed={showFiles} />
@@ -655,13 +731,23 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
         <div className="flex items-center gap-1">
-          <IconButton label={t("Anulează (Ctrl+Z)")} icon={Undo2} onClick={undo} disabled={undoStack.length === 0} />
-          <IconButton label={t("Refă (Ctrl+Y)")} icon={Redo2} onClick={redo} disabled={redoStack.length === 0} />
+          {canDraw && <IconButton label={t("Anulează (Ctrl+Z)")} icon={Undo2} onClick={undo} disabled={undoStack.length === 0} />}
+          {canDraw && <IconButton label={t("Refă (Ctrl+Y)")} icon={Redo2} onClick={redo} disabled={redoStack.length === 0} />}
           <IconButton label={t("Caroiaj")} icon={Grid3x3} onClick={() => setGrid(g => !g)} pressed={grid} />
           {me.role === "teacher" && <IconButton label={t("Șterge tabla")} icon={Trash2} onClick={clearBoard} disabled={strokes.length === 0} />}
           <IconButton label={t("Descarcă PNG")} icon={Download} onClick={download} />
           <IconButton label={fullscreen ? t("Ieși din ecran complet") : t("Ecran complet")} icon={fullscreen ? Minimize2 : Maximize2} onClick={toggleFullscreen} />
         </div>
+
+        {isTeacher && enforced && (
+          <button type="button" onClick={() => setShowAccess(v => !v)} aria-expanded={showAccess} data-testid="board-access-button"
+            title={t("Alege ce elevi pot desena și scrie pe tablă")}
+            className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-bold ${showAccess ? "bg-primary text-white" : "bg-tint text-primary-2 hover:bg-[#dfe4fb]"}`}>
+            <PencilLine className="h-[17px] w-[17px]" />
+            <span>{t("Acces elevi")}</span>
+            <span className={`rounded-full px-1.5 text-[11px] ${showAccess ? "bg-white/25" : "bg-white"}`}>{access.students.filter(st => st.userId && writers.includes(st.userId)).length}/{access.students.length}</span>
+          </button>
+        )}
 
         <div className="ml-auto flex items-center gap-3 px-2 text-[11px] font-bold">
           <PeersBadge peers={peers} />
@@ -669,6 +755,16 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         </div>
       </div>
 
+      {isTeacher && enforced && showAccess && (
+        <BoardAccessPanel students={access.students} writers={writers} online={onlineUsers} busy={accessBusy}
+          onToggle={setStudentAccess} onClose={() => setShowAccess(false)} />
+      )}
+      {isTeacher && live && !access.ready && (
+        <p className="rounded-[14px] border border-dashed border-[#f0c46b] bg-[#fff8e8] px-3 py-2 text-[12px] text-[#7a5208]">
+          {t("Acum toți elevii pot desena pe tablă. Ca să alegi tu cine desenează, aplică în Supabase (SQL Editor) migrarea")} <code>supabase/migrations/0019_board_access.sql</code>.
+        </p>
+      )}
+      {accessNote && <p role="status" data-testid="board-access-note" className="rounded-[14px] bg-tint px-3 py-2 text-[12px] font-bold text-primary-2">{accessNote}</p>}
       {fileError && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a]">{fileError}</p>}
       {showFiles && (
         <LessonFiles lessonId={lessonId} live={live} localFiles={localFiles} version={filesVersion}
@@ -677,7 +773,7 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
 
       <div ref={holderRef}
         className={`relative w-full ${fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] max-h-[calc(100vh-140px)]"} flex items-center justify-center`}
-        onDragOver={e => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
+        onDragOver={e => { if (canDraw && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
         onDragLeave={() => setDragOver(false)}
         onDrop={e => {
           if (!e.dataTransfer.files.length) return;
@@ -731,6 +827,59 @@ export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
         </div>
       </div>
       {!live && <p className="text-[11px] text-muted">{t("Mod demo: tabla funcționează, dar nu se salvează și nu se partajează.")}</p>}
+    </div>
+  );
+}
+
+/** Teacher: one switch per student of the lesson. */
+function BoardAccessPanel({ students, writers, online, busy, onToggle, onClose }: {
+  students: BoardAccess["students"]; writers: string[]; online: Set<string>; busy: string;
+  onToggle: (userId: string, allow: boolean) => void; onClose: () => void;
+}) {
+  const t = useT();
+  const withAccount = students.filter(s => s.userId) as { userId: string; name: string }[];
+  const allOn = withAccount.length > 0 && withAccount.every(s => writers.includes(s.userId));
+  return (
+    <div data-testid="board-access-panel" className="rounded-[18px] border border-line/70 bg-white p-3 shadow-card">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-extrabold text-ink">{t("Cine poate desena și scrie pe tablă")}</p>
+          <p className="text-[11px] text-muted">{t("Toți elevii văd tabla. Desenează doar cei cărora le dai acces aici; îl poți opri oricând.")}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {withAccount.length > 1 && (
+            <button type="button" disabled={!!busy} className="cursor-pointer rounded-xl bg-soft px-2.5 py-1.5 text-[11px] font-bold text-ink hover:bg-tint disabled:opacity-50"
+              onClick={() => { for (const s of withAccount) if (writers.includes(s.userId) === allOn) onToggle(s.userId, !allOn); }}>
+              {allOn ? t("Oprește la toți") : t("Dă acces tuturor")}
+            </button>
+          )}
+          <button type="button" onClick={onClose} aria-label={t("Închide")} title={t("Închide")} className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-muted hover:bg-soft"><X className="h-4 w-4" /></button>
+        </div>
+      </div>
+      {students.length === 0 && <p className="text-[12px] text-muted">{t("Lecția nu are încă elevi.")}</p>}
+      <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        {students.map((s, i) => {
+          const on = !!s.userId && writers.includes(s.userId);
+          const here = !!s.userId && online.has(s.userId);
+          return (
+            <li key={s.userId ?? `x${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-soft px-3 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${here ? "bg-emerald-500" : "bg-slate-300"}`} title={here ? t("În lecție acum") : t("Nu este în lecție")} />
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-bold text-ink">{s.name}</span>
+                  {!s.userId && <span className="block text-[10px] text-muted">{t("Nu are încă un cont (invitație neacceptată)")}</span>}
+                </span>
+              </span>
+              <button type="button" role="switch" aria-checked={on} disabled={!s.userId || busy === s.userId}
+                aria-label={t("{name} poate desena pe tablă", { name: s.name })} data-testid="board-access-switch" data-name={s.name}
+                onClick={() => s.userId && onToggle(s.userId, !on)}
+                className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-primary" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
