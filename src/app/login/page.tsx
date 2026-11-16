@@ -4,7 +4,7 @@ import { authErrorMessage, safeNext } from "@/lib/auth-errors";
 import { redirectIfSignedIn } from "@/lib/auth-redirect";
 import { getT } from "@/lib/i18n/server";
 
-type Search = Promise<{ error?: string; next?: string; reset?: string }>;
+type Search = Promise<{ error?: string; next?: string; reset?: string; deleted?: string }>;
 
 export default async function LoginPage({ searchParams }: { searchParams: Search }) {
   const sp = await searchParams;
@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
       <LoginForm
         next={next}
         initialError={sp.error ? authErrorMessage(sp.error, t) : ""}
-        initialInfo={sp.reset ? t("Parola a fost schimbată. Autentifică-te cu parola nouă.") : ""}
+        initialInfo={sp.reset ? t("Parola a fost schimbată. Autentifică-te cu parola nouă.") : sp.deleted ? t("Contul tău și toate datele lui au fost șterse.") : ""}
       />
     </AuthShell>
   );
