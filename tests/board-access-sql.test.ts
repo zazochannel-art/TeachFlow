@@ -32,3 +32,15 @@ describe("lesson file upload migration", () => {
     expect(files).not.toMatch(/can_use_lesson_board/);
   });
 });
+
+// Migration 0021: in the call a student shares the screen only when the teacher allowed it.
+describe("screen share access migration", () => {
+  const share = readFileSync(new URL("../supabase/migrations/0021_screen_share_access.sql", import.meta.url), "utf8");
+
+  it("lets only the lesson's teacher grant or remove access", () => {
+    expect(share).toMatch(/"lesson_screen_access_insert"[\s\S]*?with check \(private\.is_lesson_teacher\(lesson_id\)\)/);
+    expect(share).toMatch(/"lesson_screen_access_delete"[\s\S]*?using \(private\.is_lesson_teacher\(lesson_id\)\)/);
+    expect(share).toMatch(/revoke all on public\.lesson_screen_access from anon, authenticated/);
+    expect(share).not.toMatch(/grant[^;]*update[^;]*lesson_screen_access/i);
+  });
+});

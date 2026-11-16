@@ -31,6 +31,21 @@ export interface CallProps {
   lessonTitle?: string;
   /** SFU token endpoint (the automated test harness uses its own). */
   tokenUrl?: string;
+  /** Who may share the screen (migration 0021). Without it everybody may, as before. */
+  access?: { shareReady: boolean; sharers: string[]; students: { userId: string | null; name: string }[] };
+}
+
+/** Screen sharing rights in the call: the teacher always, a student only when the teacher allowed it. */
+export interface ScreenAccess {
+  canShare: boolean;
+  /** Only for the teacher, when the rule is enforced: the lesson's students and their switches. */
+  manage: null | {
+    students: { userId: string | null; name: string }[];
+    sharers: string[];
+    busy: string;
+    failed: boolean;
+    toggle: (userId: string, allow: boolean) => void;
+  };
 }
 
 /** Everything the call UI needs, whatever carries the media (P2P mesh or the LiveKit SFU). */
