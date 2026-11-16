@@ -3,7 +3,12 @@ import { z } from "zod";
 import { requireTeacher } from "@/lib/data/workspace";
 import { DEFAULT_TZ } from "@/lib/time";
 
-export interface FormState { error?: string; ok?: string }
+export interface FormState {
+  error?: string;
+  ok?: string;
+  /** A warning the user can override: the form shows it with a "save anyway" box (field `confirm`). */
+  warn?: string;
+}
 
 export const DEMO_STATE: FormState = { error: "Mod demonstrativ: configurează Supabase pentru a salva date." };
 
@@ -33,6 +38,21 @@ export function parseForm<T extends z.ZodType>(schema: T, formData: FormData): {
   const result = schema.safeParse(Object.fromEntries(formData));
   if (!result.success) return { error: result.error.issues[0]?.message ?? "Date invalide." };
   return { data: result.data };
+}
+
+/**
+ * Readable message (Romanian source text, translated by the form) for a failed database write.
+ * The raw Postgres error is technical and in English, so it only goes to the server log.
+ */
+export function dbError(error: { message?: string; code?: string } | null | undefined, fallback = "Nu am putut salva. Încearcă din nou."): string {
+  const message = error?.message ?? "";
+  if (error) console.error("database error", error.code ?? "", message);
+  if (message.includes("student_limit_reached")) return "Ai atins limita de elevi activi a planului. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv.";
+  if (error?.code === "23505") return "Există deja o înregistrare la fel.";
+  if (error?.code === "23503") return "Un element legat nu mai există. Reîncarcă pagina și încearcă din nou.";
+  if (error?.code === "42501" || /row-level security/i.test(message)) return "Nu ai acces la această înregistrare. Reîncarcă pagina.";
+  if (["22001", "22P02", "22007", "22008", "23502", "23514"].includes(error?.code ?? "")) return "Unele câmpuri au valori invalide. Verifică formularul.";
+  return fallback;
 }
 
 export function refresh() {

@@ -8,7 +8,7 @@ import { pushConfigured, pushToUsers, serviceClient, clip } from "@/lib/push/ser
 import { sendEmail } from "@/lib/reminders/email";
 import { isLang, makeT } from "@/lib/i18n/core";
 import { SLUG_RE } from "@/lib/slug";
-import { DEMO_STATE, type FormState, optText, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, optText, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 // Public teacher page (migration 0015): the teacher's settings, the visitors' sign-up form and
 // the teacher's handling of the requests.
@@ -34,7 +34,7 @@ export async function savePublicPage(_: FormState, formData: FormData): Promise<
   if (error) {
     if (/public_slug_idx|duplicate key/.test(error.message)) return { error: "Adresa aceasta este deja folosită de alt profesor. Alege alta." };
     if (/public_/.test(error.message)) return { error: "Pagina publică nu este activată încă (lipsește migrarea 0015)." };
-    return { error: error.message };
+    return { error: dbError(error) };
   }
   // Courses shown on the page: the checked ones among the teacher's courses.
   const shown = new Set(formData.getAll("course").map(String));
@@ -151,7 +151,7 @@ export async function acceptSignup(_: FormState, formData: FormData): Promise<Fo
     ins = await ctx.supabase.from("students").insert({ teacher_id: ctx.userId, full_name: r.student_name, notes: [`${r.name}: ${[r.email, r.phone].filter(Boolean).join(", ")}`, r.message].filter(Boolean).join("\n").slice(0, 1000) }).select("id").single();
   }
   if (ins.error) {
-    return { error: ins.error.message.includes("student_limit_reached") ? "Ai atins limita de elevi activi a planului. Treci la un plan superior din pagina Abonament sau marchează un elev ca inactiv." : ins.error.message };
+    return { error: dbError(ins.error) };
   }
   if (r.course_id) await ctx.supabase.from("course_enrollments").insert({ teacher_id: ctx.userId, course_id: r.course_id, student_id: ins.data.id });
   await ctx.supabase.from("signup_requests").update({ status: "accepted", student_id: ins.data.id }).eq("id", r.id).eq("teacher_id", ctx.userId);

@@ -62,6 +62,15 @@ describe("notifications and tasks", () => {
     const ws = emptyWorkspace({ subscription: { plan_code: "pro", status: "expired", current_period_end: "2026-11-01T00:00:00Z" } });
     expect(notifications(ws, NOW).find(n => n.id === "n-sub")?.href).toBe("/billing");
   });
+  it("warns a week before a paid plan runs out, and when it has run out", () => {
+    const sub = (end: string) => emptyWorkspace({ subscription: { plan_code: "pro", status: "active", current_period_end: end } });
+    expect(notifications(sub("2026-12-30T00:00:00Z"), NOW).find(n => n.id === "n-sub")).toBeUndefined();
+    const soon = notifications(sub("2026-11-17T00:00:00Z"), NOW).find(n => n.id === "n-sub");
+    expect(soon?.emphasis).toBe("3 zile");
+    const gone = notifications(sub("2026-11-10T00:00:00Z"), NOW).find(n => n.id === "n-sub");
+    expect(gone?.emphasis).toBe("Expirat");
+    expect(gone?.highlight).toBe(true);
+  });
   it("returns nothing for an empty account", () => {
     expect(tasks(emptyWorkspace(), NOW)).toEqual([]);
     expect(notifications(emptyWorkspace(), NOW)).toEqual([]);

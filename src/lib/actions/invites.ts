@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { z } from "zod";
-import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx, dbError } from "./common";
 import { newInviteToken } from "@/lib/invite-token";
 
 const MIGRATION_MSG = "Aplică migrarea 0003_student_portal.sql în Supabase ca să poți invita elevi.";
@@ -30,7 +30,7 @@ export async function createStudentInvite(_: FormState, formData: FormData): Pro
 
   const { token, hash } = newInviteToken();
   const { error } = await ctx.supabase.from("student_invites").insert({ teacher_id: ctx.userId, student_id: studentId, token_hash: hash });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   return { ok: "Link creat. Valabil 14 zile, o singură folosire.", link: `${await origin()}/invite/${token}` };
 }
 
@@ -62,7 +62,7 @@ export async function createParentInvite(_: FormState, formData: FormData): Prom
 
   const { token, hash } = newInviteToken();
   const { error } = await ctx.supabase.from("parent_invites").insert({ teacher_id: ctx.userId, student_id: studentId, token_hash: hash });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   return { ok: "Link creat. Valabil 14 zile, o singură folosire.", link: `${await origin()}/invite/parent/${token}` };
 }
 

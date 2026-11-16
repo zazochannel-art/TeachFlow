@@ -2,38 +2,37 @@ import Link from "next/link";
 import { Mail, MessageCircle, Phone, Search, ChevronLeft } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, MigrationNotice, PageHeader } from "@/components/ui";
 import { ActionForm } from "@/components/forms";
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadMessages, loadWorkspace } from "@/lib/data/workspace";
 import { addMessage, markConversationRead } from "@/lib/actions/messages";
 import { dateKey, formatDate, formatTime } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ student?: string; q?: string; with?: string }> }) {
-  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
+  const [ws, all, t] = await Promise.all([loadWorkspace(), loadMessages(), getT()]);
   const sp = await searchParams;
   const missing = ws.missingTables.includes("messages");
   const demo = ws.mode === "demo";
   const needle = (sp.q ?? "").trim().toLowerCase();
 
   const threads = ws.students
-    .filter(s => s.status === "active" || ws.messages.some(m => m.student_id === s.id))
+    .filter(s => s.status === "active" || all.some(m => m.student_id === s.id))
     .filter(s => !needle || s.full_name.toLowerCase().includes(needle))
     .map(s => {
-      const msgs = ws.messages.filter(m => m.student_id === s.id);
+      const msgs = all.filter(m => m.student_id === s.id);
       const last = msgs[msgs.length - 1];
       return { s, last, unread: msgs.filter(m => m.direction === "incoming" && !m.read_at).length };
     })
     .sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? "") || a.s.full_name.localeCompare(b.s.full_name));
 
   const active = ws.students.find(s => s.id === sp.student) ?? (sp.student ? undefined : threads.find(th => th.last)?.s);
-  // Migration 0012: a separate conversation with the student's parents.
-  const channels = Boolean(ws.parentsReady) || demo;
-  const channel = channels && sp.with === "parent" ? "parent" : "student";
-  const chanOf = (m: (typeof ws.messages)[number]) => m.channel ?? "student";
-  const mine = active ? ws.messages.filter(m => m.student_id === active.id) : [];
+  // A separate conversation with the student's parents.
+  const channel = sp.with === "parent" ? "parent" : "student";
+  const chanOf = (m: (typeof all)[number]) => m.channel ?? "student";
+  const mine = active ? all.filter(m => m.student_id === active.id) : [];
   const conversation = mine.filter(m => chanOf(m) === channel);
   const unreadIn = (c: string) => mine.filter(m => chanOf(m) === c && m.direction === "incoming" && !m.read_at).length;
   const tabUnread = { student: unreadIn("student"), parent: unreadIn("parent") };
-  if (active && !demo && !missing) await markConversationRead(active.id, channels ? channel : undefined);
+  if (active && !demo && !missing) await markConversationRead(active.id, channel);
   const today = dateKey(new Date(), ws.timezone);
   // Phones show one pane at a time: the list, or the open conversation with a back link.
   const picked = Boolean(sp.student);
@@ -83,17 +82,15 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
               {active.phone && <a href={`tel:${active.phone}`} aria-label={t("Sună")} className="grid h-9 w-9 place-items-center rounded-full bg-tint text-primary-2"><Phone className="h-4 w-4" /></a>}
             </div>
 
-            {channels && (
-              <div className="flex gap-1 border-b border-line px-4 py-2 sm:px-5">
-                {(["student", "parent"] as const).map(c => (
-                  <Link key={c} href={`/messages?student=${active.id}${c === "parent" ? "&with=parent" : ""}`} aria-current={channel === c ? "page" : undefined}
-                    className={`rounded-xl px-3 py-1.5 text-[12px] font-bold ${channel === c ? "bg-primary text-white" : "text-muted hover:bg-soft"}`}>
-                    {c === "student" ? t("Cu elevul") : t("Cu părinții")}
-                    {channel !== c && tabUnread[c] > 0 && <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-extrabold text-white">{tabUnread[c]}</span>}
-                  </Link>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-1 border-b border-line px-4 py-2 sm:px-5">
+              {(["student", "parent"] as const).map(c => (
+                <Link key={c} href={`/messages?student=${active.id}${c === "parent" ? "&with=parent" : ""}`} aria-current={channel === c ? "page" : undefined}
+                  className={`rounded-xl px-3 py-1.5 text-[12px] font-bold ${channel === c ? "bg-primary text-white" : "text-muted hover:bg-soft"}`}>
+                  {c === "student" ? t("Cu elevul") : t("Cu părinții")}
+                  {channel !== c && tabUnread[c] > 0 && <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-extrabold text-white">{tabUnread[c]}</span>}
+                </Link>
+              ))}
+            </div>
             <div className="tf-scroll flex min-h-[280px] flex-1 flex-col gap-3 overflow-y-auto bg-soft/60 px-4 py-5 sm:px-5 lg:max-h-[520px]">
               {conversation.length === 0 && <p className="m-auto text-[12px] text-muted">{t("Începe conversația cu {name}.", { name: active.full_name.split(" ")[0] })}</p>}
               {conversation.map(m => (

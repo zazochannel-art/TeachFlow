@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { DEMO_STATE, type FormState, currency, optId, optMoney, optText, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, currency, optId, optMoney, optText, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const courseSchema = z.object({
   id: optId,
@@ -28,7 +28,7 @@ export async function saveCourse(_: FormState, formData: FormData): Promise<Form
   const { error } = id
     ? await ctx.supabase.from("courses").update(fields).eq("id", id).eq("teacher_id", ctx.userId)
     : await ctx.supabase.from("courses").insert({ ...fields, teacher_id: ctx.userId });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
 
   refresh();
   redirect(id ? `/courses#${id}` : "/courses");

@@ -13,7 +13,7 @@ export interface InvoiceData {
   created_at: string;
   amount: number;
   currency: string;
-  status: "paid" | "pending";
+  status: "paid" | "pending" | "cancelled";
   due_date: string | null;
   paid_at: string | null;
   method: "cash" | "card" | "transfer" | "other" | null;
@@ -119,9 +119,10 @@ export async function buildInvoicePdf(d: InvoiceData, t: T): Promise<Uint8Array>
   text(t("Nr. {no}", { no }), M, 841.89 - 86, { size: 12, color: rgb(0.85, 0.87, 1) });
   right(t("Data: {date}", { date: date(invoiceDate(d)) }), W - M, 841.89 - 62, { size: 11, color: rgb(1, 1, 1) });
   const paid = d.status === "paid";
-  const badge = paid ? t("ACHITATĂ") : t("DE ACHITAT");
+  const cancelled = d.status === "cancelled";
+  const badge = cancelled ? t("ANULATĂ") : paid ? t("ACHITATĂ") : t("DE ACHITAT");
   const bw = bold.widthOfTextAtSize(clean(badge), 10) + 20;
-  page.drawRectangle({ x: W - M - bw, y: 841.89 - 94, width: bw, height: 20, color: paid ? GREEN : rgb(0.95, 0.65, 0.2) });
+  page.drawRectangle({ x: W - M - bw, y: 841.89 - 94, width: bw, height: 20, color: cancelled ? rgb(0.75, 0.23, 0.23) : paid ? GREEN : rgb(0.95, 0.65, 0.2) });
   text(badge, W - M - bw + 10, 841.89 - 88, { size: 10, f: bold, color: rgb(1, 1, 1) });
 
   // Supplier and client.
@@ -174,13 +175,15 @@ export async function buildInvoicePdf(d: InvoiceData, t: T): Promise<Uint8Array>
   y -= 46;
 
   // Payment status.
-  const status = paid
+  const status = cancelled
+    ? t("Factură anulată. Nu trebuie achitată.")
+    : paid
     ? t("Achitată pe {date}", { date: d.paid_at ? date(d.paid_at) : "—" }) + (d.method ? ` · ${t(METHODS[d.method])}` : "")
     : d.due_date ? t("Termen de plată: {date}", { date: day(d.due_date) }) : t("De achitat");
-  page.drawRectangle({ x: M, y: y - 14, width: W - 2 * M, height: 36, color: paid ? rgb(0.906, 0.965, 0.933) : rgb(1, 0.973, 0.91) });
-  text(status, M + 14, y, { size: 11, f: bold, color: paid ? GREEN : AMBER });
+  page.drawRectangle({ x: M, y: y - 14, width: W - 2 * M, height: 36, color: cancelled ? rgb(0.99, 0.925, 0.925) : paid ? rgb(0.906, 0.965, 0.933) : rgb(1, 0.973, 0.91) });
+  text(status, M + 14, y, { size: 11, f: bold, color: cancelled ? rgb(0.75, 0.23, 0.23) : paid ? GREEN : AMBER });
   y -= 40;
-  if (!paid && d.invoice_iban) {
+  if (!paid && !cancelled && d.invoice_iban) {
     for (const l of wrap(clean(t("Plata prin transfer: IBAN {iban}, destinatar {name}. Menționează numărul facturii.", { iban: d.invoice_iban, name: d.invoice_name || d.teacher_name })), font, 10, W - 2 * M)) { text(l, M, y, { color: INK }); y -= 14; }
     y -= 6;
   }

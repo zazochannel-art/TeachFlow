@@ -7,6 +7,29 @@ export const MAX_FILES = 10;
 /** What the file pickers accept: images, PDF, office documents, text, audio. */
 export const FILE_ACCEPT = "image/*,application/pdf,.doc,.docx,.odt,.rtf,.txt,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv,audio/*";
 
+/**
+ * MIME types the files bucket accepts (migration 0016). Anything else is uploaded as
+ * application/octet-stream, which browsers always download instead of opening, so an HTML or
+ * SVG file can never run as a page.
+ */
+export const UPLOAD_TYPES = new Set([
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/avif", "image/heic", "image/heif",
+  "application/pdf",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.presentation",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/rtf", "text/rtf", "text/plain", "text/csv",
+  "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/flac"
+]);
+
+/** Content type to upload a file with: its own type when allowed, otherwise a plain download. */
+export function uploadContentType(type: string | null | undefined): string {
+  const base = (type ?? "").split(";")[0].trim().toLowerCase();
+  return UPLOAD_TYPES.has(base) ? base : "application/octet-stream";
+}
+
 export interface FileRef {
   path: string;
   name: string;

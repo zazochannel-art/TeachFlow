@@ -80,7 +80,7 @@ export function emailInvoice(paymentId: string, kind: "issued" | "paid", origin?
   const run = async () => {
     const d = await invoiceDataAdmin(db, paymentId);
     if (!d || !d.invoice_email) return;
-    if (kind === "paid" && d.status !== "paid") return;
+    if (d.status === "cancelled" || (kind === "paid" && d.status !== "paid")) return;
 
     const recipients = new Map<string, { lang: Lang; hasAccount: boolean }>();
     const { data: links } = await db.from("parent_links").select("user_id").eq("student_id", d.student_id);

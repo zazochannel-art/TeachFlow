@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { FILES_BUCKET, parseFileRefs } from "@/lib/files";
-import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, optId, optText, optUrl, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const itemSchema = z.object({
   id: optId,
@@ -35,12 +35,12 @@ export async function saveLibraryItem(_: FormState, formData: FormData): Promise
       fields.url = v.url;
     }
     const { error } = await ctx.supabase.from("library_items").update(fields).eq("id", v.id).eq("teacher_id", ctx.userId);
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   } else if (v.kind === "link") {
     if (!v.url) return { error: "Adaugă linkul." };
     const title = v.title ?? new URL(v.url).hostname.replace(/^www\./, "");
     const { error } = await ctx.supabase.from("library_items").insert({ ...base, title, kind: "link", url: v.url, teacher_id: ctx.userId });
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   } else {
     const files = parseFileRefs(formData.get("files"), `lib/${ctx.userId}/`);
     if (!files.length) return { error: "Încarcă cel puțin un fișier." };
@@ -49,7 +49,7 @@ export async function saveLibraryItem(_: FormState, formData: FormData): Promise
       title: files.length === 1 && v.title ? v.title : (v.title && files.length > 1 ? `${v.title} · ${f.name}` : f.name).slice(0, 160)
     }));
     const { error } = await ctx.supabase.from("library_items").insert(rows);
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   }
   refresh();
   redirect(back(v));

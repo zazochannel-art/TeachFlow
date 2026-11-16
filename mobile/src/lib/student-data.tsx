@@ -27,15 +27,18 @@ const StudentDataContext = createContext<Ctx | null>(null);
 async function fetchStudentData(userId: string): Promise<StudentData> {
   const [profile, records, courses, lessons, homework, messages, payments] = await Promise.all([
     supabase.from("profiles").select("full_name, timezone").eq("id", userId).maybeSingle(),
-    supabase.from("students").select("id, teacher_id, full_name, email, phone, notes, status, created_at, user_id").eq("user_id", userId),
+    // Own records without the teacher's private notes (migration 0016); before it, the table directly.
+    supabase.rpc("my_student_records").then(r => r.error
+      ? supabase.from("students").select("id, teacher_id, full_name, email, phone, status, created_at, user_id").eq("user_id", userId)
+      : r),
     supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at"),
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").order("starts_at", { ascending: false }).limit(1000),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }),
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at", { ascending: false }).limit(2000),
-    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false })
+    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").in("status", ["paid", "pending"]).order("created_at", { ascending: false })
   ]);
   if (records.error) throw new Error(records.error.message);
-  const recs = (records.data as StudentRecord[] | null) ?? [];
+  const recs = ((records.data ?? []) as Omit<StudentRecord, "notes">[]).map(r => ({ ...r, notes: null }) as StudentRecord);
   const teacherIds = [...new Set(recs.map(r => r.teacher_id))];
   const teachers: Record<string, string> = {};
   if (teacherIds.length) {

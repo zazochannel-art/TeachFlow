@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { dbError } from "./common";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireTeacher } from "@/lib/data/workspace";
@@ -91,7 +92,7 @@ export async function saveInvoiceSettings(_: FormState, formData: FormData): Pro
     invoice_bank: v.invoice_bank || null, invoice_iban: v.invoice_iban || null, invoice_note: v.invoice_note || null,
     invoice_prefix: v.invoice_prefix, invoice_email: v.invoice_email === "on"
   }).eq("user_id", userId);
-  if (error) return { error: /invoice_/.test(error.message) ? "Facturile nu sunt activate încă (lipsește migrarea 0015)." : error.message };
+  if (error) return { error: /invoice_/.test(error.message) ? "Facturile nu sunt activate încă (lipsește migrarea 0015)." : dbError(error) };
   revalidatePath("/", "layout");
   return { ok: "Datele pentru facturi au fost salvate." };
 }

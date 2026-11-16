@@ -38,7 +38,7 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   const reviewing = sp.review ? ws.homework.find(h => h.id === sp.review) : undefined;
   const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
-  const files = ws.mode === "live" && ws.filesReady;
+  const files = ws.mode === "live";
   const lib = files && (sp.new || editing) ? await loadTeacherLibrary() : { ready: false, items: [] };
   const libFiles = lib.items.filter(i => i.kind === "file").sort((a, b) => Number(b.course_id === (editing?.course_id ?? sp.course)) - Number(a.course_id === (editing?.course_id ?? sp.course)));
   const attachedPaths = new Set(storedFiles(editing?.attachments).map(f => f.path));
@@ -136,9 +136,9 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
       {!missing && ws.courses.length > 1 && (
         <div className="tf-scroll -mt-2 mb-5 flex items-center gap-2 overflow-x-auto pb-1 text-[11px] font-bold">
           <span className="shrink-0 text-muted">{t("Curs")}:</span>
-          <Link href={`/homework?status=${filter}`} className={`shrink-0 rounded-full px-3 py-1.5 ${!courseFilter ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{t("Toate")}</Link>
+          <Link href={`/homework?status=${filter}`} className={`shrink-0 rounded-full px-3 py-2 ${!courseFilter ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{t("Toate")}</Link>
           {ws.courses.map(c => (
-            <Link key={c.id} href={`/homework?status=${filter}&c=${c.id}`} className={`shrink-0 rounded-full px-3 py-1.5 ${courseFilter === c.id ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{c.title}</Link>
+            <Link key={c.id} href={`/homework?status=${filter}&c=${c.id}`} className={`shrink-0 rounded-full px-3 py-2 ${courseFilter === c.id ? "bg-ink text-white" : "bg-soft text-muted hover:text-ink"}`}>{c.title}</Link>
           ))}
         </div>
       )}
@@ -183,7 +183,7 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
                         <SubmitButton className="inline-flex items-center gap-1.5 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><CheckCheck className="h-3.5 w-3.5" /> {t("Predată")}</SubmitButton>
                       </form>
                     )}
-                    <Link href={withC(`status=${filter}&review=${h.id}`)} className="rounded-xl bg-primary px-3 py-1.5 font-bold text-white hover:bg-primary-2">{h.status === "reviewed" ? t("Editează nota") : t("Verifică")}</Link>
+                    <Link href={withC(`status=${filter}&review=${h.id}`)} className="inline-flex min-h-9 items-center rounded-xl bg-primary px-3 py-1.5 font-bold text-white hover:bg-primary-2">{h.status === "reviewed" ? t("Editează nota") : t("Verifică")}</Link>
                     <Link href={withC(`status=${filter}&edit=${h.id}`)} aria-label={t("Editează tema")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
                   </div>
                 </div>
