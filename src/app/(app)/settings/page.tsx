@@ -70,7 +70,7 @@ export default async function SettingsPage() {
       <section>
         <SectionTitle>{t("Cont")}</SectionTitle>
         <Card className="p-5">
-          {ws.mode === "live" && ws.visualReady ? (
+          {ws.mode === "live" ? (
             <>
               <AvatarUpload name={name} src={ws.profile?.avatar_url ?? null} size={64} />
               <div className="mt-3 min-w-0">

@@ -14,8 +14,6 @@ export interface BoardRoom {
   board: unknown;
   /** false when migration 0006 (lesson_boards) is not applied yet. */
   boardReady: boolean;
-  /** Migration 0010 (file storage) is applied, so pictures and files can be uploaded. */
-  filesReady?: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
   /** Auth user id of the lesson's teacher: only their screen share is accepted by students. */
   teacherId: string;
@@ -38,7 +36,7 @@ export async function loadTeacherRoom(lessonId: string): Promise<BoardRoom> {
   const me = { id: ws.userId ?? "demo-teacher", name: ws.profile?.full_name || ws.email?.split("@")[0] || "Profesor", role: "teacher" as const };
   const base = { lesson, subtitle: lessonSubtitle(ws, lesson), timezone: ws.timezone, me, teacherId: me.id };
   if (ws.mode === "demo") return { ...base, mode: "demo", board: null, boardReady: false };
-  return { ...base, mode: "live", filesReady: Boolean(ws.filesReady), ...(await loadBoard(lessonId)) };
+  return { ...base, mode: "live", ...(await loadBoard(lessonId)) };
 }
 
 /** Lesson room for a student of the lesson (RLS from migration 0003 decides access). */
@@ -69,7 +67,7 @@ export async function loadStudentRoom(lessonId: string): Promise<BoardRoom> {
   const teacher = portal.links.find(x => x.studentId === l.student_id)?.teacherName;
   return {
     mode: "live", lesson: l, subtitle: [courseTitle(l), teacher].filter(Boolean).join(" · "), timezone: portal.timezone,
-    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" }, teacherId, filesReady: portal.filesReady,
+    me: { id: claims?.claims?.sub ?? "student", name: portal.name, role: "student" }, teacherId,
     ...(await loadBoard(lessonId))
   };
 }

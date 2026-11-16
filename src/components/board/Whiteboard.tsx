@@ -51,8 +51,6 @@ interface Props {
   initial: unknown;
   /** false in demo mode (no Supabase): the board works locally but is neither shared nor saved. */
   live: boolean;
-  /** Storage for lesson files is set up (migration 0010). In demo mode files stay in this tab. */
-  filesReady?: boolean;
   me: { id: string; name: string; role: "teacher" | "student" };
   title: string;
 }
@@ -61,7 +59,7 @@ interface Props {
  * Shared lesson whiteboard. Strokes are sent to the other participants over a private
  * Supabase Realtime channel and the full board is saved to `lesson_boards` (debounced).
  */
-export function Whiteboard({ lessonId, initial, live, me, title, filesReady = false }: Props) {
+export function Whiteboard({ lessonId, initial, live, me, title }: Props) {
   const t = useT();
   const [strokes, setStrokes] = useState<Stroke[]>(() => sanitizeBoard(initial));
   const [tool, setTool] = useState<ToolOrEraser>("pen");
@@ -84,7 +82,6 @@ export function Whiteboard({ lessonId, initial, live, me, title, filesReady = fa
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagesRef = useRef(new Map<string, HTMLImageElement | "loading" | "error">());
-  const canUpload = !live || filesReady;
 
   const frameRef = useRef<HTMLDivElement>(null);
   const holderRef = useRef<HTMLDivElement>(null);
@@ -519,9 +516,9 @@ export function Whiteboard({ lessonId, initial, live, me, title, filesReady = fa
   }, [live, lessonId, t, commit, pushHistory]);
 
   const addFiles = useCallback((list: FileList | File[] | null, at?: { x: number; y: number }) => {
-    if (!list || !canUpload) return;
+    if (!list) return;
     for (const f of [...list].slice(0, 10)) void addFile(f, at);
-  }, [addFile, canUpload]);
+  }, [addFile]);
 
   // Paste a picture (Ctrl+V) straight onto the board.
   useEffect(() => {
@@ -643,8 +640,8 @@ export function Whiteboard({ lessonId, initial, live, me, title, filesReady = fa
         <span className="mx-1 hidden h-6 w-px bg-line sm:block" />
 
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!canUpload || uploading > 0}
-            title={canUpload ? t("Adaugă poză sau fișier (sau Ctrl+V / trage pe tablă)") : t("Fișierele se activează după migrarea 0010")}
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading > 0}
+            title={t("Adaugă poză sau fișier (sau Ctrl+V / trage pe tablă)")}
             aria-label={t("Adaugă poză sau fișier")}
             className="flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-tint px-2.5 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb] disabled:cursor-not-allowed disabled:opacity-40">
             {uploading > 0 ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : <ImagePlus className="h-[17px] w-[17px]" />}
@@ -674,16 +671,16 @@ export function Whiteboard({ lessonId, initial, live, me, title, filesReady = fa
 
       {fileError && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a]">{fileError}</p>}
       {showFiles && (
-        <LessonFiles lessonId={lessonId} live={live && filesReady} localFiles={localFiles} version={filesVersion}
+        <LessonFiles lessonId={lessonId} live={live} localFiles={localFiles} version={filesVersion}
           canDelete={me.role === "teacher"} onClose={() => setShowFiles(false)} />
       )}
 
       <div ref={holderRef}
         className={`relative w-full ${fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] max-h-[calc(100vh-140px)]"} flex items-center justify-center`}
-        onDragOver={e => { if (canUpload && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
+        onDragOver={e => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
         onDragLeave={() => setDragOver(false)}
         onDrop={e => {
-          if (!canUpload || !e.dataTransfer.files.length) return;
+          if (!e.dataTransfer.files.length) return;
           e.preventDefault();
           setDragOver(false);
           addFiles(e.dataTransfer.files, canvasRef.current ? toBoard(e) : undefined);

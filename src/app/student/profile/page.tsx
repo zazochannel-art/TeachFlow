@@ -28,7 +28,7 @@ export default async function StudentProfile() {
     <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0">
         <div className="flex items-center gap-4">
-          {p.mode === "live" && p.visualReady
+          {p.mode === "live"
             ? <AvatarUpload name={p.name} src={p.avatarUrl} size={72} />
             : <Avatar name={p.name} src={p.avatarUrl} size={72} className="ring-4 ring-tint" />}
           <div className="min-w-0">

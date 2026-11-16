@@ -38,7 +38,7 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   const reviewing = sp.review ? ws.homework.find(h => h.id === sp.review) : undefined;
   const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
-  const files = ws.mode === "live" && ws.filesReady;
+  const files = ws.mode === "live";
   const lib = files && (sp.new || editing) ? await loadTeacherLibrary() : { ready: false, items: [] };
   const libFiles = lib.items.filter(i => i.kind === "file").sort((a, b) => Number(b.course_id === (editing?.course_id ?? sp.course)) - Number(a.course_id === (editing?.course_id ?? sp.course)));
   const attachedPaths = new Set(storedFiles(editing?.attachments).map(f => f.path));
