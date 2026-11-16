@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { emailInvoice } from "@/lib/invoices/notify";
 import { z } from "zod";
-import { DEMO_STATE, type FormState, currency, money, optId, optText, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, currency, money, optId, optText, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const paymentSchema = z.object({
   id: optId,
@@ -31,9 +31,9 @@ export async function savePayment(_: FormState, formData: FormData): Promise<For
   };
   const before = id ? (await ctx.supabase.from("payments").select("status").eq("id", id).eq("teacher_id", ctx.userId).maybeSingle()).data : null;
   const { data, error } = id
-    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId).select("id").maybeSingle()
+    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId).in("status", ["paid", "pending"]).select("id").maybeSingle()
     : await ctx.supabase.from("payments").insert({ ...fields, teacher_id: ctx.userId }).select("id").single();
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   // Invoice e-mail to the parents: for every new payment, and when a pending one becomes paid.
   const origin = (await headers()).get("origin");
   if (data && !id) emailInvoice(data.id, "issued", origin);

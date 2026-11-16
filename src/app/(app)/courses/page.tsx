@@ -20,7 +20,6 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   const now = new Date();
   const studentName = new Map(ws.students.map(s => [s.id, s.full_name]));
   const photo = new Map(ws.students.map(s => [s.id, s.avatar_url ?? null]));
-  const colors = demo || Boolean(ws.visualReady);
 
   return (
     <div>
@@ -38,7 +37,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
             <form action={deleteCourse}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Șterge cursul")} className="py-1.5" /></form>
           </>
         }>
-          <CourseForm demo={demo} course={editing} colors={colors} autoColor={colorOf({ courses: ws.courses.map(c => c.id === editing.id ? { ...c, color: null } : c) }, editing.id)} />
+          <CourseForm demo={demo} course={editing} colors autoColor={colorOf({ courses: ws.courses.map(c => c.id === editing.id ? { ...c, color: null } : c) }, editing.id)} />
           <div className="mt-6 border-t border-line pt-5">
             <h3 className="mb-3 text-[13px] font-extrabold">{t("Elevi înscriși")}</h3>
             <div className="flex flex-wrap gap-2">

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { eachLimit } from "@/lib/concurrency";
 import { createClient } from "@supabase/supabase-js";
 import { buildDigest } from "@/lib/reminders/digest";
 import { renderDigestEmail, sendEmail } from "@/lib/reminders/email";
@@ -34,14 +35,15 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: "apply supabase/migrations/0004_email_reminders.sql", detail: error.message }, { status: 503 });
 
   const result = { teachers: teachers.length, sent: 0, empty: 0, alreadySent: 0, failed: 0, preview: [] as string[] };
-  for (const { user_id: teacherId } of teachers) {
+  // A few teachers at a time: the job has to finish within maxDuration.
+  await eachLimit(teachers, 3, async ({ user_id: teacherId }) => {
     try {
       const { data: profile } = await db.from("profiles").select("full_name, timezone, preferred_language").eq("id", teacherId).maybeSingle();
       const tz = profile?.timezone || DEFAULT_TZ;
       const today = dateKey(now, tz);
 
       const { data: logged } = await db.from("reminder_log").select("teacher_id").eq("teacher_id", teacherId).eq("sent_on", today).maybeSingle();
-      if (logged) { result.alreadySent++; continue; }
+      if (logged) { result.alreadySent++; return; }
 
       const windowEnd = new Date(`${addDays(today, 3)}T00:00:00Z`).toISOString();
       const [lessons, homework, payments, students] = await Promise.all([
@@ -59,12 +61,12 @@ export async function GET(request: NextRequest) {
         payments: (payments.data ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
         students: students.data ?? []
       }, now, t);
-      if (!digest.hasContent) { result.empty++; continue; }
-      if (dry) { result.preview.push(digest.subject); continue; }
+      if (!digest.hasContent) { result.empty++; return; }
+      if (dry) { result.preview.push(digest.subject); return; }
 
       const { data: user } = await db.auth.admin.getUserById(teacherId);
       const to = user.user?.email;
-      if (!to) { result.failed++; continue; }
+      if (!to) { result.failed++; return; }
       const name = profile?.full_name?.split(" ")[0] || to.split("@")[0];
       await sendEmail({ to, ...renderDigestEmail(digest, t, { name, appUrl }) }, { apiKey: resendKey!, from: from! });
       await db.from("reminder_log").insert({ teacher_id: teacherId, sent_on: today });
@@ -73,6 +75,6 @@ export async function GET(request: NextRequest) {
       result.failed++;
       console.error("reminder failed", teacherId, e instanceof Error ? e.message : e);
     }
-  }
+  });
   return NextResponse.json(result);
 }

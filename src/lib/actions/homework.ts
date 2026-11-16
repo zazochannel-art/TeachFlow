@@ -5,7 +5,7 @@ import { z } from "zod";
 import { zonedToUtc } from "@/lib/time";
 import { MAX_FILES, parseFileRefs, storedFiles, type FileRef } from "@/lib/files";
 import { notifyHomeworkAssigned, notifyHomeworkReviewed } from "@/lib/push/notify";
-import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx, teacherTimezone } from "./common";
+import { DEMO_STATE, type FormState, optId, optText, parseForm, refresh, teacherCtx, teacherTimezone, dbError } from "./common";
 
 const homeworkSchema = z.object({
   id: optId,
@@ -47,7 +47,7 @@ export async function saveHomework(_: FormState, formData: FormData): Promise<Fo
 
   if (v.id) {
     const { error } = await ctx.supabase.from("homework").update(fields).eq("id", v.id).eq("teacher_id", ctx.userId);
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
   } else {
     let studentIds: string[] = [];
     if (v.student_id) studentIds = [v.student_id];
@@ -57,7 +57,7 @@ export async function saveHomework(_: FormState, formData: FormData): Promise<Fo
     }
     if (!studentIds.length) return { error: "Alege un elev sau un curs cu elevi înscriși." };
     const { error } = await ctx.supabase.from("homework").insert(studentIds.map(student_id => ({ ...fields, student_id, teacher_id: ctx.userId })));
-    if (error) return { error: error.message };
+    if (error) return { error: dbError(error) };
     notifyHomeworkAssigned(studentIds, v.title);
   }
   refresh();
@@ -78,7 +78,7 @@ export async function reviewHomework(_: FormState, formData: FormData): Promise<
   if ("error" in parsed) return parsed;
   const { id, ...fields } = parsed.data;
   const { error } = await ctx.supabase.from("homework").update(fields).eq("id", id).eq("teacher_id", ctx.userId);
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   if (fields.status === "reviewed") notifyHomeworkReviewed(id);
   refresh();
   redirect("/homework");

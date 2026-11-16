@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const today = dateKey(new Date(), ws.timezone);
   const late = (p: (typeof ws.payments)[number]) => p.status === "pending" && !!p.due_date && p.due_date < today;
   const list = ws.payments.filter(p =>
-    status === "paid" ? p.status === "paid" : status === "pending" ? p.status === "pending" : status === "overdue" ? late(p) : true);
+    status === "paid" ? p.status === "paid" : status === "pending" ? p.status === "pending" : status === "overdue" ? late(p) : status === "cancelled" ? p.status === "cancelled" : p.status !== "cancelled");
 
   const student = new Map(ws.students.map(s => [s.id, s.full_name]));
   const course = new Map(ws.courses.map(c => [c.id, c.title]));
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       p.course_id ? course.get(p.course_id) ?? "" : "",
       p.amount,
       p.currency,
-      p.status === "paid" ? t("Încasată") : late(p) ? t("Restantă") : t("De încasat"),
+      p.status === "cancelled" ? t("Anulată") : p.status === "paid" ? t("Încasată") : late(p) ? t("Restantă") : t("De încasat"),
       p.due_date ?? "",
       csvDateTime(p.paid_at, ws.timezone),
       p.method ? t(methods[p.method]) : "",

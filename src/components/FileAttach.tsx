@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { FileText, ImageIcon, Loader2, Paperclip, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, MAX_FILES, formatSize, isImage, storageName, type FileRef } from "@/lib/files";
+import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, MAX_FILES, formatSize, isImage, storageName, uploadContentType, type FileRef } from "@/lib/files";
 import { newId } from "@/lib/board/model";
 import { useT } from "@/lib/i18n/client";
 
@@ -36,7 +36,7 @@ export function FileAttach({ name, folder, initial = [], disabled = false, label
       if (file.size > MAX_FILE_BYTES) { setError(t("„{name}” e prea mare (maxim 25 MB).", { name: file.name })); continue; }
       setBusy(b => b + 1);
       const path = `${folder}/${storageName(file.name, newId())}`;
-      const { error: upErr } = await supabase.storage.from(FILES_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
+      const { error: upErr } = await supabase.storage.from(FILES_BUCKET).upload(path, file, { contentType: uploadContentType(file.type), upsert: false });
       setBusy(b => b - 1);
       if (upErr) { setError(t("Nu s-a putut încărca „{name}”.", { name: file.name })); continue; }
       setFiles(f => [...f, { path, name: file.name, size: file.size, type: file.type }]);

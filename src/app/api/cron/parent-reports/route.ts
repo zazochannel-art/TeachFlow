@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { eachLimit } from "@/lib/concurrency";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/reminders/email";
 import { buildMonthlyReport, isMonthKey, monthRange, previousMonth, renderReportEmail } from "@/lib/reports/monthly";
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
   const emailOf = async (uid: string) => (await db.auth.admin.getUserById(uid)).data.user?.email ?? null;
   const result = { teachers: teachers.length, students: 0, sent: 0, empty: 0, alreadySent: 0, noParents: 0, failed: 0, preview: [] as string[] };
 
-  for (const { user_id: teacherId } of teachers) {
+  // A few teachers at a time: the job has to finish within maxDuration.
+  await eachLimit(teachers, 3, async ({ user_id: teacherId }) => {
     try {
       const { data: profile } = await db.from("profiles").select("full_name, timezone, preferred_language").eq("id", teacherId).maybeSingle();
       const tz = profile?.timezone || DEFAULT_TZ;
@@ -104,6 +106,6 @@ export async function GET(request: NextRequest) {
       result.failed++;
       console.error("parent report failed", teacherId, e instanceof Error ? e.message : e);
     }
-  }
+  });
   return NextResponse.json(result);
 }

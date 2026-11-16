@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireTeacher } from "@/lib/data/workspace";
-import { DEMO_STATE, type FormState, parseForm } from "./common";
+import { DEMO_STATE, type FormState, parseForm, dbError } from "./common";
 
 const MIGRATION_MSG = "Aplică migrarea 0005_manual_billing.sql în Supabase pentru abonamente.";
 
@@ -23,7 +23,7 @@ export async function requestPlan(_: FormState, formData: FormData): Promise<For
   if (error) {
     if (error.code === "23505") return { error: "Ai deja o cerere în așteptare." };
     if (error.code === "42P01" || /plan_requests/.test(error.message)) return { error: MIGRATION_MSG };
-    return { error: error.message };
+    return { error: dbError(error) };
   }
   revalidatePath("/billing");
   return { ok: "Cererea a fost trimisă. Te contactăm cu detaliile de plată." };
@@ -56,7 +56,7 @@ export async function adminSetSubscription(_: FormState, formData: FormData): Pr
     p_teacher: v.teacher_id, p_plan: v.plan_code, p_status: v.status,
     p_period_end: v.paid_until ? new Date(`${v.paid_until}T23:59:59Z`).toISOString() : null
   });
-  if (error) return { error: error.message };
+  if (error) return { error: dbError(error) };
   revalidatePath("/admin");
   return { ok: "Abonament actualizat." };
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx } from "./common";
+import { DEMO_STATE, type FormState, parseForm, refresh, teacherCtx, dbError } from "./common";
 
 const rewardSchema = z.object({
   student_id: z.string().uuid(),
@@ -16,7 +16,7 @@ export async function giveReward(_: FormState, formData: FormData): Promise<Form
   const parsed = parseForm(rewardSchema, formData);
   if ("error" in parsed) return parsed;
   const { error } = await ctx.supabase.from("student_rewards").insert({ ...parsed.data, teacher_id: ctx.userId });
-  if (error) return { error: /student_rewards/.test(error.message) ? "Punctele nu sunt activate încă (lipsește migrarea 0015)." : error.message };
+  if (error) return { error: /student_rewards/.test(error.message) ? "Punctele nu sunt activate încă (lipsește migrarea 0015)." : dbError(error) };
   refresh();
   return { ok: "Punctele au fost adăugate." };
 }

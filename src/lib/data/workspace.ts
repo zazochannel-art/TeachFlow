@@ -22,17 +22,15 @@ export interface Workspace {
   enrollments: Enrollment[];
   lessons: Lesson[];
   homework: Homework[];
+  /** Unread incoming messages only; the messages page loads whole conversations with loadMessages(). */
   messages: Message[];
   payments: Payment[];
   /** Tables from migration 0002 that are not available yet (migration not applied). */
   missingTables: Array<"homework" | "messages" | "payments">;
-  /** Homework file columns and the Storage bucket exist (migration 0010). */
-  filesReady?: boolean;
-  /** Course colours, student photos and the avatars bucket exist (migration 0011). */
-  visualReady?: boolean;
-  /** Student profile fields, parent accounts and message channels exist (migration 0012). */
-  parentsReady?: boolean;
 }
+
+const LESSON_COLS = "id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url";
+const MESSAGE_COLS = "id, student_id, direction, body, read_at, created_at, channel, author_id";
 
 /** Verified session claims for this request (deduplicated per render with React cache). */
 const getSession = cache(async () => {
@@ -89,52 +87,23 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
   const { supabase, userId, email, inviteToken } = await getSession();
   if (!supabase || !userId) return buildDemoWorkspace();
 
-  let filesReady = false;
-  let visualReady = false;
-  let parentsReady = false;
   const [role, profile, teacherProfile, subscription, students, courses, enrollments, lessons, homework, messages, payments] = await Promise.all([
     loadRole(supabase, userId),
     supabase.from("profiles").select("full_name, avatar_url, preferred_language, timezone").eq("id", userId).maybeSingle(),
-    withFallback(
-      () => withFallback(
-        () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders, parent_reports").eq("user_id", userId).maybeSingle(),
-        () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders").eq("user_id", userId).maybeSingle()
-      ),
-      () => supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency").eq("user_id", userId).maybeSingle()
-    ),
+    supabase.from("teacher_profiles").select("user_id, headline, bio, subject_specialties, hourly_rate, currency, email_reminders, parent_reports").eq("user_id", userId).maybeSingle(),
     supabase.from("subscriptions").select("plan_code, status, current_period_end").eq("teacher_id", userId).maybeSingle(),
-    withFallback(
-      () => withFallback(
-        () => withFallback(
-          () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url, birth_date, grade_level, goals, parent_name, parent_phone, parent_email").eq("teacher_id", userId).order("full_name")
-            .then(r => { parentsReady = !r.error; return r; }),
-          () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url").eq("teacher_id", userId).order("full_name")
-        ),
-        () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id").eq("teacher_id", userId).order("full_name")
-      ),
-      () => supabase.from("students").select("id, full_name, email, phone, notes, status, created_at").eq("teacher_id", userId).order("full_name")
-    ),
-    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").eq("teacher_id", userId).order("created_at")
-      .then(r => { visualReady = !r.error; return r; })
-      .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at") : r),
+    supabase.from("students").select("id, full_name, email, phone, notes, status, created_at, user_id, avatar_url, birth_date, grade_level, goals, parent_name, parent_phone, parent_email").eq("teacher_id", userId).order("full_name"),
+    supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at, color").eq("teacher_id", userId).order("created_at"),
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
+    // series_id comes with migration 0017; until it is applied, load without it.
     withFallback(
-      () => withFallback(
-        () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
-          .then(r => { filesReady = !r.error; return r; }),
-        () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
-      ),
-      () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)
+      () => supabase.from("lessons").select(`${LESSON_COLS}, series_id`).eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
+      () => supabase.from("lessons").select(LESSON_COLS).eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000)
     ),
-    withFallback(
-      () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at, channel, author_id").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000),
-      () => supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000)
-    ),
-    withFallback(
-      () => supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at, invoice_no").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000),
-      () => supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
-    )
+    supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
+    // Every page only needs the unread messages (bell, badges, student list); the messages page loads the threads itself.
+    supabase.from("messages").select(MESSAGE_COLS).eq("teacher_id", userId).eq("direction", "incoming").is("read_at", null).order("created_at", { ascending: false }).limit(500),
+    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at, invoice_no").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
   ]);
 
   enforceTeacherRole(role);
@@ -170,9 +139,15 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     homework: (homework.data as Homework[] | null) ?? [],
     messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
-    missingTables,
-    filesReady,
-    visualReady,
-    parentsReady
+    missingTables
   };
+});
+
+/** All conversations of the signed-in teacher, newest 3000 messages, in chronological order. */
+export const loadMessages = cache(async (): Promise<Message[]> => {
+  const ws = await loadWorkspace();
+  const { supabase, userId } = await getSession();
+  if (ws.mode === "demo" || !supabase || !userId) return ws.messages;
+  const { data } = await supabase.from("messages").select(MESSAGE_COLS).eq("teacher_id", userId).order("created_at", { ascending: false }).limit(3000);
+  return oldestFirst(data as Message[] | null);
 });

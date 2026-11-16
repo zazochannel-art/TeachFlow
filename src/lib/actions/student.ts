@@ -7,6 +7,7 @@ import { parseFileRefs } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
 import { isInviteToken } from "@/lib/invite-token";
 import type { FormState } from "./common";
+import { dbError } from "./common";
 import { notifyHomeworkSubmitted, notifyMessage } from "@/lib/push/notify";
 
 const ERRORS: Record<string, string> = {
@@ -32,7 +33,7 @@ function friendly(message: string) {
   if (/submit_homework_files/.test(message)) return "Predarea cu fișiere nu este activată încă (lipsește migrarea 0010).";
   if (/parent|update_my_phone/.test(message) && /function .* does not exist|schema cache/i.test(message)) return "Funcția nu este activată încă (lipsește migrarea 0012).";
   if (/function .* does not exist|schema cache/i.test(message)) return "Portalul elevilor nu este activat încă (lipsește migrarea 0003).";
-  return message;
+  return dbError({ message });
 }
 
 async function client() {

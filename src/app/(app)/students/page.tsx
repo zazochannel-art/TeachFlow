@@ -31,7 +31,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const coursesOf = (id: string) => ws.enrollments.filter(e => e.student_id === id && e.status === "active").map(e => courseTitle.get(e.course_id)).filter(Boolean) as string[];
   const editing = sp.edit ? ws.students.find(s => s.id === sp.edit) : undefined;
   const demo = ws.mode === "demo";
-  const [parents, extras] = await Promise.all([editing && ws.parentsReady ? loadParents(editing.id) : Promise.resolve([]), editing ? loadTeacherExtras() : Promise.resolve(null)]);
+  const [parents, extras] = await Promise.all([editing && !demo ? loadParents(editing.id) : Promise.resolve([]), editing ? loadTeacherExtras() : Promise.resolve(null)]);
   const qs = (status: string) => `/students?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   return (
@@ -65,8 +65,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
           {extras?.gamification && <StudentPoints studentId={editing.id} timezone={ws.timezone} t={t} />}
-          {(ws.parentsReady || demo) && <ParentAccess studentId={editing.id} parents={parents} demo={demo} />}
-          {ws.parentsReady && (
+          <ParentAccess studentId={editing.id} parents={parents} demo={demo} />
+          {!demo && (
             <div className="mt-6 border-t border-line pt-5">
               <h3 className="mb-1 text-[13px] font-extrabold">{t("Raport lunar pentru părinți")}</h3>
               <p className="mb-3 text-[12px] text-muted">{t("Pe 1 ale fiecărei luni, părinții primesc pe email lecțiile, absențele, notele și rezultatele la teste din luna trecută. Se trimite părinților cu cont și la emailul părintelui din fișă.")}</p>
@@ -147,16 +147,12 @@ function StudentForm({ ws, demo, student, t }: { ws: Workspace; demo: boolean; s
           </select>
         </Field>
       )}
-      {(ws.parentsReady || demo) && (
-        <>
-          <Field label={t("Data nașterii")} htmlFor="birth_date"><input id="birth_date" name="birth_date" type="date" min="1900-01-01" max="2100-01-01" defaultValue={student?.birth_date ?? ""} className="tf-input" /></Field>
-          <Field label={t("Clasa / nivelul")} htmlFor="grade_level"><input id="grade_level" name="grade_level" maxLength={60} defaultValue={student?.grade_level ?? ""} className="tf-input" placeholder={t("ex. clasa a 7-a, B1")} /></Field>
-          <Field label={t("Obiective")} htmlFor="goals" wide><textarea id="goals" name="goals" rows={2} maxLength={1000} defaultValue={student?.goals ?? ""} className="tf-input" placeholder={t("ex. pregătire pentru BAC, vorbire liberă")} /></Field>
-          <Field label={t("Părinte: nume")} htmlFor="parent_name"><input id="parent_name" name="parent_name" maxLength={120} defaultValue={student?.parent_name ?? ""} className="tf-input" /></Field>
-          <Field label={t("Părinte: telefon")} htmlFor="parent_phone"><input id="parent_phone" name="parent_phone" type="tel" maxLength={40} defaultValue={student?.parent_phone ?? ""} className="tf-input" /></Field>
-          <Field label={t("Părinte: email")} htmlFor="parent_email" wide><input id="parent_email" name="parent_email" type="email" maxLength={200} defaultValue={student?.parent_email ?? ""} className="tf-input" /></Field>
-        </>
-      )}
+      <Field label={t("Data nașterii")} htmlFor="birth_date"><input id="birth_date" name="birth_date" type="date" min="1900-01-01" max="2100-01-01" defaultValue={student?.birth_date ?? ""} className="tf-input" /></Field>
+      <Field label={t("Clasa / nivelul")} htmlFor="grade_level"><input id="grade_level" name="grade_level" maxLength={60} defaultValue={student?.grade_level ?? ""} className="tf-input" placeholder={t("ex. clasa a 7-a, B1")} /></Field>
+      <Field label={t("Obiective")} htmlFor="goals" wide><textarea id="goals" name="goals" rows={2} maxLength={1000} defaultValue={student?.goals ?? ""} className="tf-input" placeholder={t("ex. pregătire pentru BAC, vorbire liberă")} /></Field>
+      <Field label={t("Părinte: nume")} htmlFor="parent_name"><input id="parent_name" name="parent_name" maxLength={120} defaultValue={student?.parent_name ?? ""} className="tf-input" /></Field>
+      <Field label={t("Părinte: telefon")} htmlFor="parent_phone"><input id="parent_phone" name="parent_phone" type="tel" maxLength={40} defaultValue={student?.parent_phone ?? ""} className="tf-input" /></Field>
+      <Field label={t("Părinte: email")} htmlFor="parent_email" wide><input id="parent_email" name="parent_email" type="email" maxLength={200} defaultValue={student?.parent_email ?? ""} className="tf-input" /></Field>
       <Field label={t("Notițe")} htmlFor="notes" wide><textarea id="notes" name="notes" rows={2} defaultValue={student?.notes ?? ""} className="tf-input" placeholder={t("ex. preferă lecții după 16:00")} /></Field>
     </ActionForm>
   );
@@ -210,7 +206,7 @@ function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t
 
   return (
     <div className="mb-6 border-b border-line pb-6">
-      {ws.mode === "live" && ws.visualReady && (
+      {ws.mode === "live" && (
         <div className="mb-5"><AvatarUpload name={student.full_name} src={student.avatar_url ?? null} studentId={student.id} size={56} /></div>
       )}
       <ProfileFacts student={student} t={t} />

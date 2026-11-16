@@ -5,7 +5,7 @@ import {
   ArrowDown, ArrowUp, Circle, CheckCircle2, Copy, GripVertical, ImagePlus, Loader2, Lock, LockOpen, Plus, Sparkles, Square, SquareCheck, Trash2, X
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { FILES_BUCKET, storageName } from "@/lib/files";
+import { FILES_BUCKET, storageName, uploadContentType } from "@/lib/files";
 import { QUIZ_TYPES, QUIZ_TYPE_INFO, TRUE_FALSE, blankQuestion, countBlanks, quizNum } from "@/lib/quiz";
 import { useT } from "@/lib/i18n/client";
 import { TYPE_ICONS } from "./icons";
@@ -80,7 +80,7 @@ export function QuestionEditor({
     if (!supabase) { setImgError(t("Fișierele nu se pot încărca în modul demonstrativ.")); return; }
     setUploading(true);
     const path = `${imageFolder}/${storageName(file.name, crypto.randomUUID())}`;
-    const { error } = await supabase.storage.from(FILES_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    const { error } = await supabase.storage.from(FILES_BUCKET).upload(path, file, { contentType: uploadContentType(file.type), upsert: false });
     if (error) { setUploading(false); setImgError(t("Nu s-a putut încărca „{name}”.", { name: file.name })); return; }
     const { data } = await supabase.storage.from(FILES_BUCKET).createSignedUrl(path, 3600);
     setUploading(false);

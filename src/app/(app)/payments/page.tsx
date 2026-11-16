@@ -39,12 +39,14 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
   const paidThisMonth = ws.payments.filter(p => p.status === "paid" && p.paid_at && new Date(p.paid_at) >= monthStart && new Date(p.paid_at) < monthEnd);
   const pending = ws.payments.filter(p => p.status === "pending");
+  const paidAll = ws.payments.filter(p => p.status === "paid");
+  const cancelled = ws.payments.filter(p => p.status === "cancelled");
   const overdue = pending.filter(p => p.due_date && p.due_date < today);
   const money = (list: Array<{ amount: number; currency: string }>) => list.length ? currencyTotals(list).map(x => formatMoney(x.amount, x.currency, t.locale)).join(" + ") : "—";
 
-  const filter = (["all", "paid", "pending", "overdue"] as const).find(f => f === sp.status) ?? "all";
-  const list = filter === "all" ? ws.payments : filter === "overdue" ? overdue : ws.payments.filter(p => p.status === filter);
-  const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit) : undefined;
+  const filter = (["all", "paid", "pending", "overdue", "cancelled"] as const).find(f => f === sp.status) ?? "all";
+  const list = filter === "all" ? ws.payments.filter(p => p.status !== "cancelled") : filter === "overdue" ? overdue : ws.payments.filter(p => p.status === filter);
+  const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit && p.status !== "cancelled") : undefined;
   const stat = "flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5";
   const icon = "grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
 
@@ -80,10 +82,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         <>
           <SectionTitle action={list.length > 0 && <a href={`/payments/export${filter === "all" ? "" : `?status=${filter}`}`} download className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary-2"><Download className="h-3.5 w-3.5" /> {t("Exportă CSV")}</a>}>{t("Plăți")}</SectionTitle>
           <Tabs active={filter} items={[
-            { key: "all", label: t("Toate"), href: "/payments", count: ws.payments.length },
-            { key: "paid", label: t("Încasate"), href: "/payments?status=paid", count: ws.payments.length - pending.length },
+            { key: "all", label: t("Toate"), href: "/payments", count: paidAll.length + pending.length },
+            { key: "paid", label: t("Încasate"), href: "/payments?status=paid", count: paidAll.length },
             { key: "pending", label: t("De încasat"), href: "/payments?status=pending", count: pending.length },
-            { key: "overdue", label: t("Restante"), href: "/payments?status=overdue", count: overdue.length }
+            { key: "overdue", label: t("Restante"), href: "/payments?status=overdue", count: overdue.length },
+            ...(cancelled.length ? [{ key: "cancelled", label: t("Anulate"), href: "/payments?status=cancelled", count: cancelled.length }] : [])
           ]} />
           {list.length === 0 ? (
             <EmptyState icon={CalendarCheck} title={t("Nicio plată aici")} text={t("Înregistrează plățile primite de la elevi sau sumele de încasat, cu termen de plată.")} action={<Link href="/payments?new=1" className="tf-btn">{t("Înregistrează o plată")}</Link>} />
@@ -99,18 +102,21 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                       <div className="truncate font-extrabold">{st?.full_name ?? t("Elev șters")}</div>
                       <div className="truncate text-muted">{[p.invoice_no, p.course_id ? course.get(p.course_id)?.title : null, p.method ? t(methods[p.method]) : null, p.note].filter(Boolean).join(" · ") || "—"}</div>
                     </div>
-                    <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted md:w-28 md:text-right">{p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
-                    <span className="md:w-24"><Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill></span></div>
-                    <div className="col-start-3 row-start-1 text-right text-[13px] font-extrabold md:w-28">{formatMoney(p.amount, p.currency, t.locale)}</div>
+                    <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:contents"><div className="whitespace-nowrap text-muted md:w-28 md:text-right">{p.status === "cancelled" ? t("anulată") : p.status === "paid" ? t("încasat {date}", { date: p.paid_at ? formatDate(p.paid_at, ws.timezone, t.locale) : "" }) : p.due_date ? t("termen {date}", { date: formatDate(`${p.due_date}T12:00:00Z`, "UTC", t.locale) }) : t("fără termen")}</div>
+                    <span className="md:w-24">{p.status === "cancelled" ? <Pill tone="gray">{t("Anulată")}</Pill> : <Pill tone={p.status === "paid" ? "green" : late ? "red" : "amber"}>{p.status === "paid" ? t("Încasată") : late ? t("Restantă") : t("De încasat")}</Pill>}</span></div>
+                    <div className={`col-start-3 row-start-1 text-right text-[13px] font-extrabold md:w-28 ${p.status === "cancelled" ? "text-muted line-through" : ""}`}>{formatMoney(p.amount, p.currency, t.locale)}</div>
                     <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 md:w-[228px]">
                       {p.status === "pending" && (
                         <form action={markPaymentPaid}><input type="hidden" name="id" value={p.id} />
-                          <SubmitButton className="inline-flex items-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Încasată")}</span></SubmitButton>
+                          <SubmitButton className="inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-xl bg-tint px-3 py-1.5 font-bold text-primary-2 hover:bg-[#dfe4fb]"><Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t("Încasată")}</span></SubmitButton>
                         </form>
                       )}
-                      <a href={`/invoices/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("Factura PDF")} title={t("Factura PDF")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><FileText className="h-3.5 w-3.5" /></a>
-                      <Link href={`/payments?status=${filter}&edit=${p.id}`} aria-label={t("Editează plata")} className="grid h-8 w-8 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
-                      <form action={deletePayment}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="×" confirm={t("Șterge")} className="py-1.5" /></form>
+                      <a href={`/invoices/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("Factura PDF")} title={t("Factura PDF")} className="grid h-9 w-9 place-items-center rounded-full bg-soft text-muted hover:text-primary"><FileText className="h-3.5 w-3.5" /></a>
+                      {p.status !== "cancelled" && <>
+                        <Link href={`/payments?status=${filter}&edit=${p.id}`} aria-label={t("Editează plata")} className="grid h-9 w-9 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
+                        {/* A payment with an invoice number is cancelled, not deleted (migration 0017), so the numbering has no gaps. */}
+                        <form action={deletePayment}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="×" confirm={p.invoice_no ? t("Anulează factura") : t("Șterge")} className="py-1.5" /></form>
+                      </>}
                     </div>
                   </div>
                 );
