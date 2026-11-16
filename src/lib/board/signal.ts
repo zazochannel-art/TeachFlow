@@ -27,6 +27,10 @@ export interface SignalHandle { send: (payload: unknown) => void; leave: () => v
 
 /** Joins the shared channel `topic`. `onReady` runs on every (re)subscribe. Returns null without Supabase. */
 export function joinSignal(topic: string, event: SignalEvent, onMessage: Handler, onReady?: () => void): SignalHandle | null {
+  // Automated two-browser tests only (scripts/rtc-e2e): a local WebSocket relay instead of Supabase.
+  // The variable is inlined at build time and never set for real deployments.
+  const testBus = process.env.NEXT_PUBLIC_RTC_TEST_BUS;
+  if (testBus) return joinTestBus(testBus, topic, event, onMessage, onReady);
   const supabase = createClient();
   if (!supabase) return null;
 
@@ -75,6 +79,27 @@ export function joinSignal(topic: string, event: SignalEvent, onMessage: Handler
       buses.delete(topic);
       if (b.channel) void supabase.removeChannel(b.channel);
     }
+  };
+}
+
+function joinTestBus(url: string, topic: string, event: SignalEvent, onMessage: Handler, onReady?: () => void): SignalHandle {
+  let ws: WebSocket | null = null;
+  let left = false;
+  const open = () => {
+    ws = new WebSocket(`${url}?topic=${encodeURIComponent(topic)}`);
+    ws.onopen = () => onReady?.();
+    ws.onmessage = e => {
+      try {
+        const m = JSON.parse(String(e.data)) as { event?: string; payload?: unknown };
+        if (m.event === event) onMessage(m.payload);
+      } catch { /* ignore */ }
+    };
+    ws.onclose = () => { if (!left) setTimeout(open, 500); };
+  };
+  open();
+  return {
+    send: payload => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event, payload })); },
+    leave: () => { left = true; ws?.close(); }
   };
 }
 
