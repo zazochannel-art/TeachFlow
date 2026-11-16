@@ -78,17 +78,22 @@ export function joinSignal(topic: string, event: SignalEvent, onMessage: Handler
   };
 }
 
-let iceCache: Promise<RTCIceServer[]> | null = null;
+const iceCache = new Map<string, Promise<RTCIceServer[]>>();
 
-/** STUN plus, when configured on the server (/api/turn), short-lived TURN relay credentials. */
-export function getIceServers(): Promise<RTCIceServer[]> {
-  if (!iceCache) {
-    iceCache = fetch("/api/turn", { cache: "no-store" })
+/**
+ * STUN plus, when configured on the server, short-lived TURN relay credentials for this lesson
+ * (/api/turn checks that the user is the lesson's teacher or one of its students).
+ */
+export function getIceServers(lessonId: string): Promise<RTCIceServer[]> {
+  let p = iceCache.get(lessonId);
+  if (!p) {
+    p = fetch(`/api/turn?lesson=${encodeURIComponent(lessonId)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
       .then((d: { iceServers?: RTCIceServer[] } | null) => (d?.iceServers?.length ? d.iceServers : ICE_SERVERS))
       .catch(() => ICE_SERVERS);
-    // Credentials expire; refresh them for calls started much later.
-    setTimeout(() => { iceCache = null; }, 6 * 3600 * 1000);
+    iceCache.set(lessonId, p);
+    // Credentials expire after 4 h; refresh them for calls started much later.
+    setTimeout(() => { iceCache.delete(lessonId); }, 3 * 3600 * 1000);
   }
-  return iceCache;
+  return p;
 }

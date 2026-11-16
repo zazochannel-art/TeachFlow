@@ -232,7 +232,7 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
     if (!live) return;
     const pcs = pcsRef.current;
     const chains = chainsRef.current;
-    void getIceServers().then(s => { iceRef.current = s; });
+    void getIceServers(lessonId).then(s => { iceRef.current = s; });
 
     // Abuse protection: one participant cannot flood the others (ICE trickle needs some room).
     const signalLimit = new RateLimiter(400, 10_000);
@@ -384,7 +384,7 @@ export function VideoCall({ lessonId, live, me, teacherId }: Props) {
     setNotice(null);
     if (!canCall()) { setError(problemText("unsupported", "both")); return; }
     setJoining(mode);
-    if (live) iceRef.current = await getIceServers();
+    if (live) iceRef.current = await getIceServers(lessonId);
     let stream: MediaStream | null = null;
     let camProblem: MediaProblem | null = null;
     if (mode === "av") {
