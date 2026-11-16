@@ -118,7 +118,10 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
       .then(r => { visualReady = !r.error; return r; })
       .then(r => r.error ? supabase.from("courses").select("id, title, description, subject, level, format, price, currency, is_active, created_at").eq("teacher_id", userId).order("created_at") : r),
     supabase.from("course_enrollments").select("id, course_id, student_id, enrolled_at, status").eq("teacher_id", userId),
-    supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
+    withFallback(
+      () => supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url, series_id").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
+      () => supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000)
+    ),
     withFallback(
       () => withFallback(
         () => supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000)

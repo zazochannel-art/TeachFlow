@@ -3,7 +3,12 @@ import { z } from "zod";
 import { requireTeacher } from "@/lib/data/workspace";
 import { DEFAULT_TZ } from "@/lib/time";
 
-export interface FormState { error?: string; ok?: string }
+export interface FormState {
+  error?: string;
+  ok?: string;
+  /** A warning the user can override: the form shows it with a "save anyway" box (field `confirm`). */
+  warn?: string;
+}
 
 export const DEMO_STATE: FormState = { error: "Mod demonstrativ: configurează Supabase pentru a salva date." };
 

@@ -1428,5 +1428,21 @@ export const en: Record<string, string> = {
   "Există deja o înregistrare la fel.": "The same entry already exists.",
   "Un element legat nu mai există. Reîncarcă pagina și încearcă din nou.": "A linked item no longer exists. Reload the page and try again.",
   "Nu ai acces la această înregistrare. Reîncarcă pagina.": "You don't have access to this entry. Reload the page.",
-  "Unele câmpuri au valori invalide. Verifică formularul.": "Some fields have invalid values. Check the form."
+  "Unele câmpuri au valori invalide. Verifică formularul.": "Some fields have invalid values. Check the form.",
+  "Șterge seria": "Delete series",
+  "Șterge aceasta și următoarele": "Delete this and the following",
+  "Anulate": "Cancelled",
+  "anulată": "cancelled",
+  "Anulează factura": "Cancel invoice",
+  "Aplică modificările la": "Apply changes to",
+  "Doar această lecție": "This lesson only",
+  "Aceasta și următoarele din serie": "This and the following lessons in the series",
+  "Salvează oricum": "Save anyway",
+  "Se suprapune cu „{title}” ({date}, {time}). Bifează „Salvează oricum” dacă vrei totuși două lecții în același timp.": "Overlaps with “{title}” ({date}, {time}). Tick “Save anyway” if you really want two lessons at the same time.",
+  "Lecția nu a fost găsită.": "Lesson not found.",
+  "ANULATĂ": "CANCELLED",
+  "Factură anulată. Nu trebuie achitată.": "Invoice cancelled. No payment is due.",
+  "{n} zi|{n} zile|{n} de zile": "{n} day|{n} days",
+  "ai trecut pe planul gratuit · reînnoiește abonamentul": "you are on the free plan now · renew your subscription",
+  "expiră pe {date} · reînnoiește ca să nu pierzi elevii peste limită": "expires on {date} · renew so you keep students above the free limit"
 };

@@ -80,6 +80,8 @@ export interface Lesson {
   ends_at: string;
   status: LessonStatus;
   meeting_url: string | null;
+  /** Shared by the lessons of one weekly series (migration 0017). */
+  series_id?: string | null;
 }
 
 export interface Subscription {
@@ -129,7 +131,8 @@ export interface Payment {
   course_id: string | null;
   amount: number;
   currency: Currency;
-  status: "paid" | "pending";
+  /** "cancelled": an invoiced payment that was withdrawn (migration 0017); it never counts in totals. */
+  status: "paid" | "pending" | "cancelled";
   due_date: string | null;
   paid_at: string | null;
   method: "cash" | "card" | "transfer" | "other" | null;

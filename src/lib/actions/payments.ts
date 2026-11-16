@@ -31,7 +31,7 @@ export async function savePayment(_: FormState, formData: FormData): Promise<For
   };
   const before = id ? (await ctx.supabase.from("payments").select("status").eq("id", id).eq("teacher_id", ctx.userId).maybeSingle()).data : null;
   const { data, error } = id
-    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId).select("id").maybeSingle()
+    ? await ctx.supabase.from("payments").update(fields).eq("id", id).eq("teacher_id", ctx.userId).in("status", ["paid", "pending"]).select("id").maybeSingle()
     : await ctx.supabase.from("payments").insert({ ...fields, teacher_id: ctx.userId }).select("id").single();
   if (error) return { error: dbError(error) };
   // Invoice e-mail to the parents: for every new payment, and when a pending one becomes paid.

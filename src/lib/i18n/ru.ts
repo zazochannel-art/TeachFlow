@@ -1428,5 +1428,21 @@ export const ru: Record<string, string> = {
   "Există deja o înregistrare la fel.": "Такая запись уже существует.",
   "Un element legat nu mai există. Reîncarcă pagina și încearcă din nou.": "Связанный элемент больше не существует. Обновите страницу и попробуйте снова.",
   "Nu ai acces la această înregistrare. Reîncarcă pagina.": "У вас нет доступа к этой записи. Обновите страницу.",
-  "Unele câmpuri au valori invalide. Verifică formularul.": "Некоторые поля заполнены неверно. Проверьте форму."
+  "Unele câmpuri au valori invalide. Verifică formularul.": "Некоторые поля заполнены неверно. Проверьте форму.",
+  "Șterge seria": "Удалить серию",
+  "Șterge aceasta și următoarele": "Удалить этот и следующие",
+  "Anulate": "Отменённые",
+  "anulată": "отменён",
+  "Anulează factura": "Отменить счёт",
+  "Aplică modificările la": "Применить изменения к",
+  "Doar această lecție": "Только этот урок",
+  "Aceasta și următoarele din serie": "Этот и следующие уроки серии",
+  "Salvează oricum": "Всё равно сохранить",
+  "Se suprapune cu „{title}” ({date}, {time}). Bifează „Salvează oricum” dacă vrei totuși două lecții în același timp.": "Пересекается с «{title}» ({date}, {time}). Отметьте «Всё равно сохранить», если вам всё же нужны два урока одновременно.",
+  "Lecția nu a fost găsită.": "Урок не найден.",
+  "ANULATĂ": "ОТМЕНЁН",
+  "Factură anulată. Nu trebuie achitată.": "Счёт отменён. Оплачивать не нужно.",
+  "{n} zi|{n} zile|{n} de zile": "{n} день|{n} дня|{n} дней",
+  "ai trecut pe planul gratuit · reînnoiește abonamentul": "вы перешли на бесплатный план · продлите подписку",
+  "expiră pe {date} · reînnoiește ca să nu pierzi elevii peste limită": "истекает {date} · продлите, чтобы не потерять учеников сверх лимита"
 };

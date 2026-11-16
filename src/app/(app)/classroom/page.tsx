@@ -38,16 +38,16 @@ export default async function ClassroomPage() {
 
       <SectionTitle>{t("Următoarele lecții")}</SectionTitle>
       {upcoming.length === 0 ? <p className="text-[12px] text-muted">{t("Nu ai alte lecții programate.")}</p> : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {upcoming.map(s => (
-            <Card key={s.id} className="flex items-center gap-4 p-4">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2"><SubjectIcon kind={s.subject} className="h-[18px] w-[18px]" /></span>
+            <Card key={s.id} className="flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4">
+              <span className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2 min-[400px]:grid"><SubjectIcon kind={s.subject} className="h-[18px] w-[18px]" /></span>
               <div className="min-w-0 flex-1 text-[12px]">
                 <div className="truncate font-extrabold text-ink">{s.title}</div>
                 <div className="truncate text-muted">{formatDate(s.startsAt, ws.timezone, t.locale)} · {s.start} - {s.end}{s.subtitle ? ` · ${s.subtitle}` : ""}</div>
               </div>
-              <Link href={`/classroom/${s.id}`} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[11px] font-bold text-primary-2 hover:bg-[#dfe4fb]"><Video className="h-3.5 w-3.5" /> {t("Intră")}</Link>
-              <Link href={`/calendar?lesson=${s.id}&back=/classroom`} aria-label={t("Editează · {name}", { name: s.title })} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
+              <Link href={`/classroom/${s.id}`} className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[11px] font-bold text-primary-2 hover:bg-[#dfe4fb]"><Video className="h-3.5 w-3.5" /> {t("Intră")}</Link>
+              <Link href={`/calendar?lesson=${s.id}&back=/classroom`} aria-label={t("Editează · {name}", { name: s.title })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-soft text-muted hover:text-primary"><Pencil className="h-3.5 w-3.5" /></Link>
             </Card>
           ))}
         </div>

@@ -22,6 +22,14 @@ export function ActionForm({
     <form ref={ref} action={formAction} className={className}>
       {children}
       {state.error && <p role="alert" className="text-[12px] font-semibold text-[#c03a3a] sm:col-span-2">{t(state.error)}</p>}
+      {state.warn && (
+        <div role="alert" className="rounded-xl bg-[#fff6e5] px-3.5 py-3 text-[12px] font-semibold text-[#8a5a00] sm:col-span-2">
+          <p>{state.warn}</p>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 font-bold">
+            <input type="checkbox" name="confirm" value="1" className="h-4 w-4 accent-[#5269e8]" /> {t("Salvează oricum")}
+          </label>
+        </div>
+      )}
       {state.ok && state.ok !== "sent" && <p role="status" className="text-[12px] font-semibold text-[#1b8a5a] sm:col-span-2">{t(state.ok)}</p>}
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <button className="tf-btn" disabled={pending || demo}>{pending ? t("Se salvează…") : submitLabel ?? t("Salvează")}</button>

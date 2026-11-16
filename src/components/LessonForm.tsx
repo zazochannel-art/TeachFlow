@@ -38,7 +38,15 @@ export async function LessonForm({ ws, lesson, date, time, courseId, back }: { w
         <Field label={t("Repetă săptămânal")} htmlFor="repeat">
           <select id="repeat" name="repeat" className="tf-input" defaultValue="1">
             <option value="1">{t("O singură dată")}</option>
-            {[2, 4, 8, 12].map(n => <option key={n} value={n}>{t.n("{n} săptămână|{n} săptămâni|{n} de săptămâni", n)}</option>)}
+            {[2, 4, 8, 12, 16, 24, 36].map(n => <option key={n} value={n}>{t.n("{n} săptămână|{n} săptămâni|{n} de săptămâni", n)}</option>)}
+          </select>
+        </Field>
+      )}
+      {lesson?.series_id && (
+        <Field label={t("Aplică modificările la")} htmlFor="scope" wide>
+          <select id="scope" name="scope" className="tf-input" defaultValue="one">
+            <option value="one">{t("Doar această lecție")}</option>
+            <option value="following">{t("Aceasta și următoarele din serie")}</option>
           </select>
         </Field>
       )}
