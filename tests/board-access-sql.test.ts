@@ -22,3 +22,13 @@ describe("board access migration", () => {
     expect(sql).toMatch(/revoke all on public\.lesson_board_access from anon, authenticated/);
   });
 });
+
+// Migration 0020: uploading a lesson file needs the same drawing access.
+describe("lesson file upload migration", () => {
+  const files = readFileSync(new URL("../supabase/migrations/0020_lesson_file_upload_access.sql", import.meta.url), "utf8");
+
+  it("requires drawing access to upload into a lesson folder", () => {
+    expect(files).toMatch(/"tf_files_insert"[\s\S]*?= 'lesson' and private\.can_draw_on_board\(/);
+    expect(files).not.toMatch(/can_use_lesson_board/);
+  });
+});
