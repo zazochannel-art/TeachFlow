@@ -98,6 +98,12 @@ describe("attendance", () => {
     expect(s.people[0]).toMatchObject({ seconds: 600, present: false });
   });
 
+  it("survives a stay of zero length (joined and left in the same instant)", () => {
+    const s = summarizeAttendance([stay("Ana", "student", 7, 7)], Date.parse(at(60)));
+    expect(s.people[0]).toMatchObject({ seconds: 0, present: false, firstJoin: at(7), lastSeen: at(7) });
+    expect(s.startedAt).toBeNull();
+  });
+
   it("formats durations", () => {
     expect(formatDuration(30)).toBe("<1 min");
     expect(formatDuration(12 * 60)).toBe("12 min");

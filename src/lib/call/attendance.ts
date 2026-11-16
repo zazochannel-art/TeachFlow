@@ -86,7 +86,8 @@ export function summarizeAttendance(stays: Stay[], now = Date.now()): CallSummar
       role: latest.role,
       seconds: Math.round(total(spans) / 1000),
       firstJoin: new Date(Math.min(...list.map(s => Date.parse(s.joined_at)))).toISOString(),
-      lastSeen: new Date(Math.max(...spans.map(s => s[1]))).toISOString(),
+      // From the raw stays: a stay of zero length (joined and left at once) has no span.
+      lastSeen: new Date(Math.max(...list.map(s => spanOf(s, now)[1]))).toISOString(),
       present: list.some(s => !s.left_at && now - Date.parse(s.last_seen_at) <= STALE_MS)
     });
   }
