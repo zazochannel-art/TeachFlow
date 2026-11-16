@@ -46,16 +46,18 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread, canSignOut 
   const hrefFor = (k: string) => (k === todayKey ? base : `${base}?date=${k}`);
   const { weekday, rest } = formatDayHeading(key, t.locale);
 
-  const roundBtn = "grid h-5 w-5 place-items-center rounded-full bg-ink text-white transition-opacity hover:opacity-80";
+  // The visible dot stays small (20 px); the link around it is a 36 px touch target.
+  const roundBtn = "group -m-2 grid h-9 w-9 place-items-center";
+  const dot = "grid h-5 w-5 place-items-center rounded-full bg-ink text-white transition-opacity group-hover:opacity-80";
 
   return (
     <header className={`mb-5 flex flex-wrap items-center gap-3 md:mb-7 md:gap-4 ${showDate ? "justify-between" : "justify-end"}`}>
       {showDate && <div className="flex items-center gap-2.5 sm:gap-3.5">
-        <Link href={hrefFor(addDays(key, -step))} aria-label={t("Ziua anterioară")} className={roundBtn}><ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.6} /></Link>
+        <Link href={hrefFor(addDays(key, -step))} aria-label={t("Ziua anterioară")} className={roundBtn}><span className={dot}><ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.6} /></span></Link>
         <h1 className="text-[15px] tracking-tight text-ink sm:text-[17px]">
           <strong className="font-extrabold">{weekday}</strong>, {rest}
         </h1>
-        <Link href={hrefFor(addDays(key, step))} aria-label={t("Ziua următoare")} className={roundBtn}><ChevronRight className="h-3.5 w-3.5" strokeWidth={2.6} /></Link>
+        <Link href={hrefFor(addDays(key, step))} aria-label={t("Ziua următoare")} className={roundBtn}><span className={dot}><ChevronRight className="h-3.5 w-3.5" strokeWidth={2.6} /></span></Link>
         <Link href={`/calendar${key === todayKey ? "" : `?date=${key}`}`} aria-label={t("Calendar")}
           className="ml-1 grid h-8 w-8 place-items-center rounded-full border border-[#cfd3e6] text-ink transition-colors hover:bg-white">
           <Calendar className="h-3.5 w-3.5" />
@@ -78,12 +80,12 @@ export function TopBar({ todayKey, name, avatarUrl, current, unread, canSignOut 
               <button type="button" aria-label={t("Închide căutarea")} onClick={() => setSearching(false)}><X className="h-3.5 w-3.5 text-muted" /></button>
             </form>
           ) : (
-            <button type="button" aria-label={t("Caută")} onClick={() => setSearching(true)} className="cursor-pointer hover:opacity-70"><Search className="h-4 w-4" strokeWidth={2.3} /></button>
+            <button type="button" aria-label={t("Caută")} onClick={() => setSearching(true)} className="-m-2.5 grid h-9 w-9 cursor-pointer place-items-center hover:opacity-70"><Search className="h-4 w-4" strokeWidth={2.3} /></button>
           )}
           <div className="h-5 w-px bg-line" />
-          <Link href="/dashboard#notificari" aria-label={t("Notificări")} className="relative hover:opacity-70">
+          <Link href="/dashboard#notificari" aria-label={t("Notificări")} className="relative -m-2.5 grid h-9 w-9 place-items-center hover:opacity-70">
             <Bell className="h-4 w-4" fill="currentColor" />
-            {unread > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />}
+            {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />}
           </Link>
           <ThemeToggle className="-mx-2" />
           <Link href="/settings" className="flex items-center gap-3 pl-1">

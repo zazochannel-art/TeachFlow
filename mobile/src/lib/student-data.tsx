@@ -35,7 +35,7 @@ async function fetchStudentData(userId: string): Promise<StudentData> {
     supabase.from("lessons").select("id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url").order("starts_at", { ascending: false }).limit(1000),
     supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission").order("created_at", { ascending: false }),
     supabase.from("messages").select("id, student_id, direction, body, read_at, created_at").order("created_at", { ascending: false }).limit(2000),
-    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").order("created_at", { ascending: false })
+    supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at").in("status", ["paid", "pending"]).order("created_at", { ascending: false })
   ]);
   if (records.error) throw new Error(records.error.message);
   const recs = ((records.data ?? []) as Omit<StudentRecord, "notes">[]).map(r => ({ ...r, notes: null }) as StudentRecord);

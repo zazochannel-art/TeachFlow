@@ -232,6 +232,14 @@ export function notifications(ws: Workspace, now = new Date(), t: T = RO, skipSh
   const sub = ws.subscription;
   if (sub && (sub.status === "past_due" || sub.status === "expired")) {
     items.push({ id: "n-sub", kind: "payment", title: t("Abonament"), emphasis: sub.status === "past_due" ? t("Plată restantă") : t("Expirat"), body: t("actualizează metoda de plată"), href: "/billing" });
+  } else if (sub?.status === "active" && sub.plan_code !== "free" && sub.current_period_end) {
+    // Manual billing: nothing renews by itself, so warn a week before the paid period ends.
+    const left = Math.ceil((new Date(sub.current_period_end).getTime() - now.getTime()) / 86400000);
+    if (left <= 0) {
+      items.splice(cur ? 1 : 0, 0, { id: "n-sub", kind: "payment", highlight: true, title: t("Abonament"), emphasis: t("Expirat"), body: t("ai trecut pe planul gratuit · reînnoiește abonamentul"), href: "/billing" });
+    } else if (left <= 7) {
+      items.splice(cur ? 1 : 0, 0, { id: "n-sub", kind: "payment", title: t("Abonament"), emphasis: t.n("{n} zi|{n} zile|{n} de zile", left), body: t("expiră pe {date} · reînnoiește ca să nu pierzi elevii peste limită", { date: date(sub.current_period_end) }), href: "/billing" });
+    }
   } else if (sub?.status === "trialing" && sub.current_period_end) {
     items.push({ id: "n-sub", kind: "payment", title: t("Perioada de probă"), body: t("se încheie pe {date}", { date: date(sub.current_period_end) }), href: "/billing" });
   }

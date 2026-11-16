@@ -64,7 +64,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       )}
       {selected && (
         <Panel title={`${selected.title} · ${formatTime(selected.starts_at, ws.timezone, t.locale)}`} closeHref={back ?? self} aside={
-          <form action={deleteLesson}><input type="hidden" name="id" value={selected.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Șterge lecția")} className="py-1.5" /></form>
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.series_id && (
+              <form action={deleteLesson}><input type="hidden" name="id" value={selected.id} /><input type="hidden" name="scope" value="following" />
+                <ConfirmSubmit label={t("Șterge seria")} confirm={t("Șterge aceasta și următoarele")} className="py-1.5" /></form>
+            )}
+            <form action={deleteLesson}><input type="hidden" name="id" value={selected.id} /><ConfirmSubmit label={t("Șterge")} confirm={t("Șterge lecția")} className="py-1.5" /></form>
+          </div>
         }>
           <div className="mb-5 flex flex-wrap items-center gap-2">
             <span className="text-[12px] font-bold text-muted">{t("Status")}:</span>
@@ -91,7 +97,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           return (
             <div key={day} className={`min-w-0 rounded-[20px] bg-soft p-3 ${slots.length === 0 ? "flex items-center gap-3" : ""} ${isToday ? "ring-1 ring-primary/25" : ""}`}>
               <div className={`flex items-center justify-between px-1 ${slots.length === 0 ? "flex-1" : "mb-3"}`}>
-                <Link href={`/dashboard?date=${day}`} className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-muted"}`}>{weekday}</Link>
+                <Link href={`/dashboard?date=${day}`} className={`-my-2 inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg px-1 text-[11px] font-bold hover:bg-soft ${isToday ? "text-primary" : "text-muted"}`}>{weekday}</Link>
                 <span className={`grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold ${isToday ? "bg-primary text-white" : "text-ink"}`}>{num}</span>
               </div>
               <div className={slots.length === 0 ? "w-24 shrink-0" : "space-y-2"}>

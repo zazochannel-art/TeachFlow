@@ -38,7 +38,7 @@ export default async function StudentHome() {
   const done = p.homework.filter(h => h.status !== "assigned").slice(0, 6);
   const pending = p.payments.filter(x => x.status === "pending");
   const first = p.name.split(" ")[0];
-  const files = p.mode === "live" && p.filesReady;
+  const files = p.mode === "live";
   const [links, progress] = await Promise.all([
     files ? signFiles([...todo, ...done].flatMap(h => [...storedFiles(h.attachments), ...storedFiles(h.submission_files)])) : Promise.resolve({} as Record<string, string>),
     p.mode === "demo" ? Promise.resolve(demoProgress(p, tz)) : loadPortalProgress(p.links, tz)
@@ -72,7 +72,7 @@ export default async function StudentHome() {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0">
         <div className="flex items-center gap-4">
-          {p.mode === "live" && p.visualReady
+          {p.mode === "live"
             ? <AvatarUpload name={p.name} src={p.avatarUrl} size={56} />
             : <Avatar name={p.name} src={p.avatarUrl} size={56} className="ring-4 ring-tint" />}
           <div className="min-w-0">
