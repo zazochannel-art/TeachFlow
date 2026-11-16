@@ -15,6 +15,7 @@ import { loadTeacherExtras } from "@/lib/data/teacher-extras";
 import { ActionForm } from "@/components/forms";
 import { Field } from "@/components/ui";
 import { saveInvoiceSettings } from "@/lib/actions/settings";
+import { AccountData } from "@/components/AccountData";
 
 const subStatus = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 
@@ -107,6 +108,7 @@ export default async function SettingsPage() {
         <Card className="p-5"><PushToggle publicKey={ws.mode === "live" ? vapidPublicKey() : null} /></Card>
         <div className="mt-7"><SectionTitle>{t("Aspect")}</SectionTitle></div>
         <Card className="p-5"><ThemePicker /></Card>
+        <AccountData demo={ws.mode === "demo"} role="teacher" t={t} />
         {ws.mode === "demo" && <DemoNotice />}
       </section>
     </div>

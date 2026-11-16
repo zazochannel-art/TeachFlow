@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 import { PushToggle } from "@/components/PushToggle";
 import { vapidPublicKey } from "@/lib/push/server";
+import { AccountData } from "@/components/AccountData";
 
 /** "Profilul meu": photo, name and phone, teachers and courses, and the student's own numbers. */
 export default async function StudentProfile() {
@@ -91,6 +92,7 @@ export default async function StudentProfile() {
             </span>
           ))}
         </div>
+        <AccountData demo={demo} role="student" t={t} />
       </aside>
       {demo && <DemoNotice />}
     </div>

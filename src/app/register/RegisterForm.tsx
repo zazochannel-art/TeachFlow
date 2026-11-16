@@ -72,6 +72,7 @@ export function RegisterForm({ next = "/dashboard" }: { next?: string }) {
       <label className="tf-label" htmlFor="password">{t("Parolă (minimum 8 caractere)")}</label>
       <input id="password" className="tf-input mb-5" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} />
       {error && <AuthMessage tone="error">{error}</AuthMessage>}
+      <p className="mb-4 text-[11px] text-muted">{t("Creând contul, accepți")} <Link href="/terms" target="_blank" className="font-bold text-primary">{t("Termenii de utilizare")}</Link> {t("și")} <Link href="/privacy" target="_blank" className="font-bold text-primary">{t("Politica de confidențialitate")}</Link>.</p>
       <button className="tf-btn w-full" disabled={loading}>{loading ? t("Se creează contul...") : t("Creează cont")}</button>
       <p className="mt-5 text-center text-[12px] text-muted">{t("Ai deja cont?")} <Link href={next === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(next)}`} className="font-bold text-primary">{t("Autentifică-te")}</Link></p>
     </form>
