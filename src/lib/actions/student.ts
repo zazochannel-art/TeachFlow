@@ -9,6 +9,7 @@ import { isInviteToken } from "@/lib/invite-token";
 import type { FormState } from "./common";
 import { dbError } from "./common";
 import { notifyHomeworkSubmitted, notifyMessage } from "@/lib/push/notify";
+import { forgetNativePush } from "@/lib/push/native";
 
 const ERRORS: Record<string, string> = {
   invite_invalid: "Linkul de invitație nu mai este valabil. Cere profesorului unul nou.",
@@ -109,7 +110,10 @@ export async function markMessagesRead() {
 
 export async function studentSignOut() {
   const supabase = await client();
-  if (supabase) await supabase.auth.signOut();
+  if (supabase) {
+    await forgetNativePush(supabase);
+    await supabase.auth.signOut();
+  }
   redirect("/login");
 }
 

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const db = serviceClient();
-  if (!db || !pushConfigured()) return NextResponse.json({ error: "push not configured", missing: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "SUPABASE_SECRET_KEY"] }, { status: 503 });
+  if (!db || !pushConfigured()) return NextResponse.json({ error: "push not configured", missing: ["SUPABASE_SECRET_KEY"] }, { status: 503 });
 
   const now = new Date();
   const soon = request.nextUrl.searchParams.get("mode") === "soon";

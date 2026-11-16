@@ -5,6 +5,7 @@ import { getLang, getT } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { SYSTEM_THEME_SCRIPT, THEME_COOKIE, isTheme } from "@/lib/theme";
 import { ErrorReporter } from "@/components/ErrorReporter";
+import { NativeBridge } from "@/components/NativeBridge";
 import "./globals.css";
 
 const nunito = Nunito({ subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"], variable: "--font-nunito", display: "swap" });
@@ -27,7 +28,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={lang} className={`${nunito.variable}${theme === "dark" ? " dark" : ""}`} suppressHydrationWarning>
       <head>{theme === "system" && <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_SCRIPT }} />}</head>
-      <body><I18nProvider lang={lang}>{children}</I18nProvider><ErrorReporter /></body>
+      <body><I18nProvider lang={lang}>{children}</I18nProvider><ErrorReporter /><NativeBridge /></body>
     </html>
   );
 }

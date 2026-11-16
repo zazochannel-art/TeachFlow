@@ -16,6 +16,7 @@ import { FILE_ACCEPT, FILES_BUCKET, MAX_FILE_BYTES, isImage, storageName, upload
 import { LessonFiles, type LessonFile } from "./LessonFiles";
 import { useT } from "@/lib/i18n/client";
 import type { BoardAccess } from "@/lib/data/board";
+import { saveBlob } from "@/lib/native";
 
 type ToolOrEraser = Tool | "eraser";
 type HistoryEntry = { kind: "add" | "remove"; strokes: Stroke[] };
@@ -632,11 +633,7 @@ export function Whiteboard({ lessonId, initial, live, me, title, access }: Props
     for (const s of strokesRef.current) if (s.tool !== "image") drawStroke(ctx, s, fontRef.current);
     c.toBlob(blob => {
       if (!blob) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `tabla-${title.toLowerCase().replace(/[^a-z0-9ăâîșțşţ]+/gi, "-").replace(/^-|-$/g, "") || "lectie"}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      void saveBlob(blob, `tabla-${title.toLowerCase().replace(/[^a-z0-9ăâîșțşţ]+/gi, "-").replace(/^-|-$/g, "") || "lectie"}.png`);
     }, "image/png");
   };
 

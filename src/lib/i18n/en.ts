@@ -1516,5 +1516,10 @@ export const en: Record<string, string> = {
   "Nu are încă un cont (invitație neacceptată)": "No account yet (invitation not accepted)",
   "{name} poate desena pe tablă": "{name} can draw on the board",
   "Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pe tablă desenează doar elevii cărora le dai acces din „Acces elevi”. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.": "Students join the call and see the board from the lesson page in their portal. Only the students you allow under “Student access” can draw on the board. With “Share screen” students see your screen above the board.",
-  "Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie. Poți desena și tu când profesorul îți dă acces. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.": "The video call and the board are shared with your teacher: you see what they write in real time. You can draw too when the teacher gives you access. When the teacher shares their screen, you see it above the board."
+  "Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie. Poți desena și tu când profesorul îți dă acces. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.": "The video call and the board are shared with your teacher: you see what they write in real time. You can draw too when the teacher gives you access. When the teacher shares their screen, you see it above the board.",
+  "Primești pe telefon lecțiile noi, temele, testele și mesajele, chiar dacă aplicația e închisă.": "Get new lessons, homework, quizzes and messages on your phone, even when the app is closed.",
+  "Notificările sunt active în aplicația TeachFlow.": "Notifications are on in the TeachFlow app.",
+  "Notificările sunt oprite pentru aplicație. Apasă butonul și permite-le în setările telefonului.": "Notifications are off for the app. Tap the button and allow them in your phone settings.",
+  "Notificările nu sunt disponibile în această versiune a aplicației.": "Notifications are not available in this version of the app.",
+  "Deschide setările telefonului": "Open phone settings"
 };
