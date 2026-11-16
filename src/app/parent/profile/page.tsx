@@ -6,6 +6,7 @@ import { updateMyProfile } from "@/lib/actions/student";
 import { getT } from "@/lib/i18n/server";
 import { PushToggle } from "@/components/PushToggle";
 import { vapidPublicKey } from "@/lib/push/server";
+import { AccountData } from "@/components/AccountData";
 
 /** Parent's own profile: photo, name and the children they follow. */
 export default async function ParentProfile() {
@@ -46,6 +47,7 @@ export default async function ParentProfile() {
         ))}
       </Card>
       <p className="mt-3 text-[11px] text-muted">{t("Ca să adaugi alt copil, cere profesorului lui un link de invitație pentru părinte.")}</p>
+      <AccountData demo={demo} role="parent" t={t} />
       {demo && <DemoNotice />}
     </div>
   );

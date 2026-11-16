@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CalendarDays, GraduationCap, Users, Video } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getT } from "@/lib/i18n/server";
+import { LegalLinks } from "@/components/LegalPage";
 
 /** Login / register frame in the same visual language as the app panel. */
 export async function AuthShell({ children }: { children: ReactNode }) {
@@ -30,6 +31,7 @@ export async function AuthShell({ children }: { children: ReactNode }) {
         <div className="flex-1 p-8 md:p-12">
           <div className="mb-6 flex justify-end"><LanguageSwitcher /></div>
           {children}
+          <LegalLinks className="mt-8" />
         </div>
       </div>
     </main>
