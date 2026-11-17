@@ -5,12 +5,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Basic security headers on every page: no framing by other sites (clickjacking), no MIME
   // sniffing, a strict referrer, and camera/microphone/screen only for TeachFlow itself (lessons).
+  // The Content-Security-Policy (with a per-request script nonce) is set in src/proxy.ts.
   async headers() {
     return [{
       source: "/:path*",
       headers: [
         { key: "X-Frame-Options", value: "DENY" },
-        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()" },

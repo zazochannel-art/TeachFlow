@@ -21,13 +21,19 @@ export interface Workspace {
   courses: Course[];
   enrollments: Enrollment[];
   lessons: Lesson[];
-  homework: Homework[];
+  /** Light rows (no texts or files) for counts and badges; the homework page loads full rows with loadHomework(). */
+  homework: HomeworkSummary[];
   /** Unread incoming messages only; the messages page loads whole conversations with loadMessages(). */
   messages: Message[];
   payments: Payment[];
   /** Tables from migration 0002 that are not available yet (migration not applied). */
   missingTables: Array<"homework" | "messages" | "payments">;
 }
+
+/** Homework without its long texts and file lists, which only the homework page shows. */
+export type HomeworkSummary = Omit<Homework, "description" | "feedback" | "submission" | "attachments" | "submission_files">;
+const HOMEWORK_SUMMARY_COLS = "id, student_id, course_id, lesson_id, title, due_at, status, submitted_at, grade, created_at";
+const HOMEWORK_FULL_COLS = `${HOMEWORK_SUMMARY_COLS}, description, feedback, submission, attachments, submission_files`;
 
 const LESSON_COLS = "id, course_id, student_id, title, description, starts_at, ends_at, status, meeting_url";
 const MESSAGE_COLS = "id, student_id, direction, body, read_at, created_at, channel, author_id";
@@ -100,7 +106,7 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
       () => supabase.from("lessons").select(`${LESSON_COLS}, series_id`).eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000),
       () => supabase.from("lessons").select(LESSON_COLS).eq("teacher_id", userId).order("starts_at", { ascending: false }).limit(2000)
     ),
-    supabase.from("homework").select("id, student_id, course_id, lesson_id, title, description, due_at, status, submitted_at, grade, feedback, created_at, submission, attachments, submission_files").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
+    supabase.from("homework").select(HOMEWORK_SUMMARY_COLS).eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000),
     // Every page only needs the unread messages (bell, badges, student list); the messages page loads the threads itself.
     supabase.from("messages").select(MESSAGE_COLS).eq("teacher_id", userId).eq("direction", "incoming").is("read_at", null).order("created_at", { ascending: false }).limit(500),
     supabase.from("payments").select("id, student_id, course_id, amount, currency, status, due_date, paid_at, method, note, created_at, invoice_no").eq("teacher_id", userId).order("created_at", { ascending: false }).limit(2000)
@@ -136,11 +142,20 @@ export const loadWorkspace = cache(async (): Promise<Workspace> => {
     enrollments: (enrollments.data as Enrollment[] | null) ?? [],
     // Loaded newest first so the cap drops the oldest rows, then put back in chronological order.
     lessons: oldestFirst(lessons.data as Lesson[] | null),
-    homework: (homework.data as Homework[] | null) ?? [],
+    homework: (homework.data as HomeworkSummary[] | null) ?? [],
     messages: oldestFirst(messages.data as Message[] | null),
     payments: ((payments.data as Payment[] | null) ?? []).map(p => ({ ...p, amount: Number(p.amount) })),
     missingTables
   };
+});
+
+/** The signed-in teacher's homework with texts and files (newest 1000), for the homework page. */
+export const loadHomework = cache(async (): Promise<Homework[]> => {
+  const ws = await loadWorkspace();
+  const { supabase, userId } = await getSession();
+  if (ws.mode === "demo" || !supabase || !userId) return buildDemoWorkspace().homework;
+  const { data } = await supabase.from("homework").select(HOMEWORK_FULL_COLS).eq("teacher_id", userId).order("created_at", { ascending: false }).limit(1000);
+  return (data as Homework[] | null) ?? [];
 });
 
 /** All conversations of the signed-in teacher, newest 3000 messages, in chronological order. */

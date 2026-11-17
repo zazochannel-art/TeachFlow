@@ -4,7 +4,7 @@ import { Card, DemoNotice, PageHeader, Pill, SectionTitle } from "@/components/u
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { loadWorkspace, requireTeacher } from "@/lib/data/workspace";
 import { cancelPlanRequest, requestPlan } from "@/lib/actions/billing";
-import { PLANS, YEAR_MONTHS, effectivePlan, planOf } from "@/lib/plans";
+import { AI_DAILY_UNITS, PLANS, YEAR_MONTHS, effectivePlan, planOf } from "@/lib/plans";
 import { formatDate, formatMoney } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
 
@@ -93,6 +93,7 @@ export default async function BillingPage() {
               <p className="mt-3 text-[12px] text-muted">{t(plan.blurb)}</p>
               <ul className="mt-3 space-y-1.5 text-[12px]">
                 <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" />{plan.studentLimit == null ? t("Elevi activi nelimitați") : t.n("Până la {n} elev activ|Până la {n} elevi activi|Până la {n} de elevi activi", plan.studentLimit)}</li>
+                <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" />{t.n("{n} cerere AI pe zi|{n} cereri AI pe zi|{n} de cereri AI pe zi", AI_DAILY_UNITS[plan.code])}</li>
                 <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-primary" />{t("Toate funcțiile: orar, teme, plăți, portalul elevilor")}</li>
               </ul>
               {plan.code !== "free" && !isCurrent && !pending && (

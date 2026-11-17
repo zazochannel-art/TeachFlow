@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasCronSecret } from "@/lib/cron/auth";
 import { pushConfigured, pushToUsers, serviceClient } from "@/lib/push/server";
 import { DEFAULT_TZ, dateKey, dayRange, formatTime } from "@/lib/time";
 import type { T } from "@/lib/i18n/core";
@@ -17,7 +18,7 @@ type LessonRow = { id: string; teacher_id: string; title: string; starts_at: str
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!hasCronSecret(request.headers.get("authorization"), secret)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const db = serviceClient();
   if (!db || !pushConfigured()) return NextResponse.json({ error: "push not configured", missing: ["SUPABASE_SECRET_KEY"] }, { status: 503 });
 

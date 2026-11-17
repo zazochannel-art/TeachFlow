@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CheckCheck, ClipboardList, Pencil, Plus } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SubjectIcon, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadHomework, loadWorkspace } from "@/lib/data/workspace";
 import { subjectKind } from "@/lib/data/derive";
 import { deleteHomework, markHomeworkSubmitted, reviewHomework, saveHomework } from "@/lib/actions/homework";
 import { addDays, dateKey, formatDate } from "@/lib/time";
@@ -19,7 +19,7 @@ const tones = { assigned: "blue", submitted: "amber", reviewed: "green" } as con
 type Params = { status?: string; new?: string; edit?: string; review?: string; course?: string; student?: string; c?: string; lib?: string };
 
 export default async function HomeworkPage({ searchParams }: { searchParams: Promise<Params> }) {
-  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
+  const [ws, homework, t] = await Promise.all([loadWorkspace(), loadHomework(), getT()]);
   const sp = await searchParams;
   const demo = ws.mode === "demo";
   const missing = ws.missingTables.includes("homework");
@@ -28,14 +28,14 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   // Optional course filter (?c=<course id>) on top of the status tabs.
   const courseFilter = ws.courses.some(c => c.id === sp.c) ? sp.c : undefined;
   const withC = (q: string) => `/homework?${q}${courseFilter ? `&c=${courseFilter}` : ""}`;
-  const inCourse = ws.homework.filter(h => !courseFilter || h.course_id === courseFilter);
+  const inCourse = homework.filter(h => !courseFilter || h.course_id === courseFilter);
   const list = inCourse.filter(h => filter === "all" || h.status === filter);
   const student = new Map(ws.students.map(s => [s.id, s]));
   const course = new Map(ws.courses.map(c => [c.id, c]));
-  const count = (st: HomeworkStatus) => ws.homework.filter(h => h.status === st).length;
+  const count = (st: HomeworkStatus) => homework.filter(h => h.status === st).length;
   const countIn = (st: HomeworkStatus) => inCourse.filter(h => h.status === st).length;
-  const editing = sp.edit ? ws.homework.find(h => h.id === sp.edit) : undefined;
-  const reviewing = sp.review ? ws.homework.find(h => h.id === sp.review) : undefined;
+  const editing = sp.edit ? homework.find(h => h.id === sp.edit) : undefined;
+  const reviewing = sp.review ? homework.find(h => h.id === sp.review) : undefined;
   const close = withC(`status=${filter}`);
   const today = dateKey(now, ws.timezone);
   const files = ws.mode === "live";

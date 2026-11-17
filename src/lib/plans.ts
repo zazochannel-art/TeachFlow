@@ -23,6 +23,19 @@ export const PLANS: Plan[] = [
 
 export const YEAR_MONTHS = 10;
 
+/**
+ * AI units a teacher may spend per UTC day, by plan (see aiCost). The database enforces the same
+ * numbers in public.consume_ai_quota() (migration 0023; tests/ai-quota-sql.test.ts keeps them in sync).
+ */
+export const AI_DAILY_UNITS: Record<PlanCode, number> = { free: 10, starter: 40, pro: 100, premium: 250 };
+
+/** Units one AI request costs: 1 per 10 generated questions (at least 1), 1 for editing or grading. */
+export function aiCost(req: { action: string; count?: number; questions?: number }): number {
+  if (req.action === "generate") return Math.max(1, Math.ceil((req.count ?? 1) / 10));
+  if (req.action === "variant") return Math.max(1, Math.ceil((req.questions ?? 1) / 10));
+  return 1;
+}
+
 export function planOf(code: PlanCode | null | undefined): Plan {
   return PLANS.find(p => p.code === code) ?? PLANS[0];
 }

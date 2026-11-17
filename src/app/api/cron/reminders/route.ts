@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasCronSecret } from "@/lib/cron/auth";
 import { eachLimit } from "@/lib/concurrency";
 import { createClient } from "@supabase/supabase-js";
 import { buildDigest } from "@/lib/reminders/digest";
@@ -17,7 +18,7 @@ export const maxDuration = 60;
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!hasCronSecret(request.headers.get("authorization"), secret)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const dry = request.nextUrl.searchParams.get("dry") === "1";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

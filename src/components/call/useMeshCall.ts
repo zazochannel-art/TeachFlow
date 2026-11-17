@@ -4,18 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ICE_SERVERS, MAX_CHAT, sanitizeCallSignal, userOfKey, type CallMeta, type CallSignal } from "@/lib/board/rtc";
 import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
 import { RateLimiter, SeenIds, canCall, mediaProblem, type MediaProblem } from "@/lib/board/call";
-import { INITIAL_ADAPT, VIDEO_PROFILES, adaptVideo, applyVideoProfile, meshMinLevel, rateQuality, readStats, worstQuality, type AdaptState, type Quality, type StatCounters } from "@/lib/call/quality";
+import { INITIAL_ADAPT, VIDEO_PROFILES, applyVideoProfile, meshMinLevel, type AdaptState, type StatCounters } from "@/lib/call/quality";
 import { newId } from "@/lib/board/model";
 import { useT } from "@/lib/i18n/client";
 import type { CallEngine, CallParticipant, CallProps, ChatLine } from "./types";
 import { useMediaProblemText } from "./media";
+import { useMeshStats } from "./useMeshStats";
 
 type Peer = CallParticipant;
 
 const MAX_PEERS = 7;
 const MAX_RESTARTS = 2;
 const CONNECT_TIMEOUT = 20_000;
-const STATS_EVERY = 4000;
 export const AUDIO: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 export const VIDEO: MediaTrackConstraints = { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 30 } };
 
@@ -356,40 +356,8 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
     };
   }, [live, lessonId, me.id, me.role, teacherId, connect, dropPeer, upsertPeer, myMeta, send, restartIce, attachLocalTracks, t]);
 
-  // Connection quality: every few seconds read each connection's stats, show them, and move its
-  // outgoing video one step down (bad network) or up (good network for a while).
-  const [myQuality, setMyQuality] = useState<Quality>("unknown");
-  const [relay, setRelay] = useState(false);
-  useEffect(() => {
-    if (!joined) return;
-    let stop = false;
-    const tick = async () => {
-      let worst: Quality = "unknown";
-      let anyRelay = false;
-      const n = pcsRef.current.size;
-      for (const [key, pc] of pcsRef.current) {
-        if (pc.connectionState !== "connected") continue;
-        let report: RTCStatsReport;
-        try { report = await pc.getStats(); } catch { continue; }
-        if (stop) return;
-        const { sample, counters } = readStats(report as unknown as { values(): Iterable<never> }, countersRef.current.get(key) ?? null, Date.now());
-        countersRef.current.set(key, counters);
-        const q = rateQuality(sample);
-        worst = worstQuality(worst, q);
-        anyRelay ||= sample.relay;
-        const prev = adaptRef.current.get(key) ?? INITIAL_ADAPT;
-        const next = adaptVideo(prev, q, sample.availableOutKbps, meshMinLevel(n));
-        adaptRef.current.set(key, next);
-        if (next.level !== prev.level) void applyLevel(key, pc);
-        upsertPeer(key, { quality: q, relay: sample.relay });
-      }
-      setMyQuality(worst);
-      setRelay(anyRelay);
-    };
-    const id = setInterval(() => { void tick(); }, STATS_EVERY);
-    const first = setTimeout(() => { void tick(); }, 1500);
-    return () => { stop = true; clearInterval(id); clearTimeout(first); };
-  }, [joined, applyLevel, upsertPeer]);
+  // Connection quality per connection, and outgoing video that follows it (useMeshStats.ts).
+  const { myQuality, relay } = useMeshStats({ joined, pcsRef, adaptRef, countersRef, applyLevel, upsertPeer });
 
   // Network interruptions: tell the user, and reconnect everything when the network is back.
   useEffect(() => {
@@ -470,7 +438,6 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
     setNotice(null);
     setJoined(false);
     setJoinedAt(null);
-    setMyQuality("unknown");
   }, [send, dropPeer, stopScreen]);
 
   useEffect(() => () => {
