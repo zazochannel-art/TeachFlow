@@ -10,6 +10,8 @@ async function healthy(page: Page, errors: string[]) {
 function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
+  // A script blocked by the Content-Security-Policy (src/proxy.ts) is a bug too.
+  page.on("console", m => { if (/Content Security Policy/i.test(m.text())) errors.push(m.text()); });
   return errors;
 }
 
@@ -30,6 +32,24 @@ test.describe("public pages", () => {
     await context.addCookies([{ name: "tf_lang", value: "ru", url: "http://localhost:3210" }]);
     await page.goto("/privacy");
     await expect(page.getByRole("heading", { level: 1, name: "Политика конфиденциальности" })).toBeVisible();
+  });
+
+  test("pages send a nonce-based script policy and still run their scripts", async ({ page, context }) => {
+    const errors = trackErrors(page);
+    // "system" theme renders the one inline script of our own, which must carry the nonce.
+    await context.addCookies([{ name: "tf-theme", value: "system", url: "http://localhost:3210" }]);
+    const res = await page.goto("/login");
+    const csp = res?.headers()["content-security-policy"] ?? "";
+    expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic'/);
+    expect(csp).toContain("frame-ancestors 'none'");
+    const nonce = /'nonce-([^']+)'/.exec(csp)![1];
+    const inline = await page.locator("script:not([src])").evaluateAll(els => els.map(e => (e as HTMLScriptElement).nonce));
+    expect(inline.length).toBeGreaterThan(0);
+    for (const n of inline) expect(n).toBe(nonce);
+    // Hydrated: the form reacts.
+    await page.getByLabel("Email").fill("a@b.md");
+    await expect(page.getByLabel("Email")).toHaveValue("a@b.md");
+    await healthy(page, errors);
   });
 
   test("register asks to accept the terms", async ({ page }) => {
