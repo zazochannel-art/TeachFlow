@@ -5,6 +5,7 @@ import { useMeshCall } from "@/components/call/useMeshCall";
 import { useLiveKitCall } from "@/components/call/useLiveKitCall";
 import { useCallAttendance } from "@/components/call/useCallAttendance";
 import { useScreenAccess } from "@/components/call/useScreenAccess";
+import { useKeepAwake } from "@/components/call/useKeepAwake";
 import type { CallEngine, CallProps, CallTransport } from "@/components/call/types";
 
 /**
@@ -28,5 +29,7 @@ function SfuCall(props: CallProps) {
 function Call({ engine, ...props }: CallProps & { engine: CallEngine }) {
   useCallAttendance({ lessonId: props.lessonId, live: props.live, joined: engine.joined, transport: engine.transport });
   const screen = useScreenAccess(props, engine);
+  // Phones: the screen stays on during the call (otherwise it goes dark and the camera stops).
+  useKeepAwake(engine.joined);
   return <CallView engine={engine} me={props.me} live={props.live} lessonTitle={props.lessonTitle} screen={screen} />;
 }

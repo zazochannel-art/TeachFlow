@@ -10,6 +10,7 @@ Ce adaugă aplicația:
 - **Notificări push pe telefon** (lecții, teme, teste, mesaje), chiar și cu aplicația închisă. Atingi
   notificarea și se deschide pagina potrivită.
 - **Camera și microfonul** pentru apeluri: Android cere permisiunea prima dată.
+- **Ecranul rămâne aprins în timpul apelului** (din versiunea 2.1.0), ca să nu se oprească camera când elevul doar urmărește lecția.
 - **Fișiere**: încărcare din galerie sau cameră, descărcări (CSV, facturi) în „Descărcări”, iar tabla salvată
   ca imagine se trimite prin meniul de partajare.
 - **Butonul „Înapoi”** de pe Android merge înapoi prin pagini.
@@ -82,5 +83,5 @@ npm run typecheck && npm run lint
   (permisiune și token). Pe web: `src/lib/native.ts`, `src/components/NativeBridge.tsx`,
   `src/components/PushToggle.tsx`, `src/lib/push/server.ts` (trimite prin Expo).
 - Legătura site ↔ aplicație: aplicația pune `window.TeachFlowNative` (platformă, versiune, starea push) și cookie-ul
-  `tf-native-push`; site-ul trimite mesaje `ready`, `push:enable`, `theme`, `file:save`, `open`.
+  `tf-native-push`; site-ul trimite mesaje `ready`, `push:enable`, `theme`, `file:save`, `open`, `keep-awake`.
 - La ieșirea din cont, serverul șterge tokenul telefonului (după cookie), ca să nu mai primească notificările contului.

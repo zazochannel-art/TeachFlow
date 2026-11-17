@@ -10,7 +10,8 @@ export type WebMessage =
   | { type: "push:enable" }
   | { type: "theme"; dark: boolean }
   | { type: "file:save"; name: string; mime: string; base64: string }
-  | { type: "open"; url: string };
+  | { type: "open"; url: string }
+  | { type: "keep-awake"; on: boolean };
 
 export function parseMessage(raw: string): WebMessage | null {
   try {

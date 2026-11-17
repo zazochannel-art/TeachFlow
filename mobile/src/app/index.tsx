@@ -1,4 +1,5 @@
 import { File, Paths } from "expo-file-system";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Notifications from "expo-notifications";
 import * as Sharing from "expo-sharing";
 import * as SplashScreen from "expo-splash-screen";
@@ -17,6 +18,7 @@ import { loadPush, type PushState } from "@/lib/push";
 type WebHandle = Pick<WebView, "injectJavaScript" | "goBack" | "reload">;
 
 const INTERNAL_SCHEMES = ["about:", "data:", "blob:", "javascript:"];
+const KEEP_AWAKE_TAG = "teachflow-call";
 
 /** Opens a link outside the app (browser, phone, mail, WhatsApp…). */
 function openOutside(url: string) {
@@ -104,6 +106,10 @@ export default function AppScreen() {
         break;
       case "open":
         if (typeof msg.url === "string") openOutside(msg.url);
+        break;
+      case "keep-awake": // during a call: the screen must not go dark (the camera would stop)
+        if (msg.on) activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+        else deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
         break;
       case "file:save":
         try {

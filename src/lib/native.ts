@@ -13,7 +13,9 @@ export type NativeMessage =
   | { type: "push:enable" }
   | { type: "theme"; dark: boolean }
   | { type: "file:save"; name: string; mime: string; base64: string }
-  | { type: "open"; url: string };
+  | { type: "open"; url: string }
+  /** Keep the phone's screen on (during a call). Apps older than 2.1.0 ignore it. */
+  | { type: "keep-awake"; on: boolean };
 
 declare global {
   interface Window {
