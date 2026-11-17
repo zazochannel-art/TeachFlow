@@ -17,7 +17,8 @@ const demoCourses: Array<Pick<Course, "title" | "subject" | "level" | "format" |
   { title: "Pian începători", subject: "Muzică", level: "Începător", format: "individual", price: 350 }
 ];
 
-export function buildDemoWorkspace(): Workspace {
+/** Demo data; homework rows are complete here (the demo has no database to load the long texts from). */
+export function buildDemoWorkspace(): Omit<Workspace, "homework"> & { homework: Homework[] } {
   const tz = DEFAULT_TZ;
   const now = new Date();
   const today = dateKey(now, tz);

@@ -29,3 +29,26 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run e2e
+
+  migrations:
+    # Every migration must apply cleanly, in order, to an empty Supabase database.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: supabase/postgres:15.8.1.085
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["54322:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      PGPASSWORD: postgres
+      DATABASE_URL: postgres://postgres@127.0.0.1:54322/postgres
+      ADMIN_DATABASE_URL: postgres://supabase_admin@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for the database roles
+        run: for i in $(seq 1 30); do psql "$ADMIN_DATABASE_URL" -c "select 1" >/dev/null 2>&1 && psql "$DATABASE_URL" -c "select 1" >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1
+      - run: scripts/check-migrations.sh
