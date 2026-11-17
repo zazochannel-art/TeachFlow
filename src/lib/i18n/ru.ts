@@ -1521,5 +1521,9 @@ export const ru: Record<string, string> = {
   "Notificările sunt active în aplicația TeachFlow.": "Уведомления в приложении TeachFlow включены.",
   "Notificările sunt oprite pentru aplicație. Apasă butonul și permite-le în setările telefonului.": "Уведомления для приложения выключены. Нажмите кнопку и разрешите их в настройках телефона.",
   "Notificările nu sunt disponibile în această versiune a aplicației.": "В этой версии приложения уведомления недоступны.",
-  "Deschide setările telefonului": "Открыть настройки телефона"
+  "Deschide setările telefonului": "Открыть настройки телефона",
+  "Ai folosit toate cererile AI incluse azi \u00een planul t\u0103u. \u00cencearc\u0103 din nou m\u00e2ine sau treci la un plan superior din pagina Abonament.": "Вы использовали все AI-запросы, включённые в ваш план на сегодня. Попробуйте завтра или перейдите на более высокий план на странице «Подписка».",
+  "Limita AI nu este configurat\u0103: aplic\u0103 migrarea supabase/migrations/0023_ai_quota.sql.": "Лимит AI не настроен: примените миграцию supabase/migrations/0023_ai_quota.sql.",
+  "Nu am putut verifica limita AI. \u00cencearc\u0103 din nou.": "Не удалось проверить лимит AI. Попробуйте ещё раз.",
+  "{n} cerere AI pe zi|{n} cereri AI pe zi|{n} de cereri AI pe zi": "{n} AI-запрос в день|{n} AI-запроса в день|{n} AI-запросов в день"
 };

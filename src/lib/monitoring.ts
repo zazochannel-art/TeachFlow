@@ -7,6 +7,17 @@ export interface ErrorReport { source: "server" | "browser"; message: string; pa
 
 const recent = new Map<string, number>();
 const QUIET_MS = 10 * 60 * 1000;
+/** At most this many webhook messages per instance per QUIET_MS, whatever the messages say. */
+export const WEBHOOK_BUDGET = 30;
+let budget = { start: 0, sent: 0 };
+
+/** True while this instance may still post to the webhook in the current window (counts the post). */
+export function takeWebhookBudget(now = Date.now()) {
+  if (now - budget.start >= QUIET_MS) budget = { start: now, sent: 0 };
+  if (budget.sent >= WEBHOOK_BUDGET) return false;
+  budget.sent++;
+  return true;
+}
 
 /** Next.js control-flow "errors" (redirect, notFound) are not failures. */
 export function isControlFlow(err: unknown) {
@@ -30,6 +41,8 @@ export async function reportError(r: ErrorReport) {
   if ((recent.get(key) ?? 0) > now - QUIET_MS) return;
   recent.set(key, now);
   if (recent.size > 500) recent.clear();
+  // Many different messages (an outage, or someone flooding /api/client-error) must not flood the chat.
+  if (!takeWebhookBudget(now)) return;
 
   const text = `TeachFlow ${report.source} error${report.path ? ` on ${report.path}` : ""}: ${report.message}${report.digest ? ` (digest ${report.digest})` : ""}`;
   try {

@@ -11,7 +11,7 @@ export const EXPORT_TABLES = [
   "profiles", "user_roles", "teacher_profiles", "subscriptions", "plan_requests",
   "students", "courses", "course_enrollments", "lessons", "homework", "messages", "payments",
   "library_items", "quizzes", "quiz_assignments", "quiz_attempts", "student_rewards",
-  "parent_links", "student_invites", "parent_invites", "signup_requests", "push_subscriptions"
+  "parent_links", "student_invites", "parent_invites", "signup_requests", "push_subscriptions", "ai_usage"
 ] as const;
 
 const PAGE = 1000;

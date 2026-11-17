@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { UPLOAD_TYPES, uploadContentType } from "@/lib/files";
 import { dbError } from "@/lib/actions/common";
 import { safeNext } from "@/lib/auth-errors";
+import { hasCronSecret } from "@/lib/cron/auth";
 
 const sql = readFileSync(new URL("../supabase/migrations/0016_security_hardening.sql", import.meta.url), "utf8");
 
@@ -56,5 +57,14 @@ describe("safeNext", () => {
     expect(safeNext("/\\evil.example", "/calendar")).toBe("/calendar");
     expect(safeNext("https://evil.example", "")).toBe("");
     expect(safeNext("/students?edit=1", "/calendar")).toBe("/students?edit=1");
+  });
+});
+
+describe("hasCronSecret", () => {
+  it("accepts only the exact bearer header", () => {
+    expect(hasCronSecret("Bearer s3cret", "s3cret")).toBe(true);
+    expect(hasCronSecret("Bearer s3cre", "s3cret")).toBe(false);
+    expect(hasCronSecret("s3cret", "s3cret")).toBe(false);
+    expect(hasCronSecret(null, "s3cret")).toBe(false);
   });
 });
