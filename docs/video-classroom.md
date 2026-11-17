@@ -26,6 +26,7 @@ Media never goes through Supabase or the Next.js server.
 | P2P engine (mesh, ≤ 8 people) | `src/components/call/useMeshCall.ts`, connection quality in `useMeshStats.ts` |
 | SFU engine (LiveKit, group lessons) | `src/components/call/useLiveKitCall.ts` |
 | Attendance heartbeat | `src/components/call/useCallAttendance.ts` |
+| Screen stays on during a call (Wake Lock; in the Android app expo-keep-awake) | `src/components/call/useKeepAwake.ts` |
 | Attendance card for the teacher | `src/components/call/CallAttendance.tsx`, `src/lib/call/attendance.ts` |
 | Quality measurement + adaptive video | `src/lib/call/quality.ts` |
 | TURN credentials, LiveKit tokens, transport choice | `src/lib/call/tokens.ts`, `src/app/api/turn`, `src/app/api/rtc/token` |
