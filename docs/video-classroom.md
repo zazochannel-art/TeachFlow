@@ -22,8 +22,8 @@ Media never goes through Supabase or the Next.js server.
 | Piece | Where |
 | --- | --- |
 | Engine choice (P2P or SFU) + attendance | `src/components/board/VideoCall.tsx` |
-| Call UI: join bar, dark full call view, small movable panel | `src/components/call/CallView.tsx` |
-| P2P engine (mesh, ≤ 8 people) | `src/components/call/useMeshCall.ts` |
+| Call UI: join bar, dark full call view, small movable panel | `src/components/call/CallView.tsx` (layouts), `CallParts.tsx` (tiles, buttons, chat, quality badges) |
+| P2P engine (mesh, ≤ 8 people) | `src/components/call/useMeshCall.ts`, connection quality in `useMeshStats.ts` |
 | SFU engine (LiveKit, group lessons) | `src/components/call/useLiveKitCall.ts` |
 | Attendance heartbeat | `src/components/call/useCallAttendance.ts` |
 | Attendance card for the teacher | `src/components/call/CallAttendance.tsx`, `src/lib/call/attendance.ts` |
