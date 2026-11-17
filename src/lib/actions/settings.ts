@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import type { FormState } from "@/lib/actions/common";
 import { rememberLang } from "@/lib/i18n/server";
+import { forgetNativePush } from "@/lib/push/native";
 
 const DEMO_MSG = "Mod demonstrativ: configurează Supabase pentru a salva date.";
 
@@ -65,7 +66,10 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
 
 export async function signOut() {
   const supabase = await createClient();
-  if (supabase) await supabase.auth.signOut();
+  if (supabase) {
+    await forgetNativePush(supabase);
+    await supabase.auth.signOut();
+  }
   redirect("/login");
 }
 

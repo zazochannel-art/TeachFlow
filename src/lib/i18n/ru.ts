@@ -1516,5 +1516,10 @@ export const ru: Record<string, string> = {
   "Nu are încă un cont (invitație neacceptată)": "Пока нет аккаунта (приглашение не принято)",
   "{name} poate desena pe tablă": "{name} может рисовать на доске",
   "Elevii intră în apel și văd tabla din pagina lecției din portalul lor. Pe tablă desenează doar elevii cărora le dai acces din „Acces elevi”. Cu „Partajează ecranul” elevii văd ecranul tău deasupra tablei.": "Ученики входят в звонок и видят доску на странице урока в своём портале. Рисуют на доске только те, кому вы дали доступ в «Доступ учеников». С «Поделиться экраном» ученики видят ваш экран над доской.",
-  "Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie. Poți desena și tu când profesorul îți dă acces. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.": "Видеозвонок и доска общие с учителем: вы в реальном времени видите, что он пишет. Вы тоже сможете рисовать, когда учитель даст доступ. Когда учитель делится экраном, вы видите его над доской."
+  "Apelul video și tabla sunt comune cu profesorul: vezi în timp real ce scrie. Poți desena și tu când profesorul îți dă acces. Când profesorul îți partajează ecranul, îl vezi deasupra tablei.": "Видеозвонок и доска общие с учителем: вы в реальном времени видите, что он пишет. Вы тоже сможете рисовать, когда учитель даст доступ. Когда учитель делится экраном, вы видите его над доской.",
+  "Primești pe telefon lecțiile noi, temele, testele și mesajele, chiar dacă aplicația e închisă.": "Новые уроки, задания, тесты и сообщения приходят на телефон, даже когда приложение закрыто.",
+  "Notificările sunt active în aplicația TeachFlow.": "Уведомления в приложении TeachFlow включены.",
+  "Notificările sunt oprite pentru aplicație. Apasă butonul și permite-le în setările telefonului.": "Уведомления для приложения выключены. Нажмите кнопку и разрешите их в настройках телефона.",
+  "Notificările nu sunt disponibile în această versiune a aplicației.": "В этой версии приложения уведомления недоступны.",
+  "Deschide setările telefonului": "Открыть настройки телефона"
 };

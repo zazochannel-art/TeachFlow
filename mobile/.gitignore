@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase config for push (upload it to EAS as the GOOGLE_SERVICES_JSON file variable instead)
+google-services.json

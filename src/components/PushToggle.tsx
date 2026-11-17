@@ -5,6 +5,7 @@ import { Bell, BellOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { sendTestPush } from "@/lib/actions/push";
 import { useT } from "@/lib/i18n/client";
+import { NATIVE_EVENT, nativeState, postNative, type NativeState } from "@/lib/native";
 
 type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
 
@@ -21,6 +22,45 @@ const toB64 = (buf: ArrayBuffer | null) => (buf ? btoa(String.fromCharCode(...ne
  * save_push_subscription (migration 0013); the server sends lessons, homework and messages to it.
  */
 export function PushToggle({ publicKey }: { publicKey: string | null }) {
+  const [native, setNative] = useState<NativeState["push"] | null>(null);
+  useEffect(() => {
+    const read = () => { const s = nativeState(); setNative(s ? { ...s.push } : null); };
+    read();
+    window.addEventListener(NATIVE_EVENT, read);
+    return () => window.removeEventListener(NATIVE_EVENT, read);
+  }, []);
+  return native ? <NativePush push={native} /> : <WebPushToggle publicKey={publicKey} />;
+}
+
+/** Inside the Android app: the phone's own notifications (permission and token come from the app). */
+function NativePush({ push }: { push: NativeState["push"] }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const test = async () => {
+    setBusy(true); setNote(null);
+    const res = await sendTestPush();
+    setNote(res.ok ? { ok: true, text: t("Notificarea de test a fost trimisă.") } : { ok: false, text: t(res.error ?? "A apărut o eroare. Încearcă din nou.") });
+    setBusy(false);
+  };
+  const on = push.status === "granted" && !!push.token;
+  return (
+    <div>
+      <p className="text-[12px] text-muted">{t("Primești pe telefon lecțiile noi, temele, testele și mesajele, chiar dacă aplicația e închisă.")}</p>
+      {on && <p className="mt-3 text-[12px] font-semibold text-[#1b8a5a]">{t("Notificările sunt active în aplicația TeachFlow.")}</p>}
+      {push.status === "denied" && <p className="mt-3 text-[12px] font-semibold text-[#a2660a]">{t("Notificările sunt oprite pentru aplicație. Apasă butonul și permite-le în setările telefonului.")}</p>}
+      {push.status === "unavailable" && <p className="mt-3 text-[12px] font-semibold text-muted">{t("Notificările nu sunt disponibile în această versiune a aplicației.")}</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {on && <button type="button" onClick={test} disabled={busy} className="tf-btn py-2">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} {t("Trimite o notificare de test")}</button>}
+        {push.status === "undetermined" && <button type="button" onClick={() => postNative({ type: "push:enable" })} className="tf-btn py-2"><Bell className="h-4 w-4" /> {t("Activează notificările")}</button>}
+        {push.status === "denied" && <button type="button" onClick={() => postNative({ type: "push:enable" })} className="tf-btn-ghost py-2"><BellOff className="h-4 w-4" /> {t("Deschide setările telefonului")}</button>}
+      </div>
+      {note && <p role="status" className={`mt-2 text-[12px] font-semibold ${note.ok ? "text-[#1b8a5a]" : "text-[#c03a3a]"}`}>{note.text}</p>}
+    </div>
+  );
+}
+
+function WebPushToggle({ publicKey }: { publicKey: string | null }) {
   const t = useT();
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);

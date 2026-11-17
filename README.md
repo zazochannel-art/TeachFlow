@@ -27,7 +27,7 @@ Open http://localhost:3000.
 Without Supabase environment variables, the dashboard displays clearly marked demo data. Authentication actions require Supabase configuration.
 
 ## Mobile app
-The native Android/iOS app lives in [`mobile/`](mobile/README.md) (Expo / React Native). It uses the same Supabase project, so accounts and data are shared with the web app. See `mobile/README.md` for running it on a phone with Expo Go, building an APK, and publishing to the stores.
+The Android app lives in [`mobile/`](mobile/README.md) (Expo / React Native). It shows this site in a full-screen WebView and adds native push notifications (Expo push, migration 0022), the back button, file sharing and an offline screen, so every web feature is in the app and accounts are shared. The site detects the app through `window.TeachFlowNative` (`src/lib/native.ts`, `src/components/NativeBridge.tsx`). A test APK is built by the "Android APK" GitHub Actions workflow; see `mobile/README.md` for push setup and Google Play.
 
 ## Commands
 ```bash
