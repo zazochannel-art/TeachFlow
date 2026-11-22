@@ -1,6 +1,6 @@
 import { AuthShell } from "@/components/AuthShell";
 import { LoginForm } from "./LoginForm";
-import { authErrorMessage, safeNext } from "@/lib/auth-errors";
+import { authErrorFromUrl, safeNext } from "@/lib/auth-errors";
 import { redirectIfSignedIn } from "@/lib/auth-redirect";
 import { getT } from "@/lib/i18n/server";
 
@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
     <AuthShell>
       <LoginForm
         next={next}
-        initialError={sp.error ? authErrorMessage(sp.error, t) : ""}
+        initialError={authErrorFromUrl(sp.error, t)}
         initialInfo={sp.reset ? t("Parola a fost schimbată. Autentifică-te cu parola nouă.") : sp.deleted ? t("Contul tău și toate datele lui au fost șterse.") : ""}
       />
     </AuthShell>

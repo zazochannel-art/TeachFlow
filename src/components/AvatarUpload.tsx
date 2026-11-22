@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AVATARS_BUCKET, AVATAR_ACCEPT, MAX_AVATAR_BYTES } from "@/lib/avatars";
 import { saveAvatar } from "@/lib/actions/avatar";
 import { useT } from "@/lib/i18n/client";
+import { newId } from "@/lib/board/model";
 
 /**
  * Round photo with a camera button. The picture is shrunk in the browser (max 512 px, JPEG/WebP),
@@ -38,7 +39,8 @@ export function AvatarUpload({ name, src, studentId = "", size = 72, disabled = 
       const { data: claims } = await supabase.auth.getClaims();
       const uid = claims?.claims?.sub;
       if (!uid) { setError(t("Sesiunea a expirat. Intră din nou în cont.")); return; }
-      const path = `${uid}/${studentId ? `s-${studentId}` : "me"}-${Date.now().toString(36)}.${blob.type === "image/webp" ? "webp" : "jpg"}`;
+      // The bucket is public, so the address itself must not be guessable: a random part, not only the time.
+      const path = `${uid}/${studentId ? `s-${studentId}` : "me"}-${Date.now().toString(36)}-${newId()}.${blob.type === "image/webp" ? "webp" : "jpg"}`;
       const up = await supabase.storage.from(AVATARS_BUCKET).upload(path, blob, { contentType: blob.type, upsert: true });
       if (up.error) { setError(t("Poza nu a putut fi încărcată. Verifică dacă migrarea 0011 este aplicată.")); return; }
       const url = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path).data.publicUrl;

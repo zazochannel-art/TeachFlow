@@ -20,6 +20,21 @@ export function authErrorMessage(message?: string | null, t: T = makeT("ro")): s
   return t(message);
 }
 
+/** Messages of our own that the sign-in page may show from the URL (auth/callback). */
+const URL_MESSAGES = new Set(["Supabase nu este configurat.", "Link invalid."]);
+
+/**
+ * An error that arrives in the URL (`/login?error=…`). Anyone can make such a link, so only known
+ * messages are shown; any other text becomes the generic message instead of appearing on the
+ * sign-in page word for word.
+ */
+export function authErrorFromUrl(value: string | null | undefined, t: T = makeT("ro")): string {
+  if (!value) return "";
+  for (const [re, text] of MESSAGES) if (re.test(value)) return t(text);
+  if (URL_MESSAGES.has(value)) return t(value);
+  return t("A apărut o eroare. Încearcă din nou.");
+}
+
 /** Only allow same-site relative paths as post-auth redirect targets. */
 export function safeNext(value: string | null | undefined, fallback = "/dashboard"): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return fallback;
