@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { UPLOAD_TYPES, uploadContentType } from "@/lib/files";
 import { dbError } from "@/lib/actions/common";
 import { safeNext } from "@/lib/auth-errors";
-import { hasCronSecret } from "@/lib/cron/auth";
+import { hasCronSecret, schedulerKey } from "@/lib/cron/auth";
 
 const sql = readFileSync(new URL("../supabase/migrations/0016_security_hardening.sql", import.meta.url), "utf8");
 
@@ -66,5 +66,16 @@ describe("hasCronSecret", () => {
     expect(hasCronSecret("Bearer s3cre", "s3cret")).toBe(false);
     expect(hasCronSecret("s3cret", "s3cret")).toBe(false);
     expect(hasCronSecret(null, "s3cret")).toBe(false);
+  });
+});
+
+describe("schedulerKey", () => {
+  it("reads only a well-formed Scheduler header", () => {
+    const key = "a".repeat(64);
+    expect(schedulerKey(`Scheduler ${key}`)).toBe(key);
+    expect(schedulerKey(`Bearer ${key}`)).toBeNull();
+    expect(schedulerKey("Scheduler short")).toBeNull();
+    expect(schedulerKey(`Scheduler ${key} extra`)).toBeNull();
+    expect(schedulerKey(null)).toBeNull();
   });
 });

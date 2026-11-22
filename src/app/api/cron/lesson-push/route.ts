@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { hasCronSecret } from "@/lib/cron/auth";
+import { hasCronSecret, schedulerKey } from "@/lib/cron/auth";
 import { timeBudget, workSeconds } from "@/lib/cron/budget";
 import { eachLimit } from "@/lib/concurrency";
 import { readAll, readByIds } from "@/lib/data/paged";
@@ -15,20 +15,30 @@ type LessonRow = { id: string; teacher_id: string; title: string; starts_at: str
 /**
  * Lesson push notifications, called with `Authorization: Bearer $CRON_SECRET`.
  * - default (Vercel Cron every morning): "today's lessons" to teachers, students and parents.
- * - `?mode=soon` (optional, from an external scheduler every 5–10 minutes): "starts in N minutes"
+ * - `?mode=soon` (every 5 minutes from the database's pg_cron job, migration 0025, which signs in with
+ *   `Authorization: Scheduler <Vault key>`; an outside scheduler with CRON_SECRET works too): "starts in N minutes"
  *   for lessons that start within the next 30 minutes, once per lesson (lesson_push_log).
  * Every read is paged (the Data API answers at most 1000 rows per request) and the pushes go out a
  * few at a time; a run that runs out of time reports what it left (`deferred`).
  */
 export async function GET(request: NextRequest) {
+  const soon = request.nextUrl.searchParams.get("mode") === "soon";
+  const authorization = request.headers.get("authorization");
+  // The database's own 5-minute job (migration 0025) may start the "soon" run with its Vault key.
+  const dbKey = soon ? schedulerKey(authorization) : null;
   const secret = process.env.CRON_SECRET;
-  if (!secret) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  if (!hasCronSecret(request.headers.get("authorization"), secret)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!secret && !dbKey) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
   const db = serviceClient();
+  if (dbKey) {
+    if (!db) return NextResponse.json({ error: "push not configured", missing: ["SUPABASE_SECRET_KEY"] }, { status: 503 });
+    const { data: ok } = await db.rpc("lesson_scheduler_key_ok", { p_key: dbKey });
+    if (ok !== true) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  } else if (!secret || !hasCronSecret(authorization, secret)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   if (!db || !pushConfigured()) return NextResponse.json({ error: "push not configured", missing: ["SUPABASE_SECRET_KEY"] }, { status: 503 });
 
   const now = new Date();
-  const soon = request.nextUrl.searchParams.get("mode") === "soon";
   const from = soon ? now : new Date(now.getTime() - 14 * 3600000);
   const to = new Date(now.getTime() + (soon ? 30 * 60000 : 38 * 3600000));
   const budget = timeBudget(workSeconds(maxDuration));
