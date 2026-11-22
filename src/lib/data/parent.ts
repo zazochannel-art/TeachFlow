@@ -65,13 +65,18 @@ export const loadParentPortal = cache(async (): Promise<ParentPortal> => {
   if (r !== "parent") redirect("/dashboard");
 
   type Row = { student_id: string; teacher_id: string; teacher_name: string; full_name: string; avatar_url: string | null; grade_level: string | null; birth_date: string | null };
-  const rows = (Array.isArray(children.data) ? children.data : []) as Row[];
+  let rows = (Array.isArray(children.data) ? children.data : []) as Row[];
 
   // Signed up from a parent invite but not linked yet: link now instead of showing an empty portal.
+  // Read the children again rather than redirecting to /parent, which would loop for as long as the
+  // RPC succeeds without linking anything (for example after the teacher removed this parent).
   const inviteToken = pendingInviteToken(data?.claims);
   if (!rows.length && inviteToken) {
     const accepted = await supabase.rpc("accept_parent_invite", { p_token: inviteToken });
-    if (!accepted.error) redirect("/parent");
+    if (!accepted.error) {
+      const again = await supabase.rpc("parent_children");
+      if (!again.error && Array.isArray(again.data)) rows = again.data as Row[];
+    }
   }
 
   const p = profile.data as { full_name: string; timezone: string; avatar_url: string | null } | null;

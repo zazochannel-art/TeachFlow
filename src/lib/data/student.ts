@@ -58,13 +58,20 @@ export const loadStudentPortal = cache(async (): Promise<StudentPortal> => {
   if (role.data?.role === "parent") redirect("/parent");
   if (role.data?.role !== "student") redirect("/dashboard");
 
-  const rows = (students.data ?? []) as Array<{ id: string; teacher_id: string; full_name: string; phone: string | null }>;
+  type Row = { id: string; teacher_id: string; full_name: string; phone: string | null };
+  let rows = (students.data ?? []) as Row[];
 
   // Signed up from an invite but not linked yet: link now instead of showing an empty portal.
+  // The rows are read again here instead of redirecting to /student: the invite token stays in the
+  // account's metadata forever, so after a teacher unlinks the account (the RPC then succeeds without
+  // linking anything) a redirect would send the browser round in circles.
   const inviteToken = pendingInviteToken(data?.claims);
   if (!rows.length && inviteToken) {
     const accepted = await supabase.rpc("accept_student_invite", { p_token: inviteToken });
-    if (!accepted.error) redirect("/student");
+    if (!accepted.error) {
+      const again = await supabase.rpc("my_student_records");
+      if (!again.error && Array.isArray(again.data)) rows = again.data as Row[];
+    }
   }
   const teacherIds = [...new Set(rows.map(r => r.teacher_id))];
   const { data: teachers } = teacherIds.length
