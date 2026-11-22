@@ -3,14 +3,15 @@ import { AvatarUpload } from "@/components/AvatarUpload";
 import { CalendarDays, ClipboardList, Mail, MessageCircle, Pencil, Phone, Plus, Search, Users, Wallet, Download } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, PageHeader, Panel, Pill, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
-import { loadWorkspace, type Workspace } from "@/lib/data/workspace";
+import { loadStudentPayments, loadWorkspace, type Workspace } from "@/lib/data/workspace";
+import { studentLessonTotals } from "@/lib/data/lesson-counts";
 import { deleteStudent, enrollStudent, removeEnrollment, saveStudent } from "@/lib/actions/students";
 import { formatDate, formatMoney, formatTime } from "@/lib/time";
 import { currencyTotals } from "@/lib/data/derive";
 import { StudentAccess } from "@/components/StudentAccess";
 import { ParentAccess, type LinkedParent } from "@/components/ParentAccess";
 import { ageOn } from "@/lib/time";
-import type { Student } from "@/types/database";
+import type { Payment, Student } from "@/types/database";
 import { getT } from "@/lib/i18n/server";
 import type { T } from "@/lib/i18n/core";
 import { StudentPoints } from "@/components/StudentPoints";
@@ -31,7 +32,11 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const coursesOf = (id: string) => ws.enrollments.filter(e => e.student_id === id && e.status === "active").map(e => courseTitle.get(e.course_id)).filter(Boolean) as string[];
   const editing = sp.edit ? ws.students.find(s => s.id === sp.edit) : undefined;
   const demo = ws.mode === "demo";
-  const [parents, extras] = await Promise.all([editing && !demo ? loadParents(editing.id) : Promise.resolve([]), editing ? loadTeacherExtras() : Promise.resolve(null)]);
+  const [parents, extras, editingPays] = await Promise.all([
+    editing && !demo ? loadParents(editing.id) : Promise.resolve([]),
+    editing ? loadTeacherExtras() : Promise.resolve(null),
+    editing ? loadStudentPayments(ws, editing.id) : Promise.resolve([])
+  ]);
   const qs = (status: string) => `/students?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   return (
@@ -60,7 +65,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       {editing && (
         <Panel title={t("Editează · {name}", { name: editing.full_name })} closeHref="/students"
           aside={<form action={deleteStudent}><input type="hidden" name="id" value={editing.id} /><ConfirmSubmit label={t("Șterge elevul")} confirm={t("Șterge definitiv")} /></form>}>
-          <StudentSummary ws={ws} student={editing} t={t} />
+          <StudentSummary ws={ws} student={editing} pays={editingPays} t={t} />
           <StudentForm ws={ws} demo={demo} student={editing} t={t} />
           <Enrollments ws={ws} student={editing} t={t} />
           <StudentAccess studentId={editing.id} studentName={editing.full_name} linked={Boolean(editing.user_id)} demo={demo} />
@@ -190,16 +195,15 @@ function Enrollments({ ws, student, t }: { ws: Workspace; student: Student; t: T
 }
 
 /** At-a-glance history of one student (lessons, homework, money) with the usual next steps. */
-function StudentSummary({ ws, student, t }: { ws: Workspace; student: Student; t: T }) {
+function StudentSummary({ ws, student, pays, t }: { ws: Workspace; student: Student; pays: Payment[]; t: T }) {
   const now = new Date();
   const courseIds = new Set(ws.enrollments.filter(e => e.student_id === student.id && e.status === "active").map(e => e.course_id));
   const lessons = ws.lessons.filter(l => l.student_id === student.id || (!l.student_id && l.course_id && courseIds.has(l.course_id)));
-  const held = lessons.filter(l => l.status === "completed").length;
-  const missed = lessons.filter(l => l.status === "no_show").length;
+  // Totals over the whole history; ws.lessons only holds the lessons around today.
+  const { held, missed } = studentLessonTotals(ws.lessonCounts, student.id, ws.enrollments);
   const next = lessons.find(l => l.status === "scheduled" && new Date(l.starts_at) > now);
   const hw = ws.homework.filter(h => h.student_id === student.id);
   const hwOpen = hw.filter(h => h.status !== "reviewed").length;
-  const pays = ws.payments.filter(p => p.student_id === student.id);
   const money = (list: typeof pays) => list.length ? currencyTotals(list).map(x => formatMoney(x.amount, x.currency, t.locale)).join(" + ") : "—";
   const tile = "rounded-2xl bg-soft px-4 py-3";
   const action = "inline-flex items-center gap-1.5 rounded-xl bg-tint px-3 py-2 text-[12px] font-bold text-primary-2 hover:bg-[#dfe4fb]";

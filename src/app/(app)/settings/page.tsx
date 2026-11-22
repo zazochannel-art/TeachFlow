@@ -19,6 +19,10 @@ import { AccountData } from "@/components/AccountData";
 
 const subStatus = { trialing: "Perioadă de probă", active: "Activ", past_due: "Plată restantă", cancelled: "Anulat", expired: "Expirat" } as const;
 
+// Server actions of this page share its time limit: deleting an account removes every file of the
+// teacher's lessons first, which can take a while for a long-time teacher.
+export const maxDuration = 300;
+
 export default async function SettingsPage() {
   const [ws, t, extras] = await Promise.all([loadWorkspace(), getT(), loadTeacherExtras()]);
   const name = ws.profile?.full_name || t("Profesor");

@@ -1,8 +1,12 @@
 import type { Workspace } from "@/lib/data/workspace";
+import { countLessons } from "@/lib/data/lesson-counts";
 import type { Course, Lesson, Payment, Student } from "@/types/database";
 
+/** A teacher workspace for tests; the lesson totals follow the given lessons unless set. */
 export function emptyWorkspace(over: Partial<Workspace> = {}): Workspace {
   return {
+    lessonWindow: { from: "2000-01-01T00:00:00.000Z", to: "2100-01-01T00:00:00.000Z" },
+    lessonCounts: countLessons(over.lessons ?? []),
     mode: "live", userId: "u1", email: "t@example.com", isAdmin: false, timezone: "Europe/Chisinau",
     profile: { full_name: "Profesor Test", avatar_url: null, preferred_language: "ro", timezone: "Europe/Chisinau" },
     teacherProfile: null, subscription: null,

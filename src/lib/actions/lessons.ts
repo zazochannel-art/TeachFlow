@@ -1,5 +1,6 @@
 "use server";
 
+import { readAll } from "@/lib/data/paged";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addDays, dateKey, formatDate, formatTime, zonedToUtc } from "@/lib/time";
@@ -85,8 +86,8 @@ export async function saveLesson(_: FormState, formData: FormData): Promise<Form
   if (v.confirm !== "1") {
     const from = rows[0].starts_at;
     const to = rows[rows.length - 1].ends_at;
-    const { data: others } = await ctx.supabase.from("lessons").select("id, title, starts_at, ends_at")
-      .eq("teacher_id", ctx.userId).eq("status", "scheduled").lt("starts_at", to).gt("ends_at", from).limit(1000);
+    const { data: others } = await readAll<{ id: string; title: string; starts_at: string; ends_at: string }>((a, b) => ctx.supabase.from("lessons").select("id, title, starts_at, ends_at")
+      .eq("teacher_id", ctx.userId).eq("status", "scheduled").lt("starts_at", to).gt("ends_at", from).order("starts_at").order("id").range(a, b), 20_000);
     const own = new Set(rows.map(r => r.id).filter(Boolean));
     const ms = (iso: string) => new Date(iso).getTime();
     const clash = (others ?? []).find(o => !own.has(o.id as string) && rows.some(r => ms(o.starts_at as string) < ms(r.ends_at) && ms(o.ends_at as string) > ms(r.starts_at)));

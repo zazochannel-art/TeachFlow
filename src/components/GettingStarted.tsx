@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
 import type { Workspace } from "@/lib/data/workspace";
+import { totalLessons } from "@/lib/data/lesson-counts";
 import { getT } from "@/lib/i18n/server";
 
 interface Step { id: string; title: string; text: string; href: string; done: boolean }
@@ -13,7 +14,7 @@ export function gettingStartedSteps(ws: Workspace): Step[] {
     { id: "student", title: "Adaugă primul elev", text: "Nume și date de contact.", href: "/students?new=1", done: ws.students.length > 0 },
     { id: "course", title: "Creează un curs sau o grupă", text: "Materie, nivel și preț.", href: "/courses/new", done: ws.courses.length > 0 },
     { id: "enroll", title: "Înscrie elevul la curs", text: "Leagă elevii de cursurile lor.", href: firstStudent ? `/students?edit=${firstStudent.id}` : "/students", done: ws.enrollments.length > 0 },
-    { id: "lesson", title: "Programează o lecție", text: "Poate fi și săptămânală, cu repetare.", href: "/calendar?new=1", done: ws.lessons.length > 0 },
+    { id: "lesson", title: "Programează o lecție", text: "Poate fi și săptămânală, cu repetare.", href: "/calendar?new=1", done: ws.lessons.length > 0 || totalLessons(ws.lessonCounts) > 0 },
   ];
 }
 

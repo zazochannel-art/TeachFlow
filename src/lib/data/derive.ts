@@ -3,6 +3,7 @@ import type { Course, Lesson } from "@/types/database";
 import { dayRange, formatDate, formatTime, initials } from "@/lib/time";
 import { makeT, type T } from "@/lib/i18n/core";
 import { NEUTRAL_COLOR, courseColors } from "@/lib/colors";
+import { courseLessonTotals } from "./lesson-counts";
 
 const RO = makeT("ro");
 
@@ -45,8 +46,8 @@ export function courseCards(ws: Workspace, includeInactive = false): CourseCard[
   const studentById = new Map(ws.students.map(s => [s.id, s]));
   return ws.courses.filter(c => includeInactive || c.is_active).map(c => {
     const enrolled = ws.enrollments.filter(e => e.course_id === c.id && e.status === "active");
-    const lessons = ws.lessons.filter(l => l.course_id === c.id && l.status !== "cancelled");
-    const done = lessons.filter(l => l.status === "completed" || l.status === "no_show").length;
+    // Over the whole history (ws.lessons only holds the lessons around today).
+    const { total, done } = courseLessonTotals(ws.lessonCounts, c.id);
     return {
       id: c.id,
       color: colorOf(ws, c.id),
@@ -54,9 +55,9 @@ export function courseCards(ws: Workspace, includeInactive = false): CourseCard[
       subject: subjectKind(c.subject, c.title),
       format: c.format,
       studentCount: enrolled.length,
-      progress: lessons.length ? Math.round((done / lessons.length) * 100) : null,
+      progress: total ? Math.round((done / total) * 100) : null,
       lessonsDone: done,
-      lessonsTotal: lessons.length,
+      lessonsTotal: total,
       avatars: enrolled.slice(0, 3).map(e => {
         const st = studentById.get(e.student_id);
         return { initials: initials(st?.full_name ?? "?"), name: st?.full_name ?? "?", src: st?.avatar_url ?? null };

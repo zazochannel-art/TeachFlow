@@ -1,4 +1,4 @@
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadAllPayments, loadWorkspace } from "@/lib/data/workspace";
 import { csvDateTime, csvResponse, toCsv } from "@/lib/csv";
 import { dateKey } from "@/lib/time";
 import { getT } from "@/lib/i18n/server";
@@ -7,11 +7,11 @@ const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "A
 
 /** Downloads the teacher's payments (RLS-scoped) as CSV. `?status=` mirrors the page tabs. */
 export async function GET(request: Request) {
-  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
+  const [ws, payments, t] = await Promise.all([loadWorkspace(), loadAllPayments(), getT()]);
   const status = new URL(request.url).searchParams.get("status");
   const today = dateKey(new Date(), ws.timezone);
-  const late = (p: (typeof ws.payments)[number]) => p.status === "pending" && !!p.due_date && p.due_date < today;
-  const list = ws.payments.filter(p =>
+  const late = (p: (typeof payments)[number]) => p.status === "pending" && !!p.due_date && p.due_date < today;
+  const list = payments.filter(p =>
     status === "paid" ? p.status === "paid" : status === "pending" ? p.status === "pending" : status === "overdue" ? late(p) : status === "cancelled" ? p.status === "cancelled" : p.status !== "cancelled");
 
   const student = new Map(ws.students.map(s => [s.id, s.full_name]));

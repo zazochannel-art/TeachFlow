@@ -1,4 +1,5 @@
 import { requireTeacher } from "./workspace";
+import { readAll } from "./paged";
 import { createClient } from "@/lib/supabase/server";
 import { storedQuestions } from "@/lib/quiz";
 import type { Quiz, QuizAssignment, QuizAttempt, QuizType } from "@/types/database";
@@ -46,7 +47,7 @@ export async function loadTeacherQuizzes(): Promise<{ ready: boolean; quizzes: Q
   if (!supabase || !userId) return { ready: true, quizzes: [], assignments: [] };
   const [q, a] = await Promise.all([
     supabase.from("quizzes").select(Q_COLUMNS).eq("teacher_id", userId).order("updated_at", { ascending: false }).limit(500),
-    supabase.from("quiz_assignments").select(A_COLUMNS).eq("teacher_id", userId).order("created_at", { ascending: false }).limit(5000)
+    readAll((from, to) => supabase.from("quiz_assignments").select(A_COLUMNS).eq("teacher_id", userId).order("created_at", { ascending: false }).order("id").range(from, to), 50_000)
   ]);
   if (q.error || a.error) return { ready: false, quizzes: [], assignments: [] };
   return { ready: true, quizzes: (q.data ?? []).map(toQuiz), assignments: (a.data ?? []).map(toAssignment) };
@@ -58,8 +59,8 @@ export async function loadQuizDetail(id: string): Promise<{ ready: boolean; quiz
   if (!supabase || !userId || !/^[0-9a-f-]{36}$/i.test(id)) return { ready: true, quiz: null, assignments: [], attempts: [] };
   const [q, a, t] = await Promise.all([
     supabase.from("quizzes").select(Q_COLUMNS).eq("id", id).eq("teacher_id", userId).maybeSingle(),
-    supabase.from("quiz_assignments").select(A_COLUMNS).eq("quiz_id", id).order("created_at", { ascending: true }).limit(2000),
-    supabase.from("quiz_attempts").select(T_COLUMNS).eq("quiz_id", id).order("attempt_no", { ascending: true }).limit(5000)
+    readAll((from, to) => supabase.from("quiz_assignments").select(A_COLUMNS).eq("quiz_id", id).order("created_at", { ascending: true }).order("id").range(from, to), 20_000),
+    readAll((from, to) => supabase.from("quiz_attempts").select(T_COLUMNS).eq("quiz_id", id).order("attempt_no", { ascending: true }).order("id").range(from, to), 50_000)
   ]);
   if (q.error || a.error || t.error) return { ready: false, quiz: null, assignments: [], attempts: [] };
   return { ready: true, quiz: q.data ? toQuiz(q.data) : null, assignments: (a.data ?? []).map(toAssignment), attempts: (t.data ?? []).map(toAttempt) };

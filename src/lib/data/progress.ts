@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeProgress, type GReward, type Progress } from "@/lib/gamification";
 import { createClient } from "@/lib/supabase/server";
 import { DEMO_REWARD_REASON } from "./demo";
+import { readAll } from "./paged";
 
 /**
  * Everything the points are computed from, for one or more students rows (a student with two
@@ -11,10 +12,10 @@ import { DEMO_REWARD_REASON } from "./demo";
 export async function loadProgress(supabase: SupabaseClient, studentIds: string[], timezone: string): Promise<{ ready: boolean; progress: Progress | null }> {
   if (!studentIds.length) return { ready: true, progress: null };
   const [homework, quizzes, enrollments, own, rewards] = await Promise.all([
-    supabase.from("homework").select("title, status, due_at, submitted_at, grade").in("student_id", studentIds).neq("status", "assigned").limit(2000),
-    supabase.from("quiz_assignments").select("title, status, score, max_score, submitted_at").in("student_id", studentIds).eq("status", "submitted").limit(2000),
-    supabase.from("course_enrollments").select("course_id, enrolled_at").in("student_id", studentIds),
-    supabase.from("lessons").select("id, title, status, starts_at").in("student_id", studentIds).eq("status", "completed").limit(3000),
+    readAll((a, b) => supabase.from("homework").select("id, title, status, due_at, submitted_at, grade").in("student_id", studentIds).neq("status", "assigned").order("id").range(a, b), 20_000),
+    readAll((a, b) => supabase.from("quiz_assignments").select("id, title, status, score, max_score, submitted_at").in("student_id", studentIds).eq("status", "submitted").order("id").range(a, b), 20_000),
+    readAll((a, b) => supabase.from("course_enrollments").select("id, course_id, enrolled_at").in("student_id", studentIds).order("id").range(a, b), 5000),
+    readAll((a, b) => supabase.from("lessons").select("id, title, status, starts_at").in("student_id", studentIds).eq("status", "completed").order("id").range(a, b), 20_000),
     supabase.from("student_rewards").select("points, reason, created_at").in("student_id", studentIds).order("created_at", { ascending: false }).limit(1000)
   ]);
   if (rewards.error) return { ready: false, progress: null };
@@ -26,7 +27,7 @@ export async function loadProgress(supabase: SupabaseClient, studentIds: string[
     if (!prev || (e.enrolled_at as string) < prev) joined.set(e.course_id as string, e.enrolled_at as string);
   }
   const group = joined.size
-    ? await supabase.from("lessons").select("id, title, status, starts_at, course_id").is("student_id", null).in("course_id", [...joined.keys()]).eq("status", "completed").limit(3000)
+    ? await readAll<{ id: string; title: string; status: string; starts_at: string; course_id: string }>((a, b) => supabase.from("lessons").select("id, title, status, starts_at, course_id").is("student_id", null).in("course_id", [...joined.keys()]).eq("status", "completed").order("id").range(a, b), 20_000)
     : { data: [] as Array<{ id: string; title: string; status: string; starts_at: string; course_id: string }> };
   const lessons = [
     ...(own.data ?? []),

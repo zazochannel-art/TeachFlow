@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AVATARS_BUCKET } from "@/lib/avatars";
 import { FILES_BUCKET } from "@/lib/files";
+import { eachLimit } from "@/lib/concurrency";
 
 /**
  * Tables included in "Descarcă datele mele". Each one is read with the user's own session,
@@ -55,24 +56,26 @@ async function listAll(admin: SupabaseClient, bucket: string, prefix: string, de
 }
 
 /**
- * Removes the files a user uploaded: profile photos, homework and hand-ins, quiz pictures,
- * and (for a teacher) the files of their lessons' whiteboards. Best effort: a failure here
- * must not keep the account alive.
+ * Removes the files a user uploaded: profile photos, homework and hand-ins, library materials,
+ * quiz pictures, and (for a teacher) the files of their lessons' whiteboards. Best effort: a
+ * failure here must not keep the account alive. Folders are emptied a few at a time, so a
+ * teacher with thousands of lessons is done within the request.
  */
 export async function removeUserFiles(admin: SupabaseClient, userId: string, lessonIds: string[]) {
   const jobs: Array<[string, string]> = [
     [AVATARS_BUCKET, userId],
     [FILES_BUCKET, `hw/${userId}`],
     [FILES_BUCKET, `sub/${userId}`],
+    [FILES_BUCKET, `lib/${userId}`],
     [FILES_BUCKET, `qz/${userId}`],
     ...lessonIds.map(id => [FILES_BUCKET, `lesson/${id}`] as [string, string])
   ];
-  for (const [bucket, prefix] of jobs) {
+  await eachLimit(jobs, 8, async ([bucket, prefix]) => {
     try {
       const paths = await listAll(admin, bucket, prefix);
       for (let i = 0; i < paths.length; i += 100) await admin.storage.from(bucket).remove(paths.slice(i, i + 100));
     } catch (e) {
       console.error("file cleanup failed", bucket, prefix, e instanceof Error ? e.message : e);
     }
-  }
+  });
 }

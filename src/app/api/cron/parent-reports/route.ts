@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasCronSecret } from "@/lib/cron/auth";
+import { timeBudget, workSeconds } from "@/lib/cron/budget";
 import { eachLimit } from "@/lib/concurrency";
+import { readAll, readByIds } from "@/lib/data/paged";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/reminders/email";
 import { buildMonthlyReport, isMonthKey, monthRange, previousMonth, renderReportEmail } from "@/lib/reports/monthly";
@@ -16,6 +18,10 @@ export const maxDuration = 300;
  * student gets one e-mail per parent (parent accounts and the parent e-mail on the student card)
  * about the previous month. parent_report_log prevents duplicates; quiet months send nothing.
  * `?dry=1` builds the reports without sending; `?month=YYYY-MM` picks another month.
+ *
+ * Many teachers: the run stops starting new teachers when its time budget is spent and reports
+ * them as `deferred`; the later runs of the same day (vercel.json) send the rest, because
+ * parent_report_log skips every report already sent.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -31,18 +37,21 @@ export async function GET(request: NextRequest) {
   const missing = [!url && "NEXT_PUBLIC_SUPABASE_URL", !serviceKey && "SUPABASE_SECRET_KEY", !dry && !resendKey && "RESEND_API_KEY", !dry && !from && "REMINDER_FROM"].filter(Boolean);
   if (missing.length) return NextResponse.json({ error: "not configured", missing }, { status: 503 });
 
+  const budget = timeBudget(workSeconds(maxDuration));
   const db = createClient(url!, serviceKey!, { auth: { persistSession: false, autoRefreshToken: false } });
   const appUrl = (process.env.APP_URL ?? request.nextUrl.origin).replace(/\/$/, "");
   const now = new Date();
 
-  const { data: teachers, error } = await db.from("teacher_profiles").select("user_id").eq("parent_reports", true);
-  if (error) return NextResponse.json({ error: "apply supabase/migrations/0013_library_quizzes_reports_push.sql", detail: error.message }, { status: 503 });
+  const { data: teachers, error } = await readAll<{ user_id: string }>((a, b) =>
+    db.from("teacher_profiles").select("user_id").eq("parent_reports", true).order("user_id").range(a, b), 500_000);
+  if (error || !teachers) return NextResponse.json({ error: "apply supabase/migrations/0013_library_quizzes_reports_push.sql", detail: error?.message }, { status: 503 });
 
   const emailOf = async (uid: string) => (await db.auth.admin.getUserById(uid)).data.user?.email ?? null;
-  const result = { teachers: teachers.length, students: 0, sent: 0, empty: 0, alreadySent: 0, noParents: 0, failed: 0, preview: [] as string[] };
+  const result = { teachers: teachers.length, students: 0, sent: 0, empty: 0, alreadySent: 0, noParents: 0, failed: 0, deferred: 0, preview: [] as string[] };
 
-  // A few teachers at a time: the job has to finish within maxDuration.
-  await eachLimit(teachers, 3, async ({ user_id: teacherId }) => {
+  // A few teachers at a time, until the time budget is spent (the next run continues).
+  await eachLimit(teachers, 4, async ({ user_id: teacherId }) => {
+    if (budget.spent()) { result.deferred++; return; }
     try {
       const { data: profile } = await db.from("profiles").select("full_name, timezone, preferred_language").eq("id", teacherId).maybeSingle();
       const tz = profile?.timezone || DEFAULT_TZ;
@@ -52,19 +61,24 @@ export async function GET(request: NextRequest) {
       const nextEnd = new Date(monthRange(month, tz).end.getTime() + 32 * 86400000);
 
       const [students, links, courses, enrollments, lessons, homework, quizzes, payments] = await Promise.all([
-        db.from("students").select("id, full_name, parent_email").eq("teacher_id", teacherId).eq("status", "active"),
-        db.from("parent_links").select("student_id, user_id").eq("teacher_id", teacherId),
-        db.from("courses").select("id, title").eq("teacher_id", teacherId),
-        db.from("course_enrollments").select("course_id, student_id, status").eq("teacher_id", teacherId),
-        db.from("lessons").select("id, title, starts_at, status, course_id, student_id").eq("teacher_id", teacherId).gte("starts_at", start.toISOString()).lt("starts_at", nextEnd.toISOString()).limit(5000),
-        db.from("homework").select("id, title, status, grade, due_at, submitted_at, created_at, student_id").eq("teacher_id", teacherId).gte("created_at", new Date(start.getTime() - 62 * 86400000).toISOString()).limit(5000),
-        db.from("quiz_assignments").select("id, title, status, score, max_score, submitted_at, student_id").eq("teacher_id", teacherId).gte("submitted_at", start.toISOString()).lt("submitted_at", end.toISOString()).limit(5000),
-        db.from("payments").select("amount, currency, status, due_date, student_id").eq("teacher_id", teacherId).eq("status", "pending").limit(5000)
+        readAll((a, b) => db.from("students").select("id, full_name, parent_email").eq("teacher_id", teacherId).eq("status", "active").order("id").range(a, b), 20_000),
+        readAll((a, b) => db.from("parent_links").select("id, student_id, user_id").eq("teacher_id", teacherId).order("id").range(a, b), 50_000),
+        readAll((a, b) => db.from("courses").select("id, title").eq("teacher_id", teacherId).order("id").range(a, b), 5000),
+        readAll((a, b) => db.from("course_enrollments").select("id, course_id, student_id, status").eq("teacher_id", teacherId).order("id").range(a, b), 50_000),
+        readAll((a, b) => db.from("lessons").select("id, title, starts_at, status, course_id, student_id").eq("teacher_id", teacherId).gte("starts_at", start.toISOString()).lt("starts_at", nextEnd.toISOString()).order("starts_at").order("id").range(a, b), 20_000),
+        readAll((a, b) => db.from("homework").select("id, title, status, grade, due_at, submitted_at, created_at, student_id").eq("teacher_id", teacherId).gte("created_at", new Date(start.getTime() - 62 * 86400000).toISOString()).order("id").range(a, b), 20_000),
+        readAll((a, b) => db.from("quiz_assignments").select("id, title, status, score, max_score, submitted_at, student_id").eq("teacher_id", teacherId).gte("submitted_at", start.toISOString()).lt("submitted_at", end.toISOString()).order("id").range(a, b), 20_000),
+        readAll((a, b) => db.from("payments").select("id, amount, currency, status, due_date, student_id").eq("teacher_id", teacherId).eq("status", "pending").order("id").range(a, b), 20_000)
       ]);
+      // Reports of this month already sent, for all of the teacher's students at once.
+      const sentLog = await readByIds((students.data ?? []).map(s => s.id as string), chunk =>
+        db.from("parent_report_log").select("student_id, recipient").in("student_id", chunk).eq("month", `${month}-01`));
+      const alreadySent = new Set((sentLog.data ?? []).map(r => `${r.student_id}|${r.recipient}`));
       const teacherName = profile?.full_name || makeT(teacherLang)("Profesor");
       let replyTo: string | null | undefined;
 
       for (const s of students.data ?? []) {
+        if (budget.spent()) { result.deferred++; break; }
         result.students++;
         const courseIds = new Set((enrollments.data ?? []).filter(e => e.student_id === s.id && e.status !== "completed").map(e => e.course_id as string));
         const mine = (lessons.data ?? []).filter(l => l.student_id === s.id || (!l.student_id && l.course_id && courseIds.has(l.course_id)));
@@ -92,8 +106,7 @@ export async function GET(request: NextRequest) {
 
         if (!buildMonthlyReport(input, makeT(teacherLang)).hasContent) { result.empty++; continue; }
         for (const [to, r] of recipients) {
-          const { data: logged } = await db.from("parent_report_log").select("student_id").eq("student_id", s.id).eq("recipient", to).eq("month", `${month}-01`).maybeSingle();
-          if (logged) { result.alreadySent++; continue; }
+          if (alreadySent.has(`${s.id}|${to}`)) { result.alreadySent++; continue; }
           const t = makeT(r.lang);
           const report = buildMonthlyReport(input, t);
           if (dry) { result.preview.push(`${report.subject} → ${to.replace(/^(.).*@/, "$1…@")}`); continue; }
@@ -108,5 +121,6 @@ export async function GET(request: NextRequest) {
       console.error("parent report failed", teacherId, e instanceof Error ? e.message : e);
     }
   });
+  if (result.deferred) console.warn(`[parent-reports] time budget spent, ${result.deferred} teachers/students left for the next run`);
   return NextResponse.json(result);
 }
