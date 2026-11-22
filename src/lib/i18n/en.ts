@@ -221,6 +221,7 @@ export const en: Record<string, string> = {
   "Intră în lecție cu un singur clic.": "Join the lesson in one click.",
   "Intră în lecție · {title}": "Join lesson · {title}",
   "Invitația a fost deja folosită de alt cont.": "The invitation was already used by another account.",
+  "Contul tău este deja legat de acest profesor. Cere-i profesorului să verifice lista de elevi.": "Your account is already linked to this teacher. Ask the teacher to check their student list.",
   "Invitația a fost deja folosită. Dacă e contul tău, autentifică-te.": "The invitation was already used. If it's your account, sign in.",
   "Invitație indisponibilă": "Invitation unavailable",
   "La zi": "Up to date",
