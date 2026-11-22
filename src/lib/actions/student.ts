@@ -14,6 +14,8 @@ import { forgetNativePush } from "@/lib/push/native";
 const ERRORS: Record<string, string> = {
   invite_invalid: "Linkul de invitație nu mai este valabil. Cere profesorului unul nou.",
   invite_used: "Invitația a fost deja folosită de alt cont.",
+  // The account is already linked to another student record of the same teacher (unique index).
+  students_teacher_user_uniq: "Contul tău este deja legat de acest profesor. Cere-i profesorului să verifice lista de elevi.",
   own_invite: "Ești autentificat cu contul de profesor. Deschide linkul cu contul elevului.",
   teacher_account: "Acest cont este folosit ca profesor. Creează un cont separat pentru elev.",
   homework_not_found: "Tema nu mai poate fi predată (poate a fost deja verificată).",
