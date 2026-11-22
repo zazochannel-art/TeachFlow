@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { callTransport, connectionSuffix, liveKitConfig, liveKitRoomName, liveKitToken, lessonCallIdentity, UUID_RE } from "@/lib/call/tokens";
+import { callTransport, connectionSuffix, liveKitConfig, liveKitRoomName, liveKitToken, lessonCallIdentity, publishSources, UUID_RE } from "@/lib/call/tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +33,21 @@ export async function POST(req: NextRequest) {
   const { data: lesson } = await supabase.from("lessons").select("course_id, student_id").eq("id", lessonId).maybeSingle();
   if (!lesson || callTransport(lesson) !== "sfu") return json({ error: "not_sfu" }, 409);
 
+  // Students share the screen only when the teacher allowed it (lesson_screen_access, 0021); the
+  // LiveKit server enforces it. Before migration 0021 everybody may, as before.
+  let screen = true;
+  if (who.role === "student") {
+    const { data: access, error } = await supabase.from("lesson_screen_access").select("user_id").eq("lesson_id", lessonId).eq("user_id", userId).maybeSingle();
+    screen = error ? true : !!access;
+  }
+
   const identity = `${userId}:${connectionSuffix()}`;
   const token = liveKitToken(cfg, {
     identity,
     name: who.name,
     room: liveKitRoomName(lessonId),
-    metadata: { role: who.role, userId }
+    metadata: { role: who.role, userId },
+    sources: publishSources(screen)
   });
   return json({ url: cfg.url, token, identity });
 }

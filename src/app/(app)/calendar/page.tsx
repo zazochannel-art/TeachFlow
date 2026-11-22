@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Plus, Video } from "lucide-react";
 import { DemoNotice, PageHeader, Panel, Pill } from "@/components/ui";
 import { ConfirmSubmit, SubmitButton } from "@/components/forms";
 import { LessonForm } from "@/components/LessonForm";
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadLesson, loadLessonsBetween, loadWorkspace } from "@/lib/data/workspace";
 import { currentLesson, lessonsBetween, toSlot } from "@/lib/data/derive";
 import { deleteLesson, setLessonStatus } from "@/lib/actions/lessons";
 import { getT } from "@/lib/i18n/server";
@@ -22,11 +22,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const now = new Date();
   const today = dateKey(now, ws.timezone);
-  const selected = sp.lesson ? ws.lessons.find(l => l.id === sp.lesson) : undefined;
+  const selected = (sp.lesson ? await loadLesson(ws, sp.lesson) : null) ?? undefined;
   const key = isDateKey(sp.date) ? sp.date : selected ? dateKey(new Date(selected.starts_at), ws.timezone) : today;
   const monday = startOfWeek(key);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const cur = currentLesson(ws, now);
+  // A week long ago or far ahead is outside the lessons every page loads: read that week.
+  const weekLessons = await loadLessonsBetween(ws, dayRange(days[0], ws.timezone).start.toISOString(), dayRange(days[6], ws.timezone).end.toISOString());
+  const weekWs = { ...ws, lessons: weekLessons };
   const live = ws.mode === "live";
   const back = safeNext(sp.back, "") || undefined;
   const self = `/calendar${key === today ? "" : `?date=${key}`}`;
@@ -35,7 +38,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     const { weekday, day: num } = formatShortDay(day, t.locale);
     return {
       key: day, weekday, num, isToday: day === today,
-      slots: lessonsBetween(ws, start, end).map(l => ({
+      slots: lessonsBetween(weekWs, start, end).map(l => ({
         ...toSlot(ws, l, now, cur?.id ?? null, t),
         startMin: minutesInTz(l.starts_at, ws.timezone),
         endMin: dateKey(new Date(l.ends_at), ws.timezone) === day ? Math.max(minutesInTz(l.ends_at, ws.timezone), minutesInTz(l.starts_at, ws.timezone) + 15) : 24 * 60

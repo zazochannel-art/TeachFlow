@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadStudentLessons, loadStudentPayments, loadWorkspace } from "@/lib/data/workspace";
 import { loadTeacherQuizzes } from "@/lib/data/quizzes";
 import { buildMonthlyReport, isMonthKey, monthRange, previousMonth, renderReportEmail } from "@/lib/reports/monthly";
 import { getT } from "@/lib/i18n/server";
@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
   const m = request.nextUrl.searchParams.get("month");
   const month = isMonthKey(m) ? m : previousMonth(new Date(), ws.timezone);
   const { end } = monthRange(month, ws.timezone);
-  const courseIds = new Set(ws.enrollments.filter(e => e.student_id === s.id && e.status !== "completed").map(e => e.course_id));
-  const lessons = ws.lessons.filter(l => l.student_id === s.id || (!l.student_id && l.course_id && courseIds.has(l.course_id)));
+  const courseIds = [...new Set(ws.enrollments.filter(e => e.student_id === s.id && e.status !== "completed").map(e => e.course_id))];
+  // Any month can be previewed, so the student's lessons and payments are read in full (not the workspace window).
+  const [lessons, payments] = await Promise.all([loadStudentLessons(ws, s.id, courseIds), loadStudentPayments(ws, s.id)]);
   const nextEnd = new Date(end.getTime() + 32 * 86400000);
   const report = buildMonthlyReport({
     timezone: ws.timezone, month, studentName: s.full_name, teacherName: ws.profile?.full_name || t("Profesor"),
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     lessons: lessons.filter(l => new Date(l.starts_at) < end),
     homework: ws.homework.filter(h => h.student_id === s.id),
     quizzes: quizData.assignments.filter(a => a.student_id === s.id),
-    payments: ws.payments.filter(p => p.student_id === s.id),
+    payments,
     nextMonthLessons: lessons.filter(l => l.status === "scheduled" && new Date(l.starts_at) >= end && new Date(l.starts_at) < nextEnd).length
   }, t);
   const { html } = renderReportEmail(report, t, { studentName: s.full_name, teacherName: ws.profile?.full_name || t("Profesor"), appUrl: request.nextUrl.origin, hasAccount: true });

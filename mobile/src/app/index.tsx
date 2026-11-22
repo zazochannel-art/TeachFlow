@@ -90,6 +90,8 @@ export default function AppScreen() {
   };
 
   const onMessage = async (e: WebViewMessageEvent) => {
+    // Only TeachFlow's own pages may talk to the app (not a page of another site opened inside it).
+    if (!isOwnUrl(e.nativeEvent.url)) return;
     const msg = parseMessage(e.nativeEvent.data);
     if (!msg) return;
     switch (msg.type) {

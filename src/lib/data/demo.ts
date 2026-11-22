@@ -1,6 +1,7 @@
 import { DEFAULT_TZ, addDays, dateKey, zonedToUtc } from "@/lib/time";
 import type { Workspace } from "./workspace";
 import type { PublicPage } from "./public-page";
+import { countLessons, lessonWindow } from "./lesson-counts";
 import type { Course, Enrollment, Homework, Lesson, Message, Payment, Student } from "@/types/database";
 
 // Shown only when Supabase is not configured (see README). The UI labels it as demo data.
@@ -102,7 +103,7 @@ export function buildDemoWorkspace(): Omit<Workspace, "homework"> & { homework: 
     profile: { full_name: "Profesor Demo", avatar_url: null, preferred_language: "ro", timezone: tz },
     teacherProfile: null,
     subscription: { plan_code: "free", status: "trialing", current_period_end: new Date(now.getTime() + 5 * 86400000).toISOString() },
-    students, courses, enrollments, lessons, homework, messages, payments, missingTables: []
+    students, courses, enrollments, lessons, lessonWindow: lessonWindow(now), lessonCounts: countLessons(lessons), homework, messages, payments, missingTables: []
   };
 }
 

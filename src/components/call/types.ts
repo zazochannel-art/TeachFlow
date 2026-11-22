@@ -38,6 +38,8 @@ export interface CallProps {
 /** Screen sharing rights in the call: the teacher always, a student only when the teacher allowed it. */
 export interface ScreenAccess {
   canShare: boolean;
+  /** Whether this user may share (the teacher always). A student without access who still sends a screen is shown like a camera. */
+  mayShare: (userId: string) => boolean;
   /** Only for the teacher, when the rule is enforced: the lesson's students and their switches. */
   manage: null | {
     students: { userId: string | null; name: string }[];

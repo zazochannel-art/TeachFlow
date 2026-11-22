@@ -10,7 +10,7 @@ import type { CallEngine, CallProps, ScreenAccess } from "./types";
  * lesson's teacher writes it); a change is announced on the lesson's signalling channel and every
  * client reads the list again from the database. A student who loses access stops sharing.
  */
-export function useScreenAccess({ lessonId, live, me, access }: CallProps, engine: CallEngine): ScreenAccess {
+export function useScreenAccess({ lessonId, live, me, access, teacherId }: CallProps, engine: CallEngine): ScreenAccess {
   const enforced = live && !!access?.shareReady;
   const isTeacher = me.role === "teacher";
   const [sharers, setSharers] = useState<string[]>(access?.sharers ?? []);
@@ -28,15 +28,16 @@ export function useScreenAccess({ lessonId, live, me, access }: CallProps, engin
   useEffect(() => {
     if (!enforced) return;
     // Also on every (re)subscribe: the list may have changed while this tab was not listening.
-    const handle = joinSignal(`screen:${lessonId}`, "access", () => { void refresh(); }, () => { void refresh(); });
+    const handle = joinSignal(`screen:${lessonId}`, "access", () => { void refresh(); }, () => { void refresh(); }, { id: me.id, role: me.role, name: me.name });
     bus.current = handle;
     return () => { bus.current = null; handle?.leave(); };
-  }, [enforced, lessonId, refresh]);
+  }, [enforced, lessonId, refresh, me.id, me.role, me.name]);
 
   const canShare = isTeacher || !enforced || sharers.includes(me.id);
+  const mayShare = useCallback((userId: string) => !enforced || userId === teacherId || sharers.includes(userId), [enforced, teacherId, sharers]);
 
   // Access taken away in the middle of a share: stop it.
-  const { sharing, toggleScreen } = engine;
+  const { sharing, toggleScreen, transport } = engine;
   const stopping = useRef(false);
   useEffect(() => {
     if (canShare || !sharing || stopping.current) return;
@@ -57,11 +58,16 @@ export function useScreenAccess({ lessonId, live, me, access }: CallProps, engin
       if (error) { setFailed(true); return; }
       setSharers(list => (allow ? [...new Set([...list, userId])] : list.filter(id => id !== userId)));
       bus.current?.send({});
+      // Group calls: the LiveKit server enforces the permission, so it is told right away.
+      if (transport === "sfu") {
+        void fetch("/api/rtc/permissions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId, userId }) }).catch(() => {});
+      }
     })();
-  }, [lessonId]);
+  }, [lessonId, transport]);
 
   return {
     canShare,
+    mayShare,
     manage: isTeacher && enforced ? { students: access?.students ?? [], sharers, busy, failed, toggle } : null
   };
 }

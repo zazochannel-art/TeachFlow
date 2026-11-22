@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarCheck, Check, Download, FileText, Pencil, Plus, TrendingUp, Wallet } from "lucide-react";
 import { Avatar, Card, DemoNotice, EmptyState, Field, MigrationNotice, PageHeader, Panel, Pill, SectionTitle, Tabs } from "@/components/ui";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/forms";
-import { loadWorkspace } from "@/lib/data/workspace";
+import { loadAllPayments, loadWorkspace } from "@/lib/data/workspace";
 import { currencyTotals } from "@/lib/data/derive";
 import { deletePayment, markPaymentPaid, savePayment } from "@/lib/actions/payments";
 import { dateKey, dayRange, formatDate, formatMoney } from "@/lib/time";
@@ -15,7 +15,8 @@ const methods = { cash: "Numerar", card: "Card", transfer: "Transfer", other: "A
 type Params = { status?: string; new?: string; edit?: string; student?: string };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  const [ws, t] = await Promise.all([loadWorkspace(), getT()]);
+  // The page lists every payment; the workspace (shared by all pages) only holds the recent ones.
+  const [ws, payments, t] = await Promise.all([loadWorkspace(), loadAllPayments(), getT()]);
   const sp = await searchParams;
   const demo = ws.mode === "demo";
   const missing = ws.missingTables.includes("payments");
@@ -37,16 +38,16 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const inMonth = ws.lessons.filter(l => new Date(l.starts_at) >= monthStart && new Date(l.starts_at) < monthEnd);
   const estimate = currencyTotals(inMonth.filter(l => l.status === "completed").map(value).filter(v => v != null));
 
-  const paidThisMonth = ws.payments.filter(p => p.status === "paid" && p.paid_at && new Date(p.paid_at) >= monthStart && new Date(p.paid_at) < monthEnd);
-  const pending = ws.payments.filter(p => p.status === "pending");
-  const paidAll = ws.payments.filter(p => p.status === "paid");
-  const cancelled = ws.payments.filter(p => p.status === "cancelled");
+  const paidThisMonth = payments.filter(p => p.status === "paid" && p.paid_at && new Date(p.paid_at) >= monthStart && new Date(p.paid_at) < monthEnd);
+  const pending = payments.filter(p => p.status === "pending");
+  const paidAll = payments.filter(p => p.status === "paid");
+  const cancelled = payments.filter(p => p.status === "cancelled");
   const overdue = pending.filter(p => p.due_date && p.due_date < today);
   const money = (list: Array<{ amount: number; currency: string }>) => list.length ? currencyTotals(list).map(x => formatMoney(x.amount, x.currency, t.locale)).join(" + ") : "—";
 
   const filter = (["all", "paid", "pending", "overdue", "cancelled"] as const).find(f => f === sp.status) ?? "all";
-  const list = filter === "all" ? ws.payments.filter(p => p.status !== "cancelled") : filter === "overdue" ? overdue : ws.payments.filter(p => p.status === filter);
-  const editing = sp.edit ? ws.payments.find(p => p.id === sp.edit && p.status !== "cancelled") : undefined;
+  const list = filter === "all" ? payments.filter(p => p.status !== "cancelled") : filter === "overdue" ? overdue : payments.filter(p => p.status === filter);
+  const editing = sp.edit ? payments.find(p => p.id === sp.edit && p.status !== "cancelled") : undefined;
   const stat = "flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5";
   const icon = "grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-tint text-primary-2";
 

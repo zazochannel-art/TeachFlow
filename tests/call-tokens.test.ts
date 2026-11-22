@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { callTransport, coturnCredentials, lessonCallIdentity, liveKitConfig, liveKitToken, parseTurnUrls } from "@/lib/call/tokens";
+import { callTransport, coturnCredentials, harnessEnabled, lessonCallIdentity, liveKitAdminToken, liveKitConfig, liveKitToken, parseTurnUrls, publishSources, syncScreenPermission } from "@/lib/call/tokens";
 
 const LESSON = "11111111-2222-4333-8444-555555555555";
 const lk = { LIVEKIT_URL: "wss://x.livekit.cloud", LIVEKIT_API_KEY: "APIkey", LIVEKIT_API_SECRET: "secret-secret-secret" } as unknown as NodeJS.ProcessEnv;
@@ -68,5 +68,66 @@ describe("LiveKit token", () => {
     expect(body).toMatchObject({ iss: "APIkey", sub: "u1:ab", name: "Ana", exp: now / 1000 + 600, video: { room: `lesson_${LESSON}`, roomJoin: true, canUpdateOwnMetadata: false } });
     expect(JSON.parse(body.metadata)).toEqual({ role: "student" });
     expect(body.video.roomAdmin).toBeUndefined();
+  });
+});
+
+const claims = (token: string) => JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+
+describe("screen share permission in group calls", () => {
+  const cfg = liveKitConfig(lk)!;
+
+  it("lets a student publish only camera and microphone unless the teacher allowed the screen", () => {
+    const no = claims(liveKitToken(cfg, { identity: "u1:ab", name: "Ana", room: "r", sources: publishSources(false) }));
+    expect(no.video.canPublishSources).toEqual(["camera", "microphone"]);
+    const yes = claims(liveKitToken(cfg, { identity: "u1:ab", name: "Ana", room: "r", sources: publishSources(true) }));
+    expect(yes.video.canPublishSources).toEqual(["camera", "microphone", "screen_share", "screen_share_audio"]);
+    // Without a list (the teacher): no limit.
+    expect(claims(liveKitToken(cfg, { identity: "t:ab", name: "Prof", room: "r" })).video.canPublishSources).toBeUndefined();
+  });
+
+  it("signs a short admin token for one room only", () => {
+    const now = Date.UTC(2026, 10, 22, 9, 0, 0);
+    const c = claims(liveKitAdminToken(cfg, "lesson_x", now));
+    expect(c).toMatchObject({ iss: "APIkey", exp: now / 1000 + 120, video: { room: "lesson_x", roomAdmin: true } });
+    expect(c.video.roomJoin).toBeUndefined();
+  });
+
+  it("updates every connection of the student in the room through the LiveKit room API", async () => {
+    const calls: Array<{ url: string; body: Record<string, unknown>; auth: string }> = [];
+    const fake = (async (url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      calls.push({ url, body, auth: String((init.headers as Record<string, string>).Authorization) });
+      const participants = [{ identity: "u1:aa" }, { identity: "u1:bb" }, { identity: "u10:cc" }, { identity: "u2:dd" }];
+      return new Response(JSON.stringify(url.endsWith("ListParticipants") ? { participants } : {}), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await expect(syncScreenPermission(cfg, "lesson_x", "u1", false, fake)).resolves.toBe(2);
+    expect(calls.map(c => c.url)).toEqual([
+      "https://x.livekit.cloud/twirp/livekit.RoomService/ListParticipants",
+      "https://x.livekit.cloud/twirp/livekit.RoomService/UpdateParticipant",
+      "https://x.livekit.cloud/twirp/livekit.RoomService/UpdateParticipant"
+    ]);
+    expect(calls[1].body).toEqual({
+      room: "lesson_x", identity: "u1:aa",
+      permission: { canSubscribe: true, canPublish: true, canPublishData: true, canUpdateMetadata: false, canPublishSources: ["CAMERA", "MICROPHONE"] }
+    });
+    expect(claims(calls[0].auth.replace("Bearer ", "")).video).toEqual({ room: "lesson_x", roomAdmin: true });
+
+    calls.length = 0;
+    await syncScreenPermission(cfg, "lesson_x", "u1", true, fake);
+    expect((calls[1].body.permission as { canPublishSources: string[] }).canPublishSources).toEqual(["CAMERA", "MICROPHONE", "SCREEN_SHARE", "SCREEN_SHARE_AUDIO"]);
+  });
+
+  it("reports a LiveKit error", async () => {
+    const fail = (async () => new Response("nope", { status: 401 })) as unknown as typeof fetch;
+    await expect(syncScreenPermission(cfg, "lesson_x", "u1", true, fail)).rejects.toThrow(/HTTP 401/);
+  });
+});
+
+describe("call test harness", () => {
+  it("is on only with RTC_TEST_HARNESS=1 and never on Vercel", () => {
+    expect(harnessEnabled({ RTC_TEST_HARNESS: "1" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(harnessEnabled({ RTC_TEST_HARNESS: "1", VERCEL: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(harnessEnabled({} as NodeJS.ProcessEnv)).toBe(false);
   });
 });

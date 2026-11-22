@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ICE_SERVERS, MAX_CHAT, sanitizeCallSignal, userOfKey, type CallMeta, type CallSignal } from "@/lib/board/rtc";
-import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
+import { ICE_SERVERS, MAX_CHAT, sanitizeCallSignal, type CallMeta, type CallSignal } from "@/lib/board/rtc";
+import { getIceServers, joinSignal, type Sender, type SignalHandle } from "@/lib/board/signal";
 import { RateLimiter, SeenIds, canCall, mediaProblem, type MediaProblem } from "@/lib/board/call";
 import { INITIAL_ADAPT, VIDEO_PROFILES, applyVideoProfile, meshMinLevel, type AdaptState, type StatCounters } from "@/lib/call/quality";
 import { newId } from "@/lib/board/model";
@@ -23,6 +23,9 @@ export const VIDEO: MediaTrackConstraints = { width: { ideal: 960 }, height: { i
  * TeachFlow's own P2P lesson call: camera + microphone (or microphone only), WebRTC mesh with
  * exactly one RTCPeerConnection per pair of participants. Signalling runs on the lesson's private
  * Realtime channel (a WebSocket protected by RLS); audio and video never pass through Supabase.
+ *
+ * Messages are signed per browser tab (src/lib/board/signal.ts, migration 0024): the role and name
+ * shown for a participant come from the database, and nobody can send in someone else's name.
  *
  * Every connection always negotiates one audio and one video transceiver in both directions, so a
  * participant can turn the camera on later, or share the screen, by swapping the track that is sent
@@ -225,7 +228,7 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
   // ---------- signalling ----------
 
   useEffect(() => {
-    keyRef.current = `${me.id}:${newId().slice(0, 8)}`;
+    keyRef.current = `${me.id}:local`;
     if (!live) return;
     const pcs = pcsRef.current;
     const chains = chainsRef.current;
@@ -236,13 +239,15 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
     const chatLimit = new RateLimiter(12, 10_000);
     const seenChat = new SeenIds();
 
-    const roleOf = (key: string): CallMeta["role"] => (userOfKey(key) === teacherId ? "teacher" : "student");
+    // Verified senders: role and name from the database. Before migration 0024 (unsigned): as before.
+    const roleOf = (s: Sender): CallMeta["role"] => (s.verified && s.role ? s.role : s.userId === teacherId ? "teacher" : "student");
+    const nameOf = (s: Sender, claimed: string) => (s.verified && s.name ? s.name : claimed);
 
-    const onSignal = async (msg: CallSignal) => {
+    const onSignal = async (msg: CallSignal, sender: Sender) => {
       const from = msg.from;
 
       // Who is in the call (shown on the "join" button even before joining).
-      if (msg.type === "hello" || msg.type === "here" || msg.type === "offer") setInCall(m => ({ ...m, [from]: msg.name }));
+      if (msg.type === "hello" || msg.type === "here" || msg.type === "offer") setInCall(m => ({ ...m, [from]: nameOf(sender, msg.name) }));
       if (msg.type === "bye") setInCall(m => { const n = { ...m }; delete n[from]; return n; });
 
       if (msg.type === "who") {
@@ -254,7 +259,7 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
       switch (msg.type) {
         case "hello":
         case "here": {
-          upsertPeer(from, { name: msg.name, role: roleOf(from), mic: msg.mic, cam: msg.cam, screen: msg.screen });
+          upsertPeer(from, { name: nameOf(sender, msg.name), role: roleOf(sender), mic: msg.mic, cam: msg.cam, screen: msg.screen });
           // Deterministic initiator: only the participant with the smaller key offers, so offers never cross.
           if (keyRef.current > from) {
             if (msg.type === "hello") send({ type: "here", from: keyRef.current, to: from, ...myMeta() });
@@ -270,7 +275,7 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
         }
         case "offer": {
           if (keyRef.current < from) return; // we are the offerer of this pair: ignore a crossing offer
-          upsertPeer(from, { name: msg.name, role: roleOf(from), mic: msg.mic, cam: msg.cam, screen: msg.screen });
+          upsertPeer(from, { name: nameOf(sender, msg.name), role: roleOf(sender), mic: msg.mic, cam: msg.cam, screen: msg.screen });
           // An ICE restart renegotiates on the existing connection; a new offer otherwise starts fresh.
           const existing = pcs.get(from);
           const sameSession = existing?.signalingState === "stable" && !!existing.remoteDescription && fingerprint(existing.remoteDescription?.sdp) === fingerprint(msg.sdp);
@@ -313,30 +318,33 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
           break;
         case "chat":
           if (!seenChat.add(msg.id) || !chatLimit.allow(from)) return;
-          setChat(list => [...list.slice(-99), { id: msg.id, from, name: msg.name, text: msg.text, mine: false, at: Date.now() }]);
+          setChat(list => [...list.slice(-99), { id: msg.id, from, name: nameOf(sender, msg.name), text: msg.text, mine: false, at: Date.now() }]);
           if (!chatOpenRef.current) setUnread(n => n + 1);
           break;
         case "bye":
-          if (pcs.has(from) && roleOf(from) === "teacher" && me.role === "student") setNotice(t("Profesorul a ieșit din apel."));
+          if (pcs.has(from) && roleOf(sender) === "teacher" && me.role === "student") setNotice(t("Profesorul a ieșit din apel."));
           dropPeer(from);
           break;
       }
     };
 
-    const handle = joinSignal(`screen:${lessonId}`, "call", payload => {
+    const handle = joinSignal(`screen:${lessonId}`, "call", (payload, sender) => {
       const msg = sanitizeCallSignal(payload);
-      if (!msg || ("to" in msg && msg.to !== keyRef.current) || msg.from === keyRef.current) return;
+      // `from` is the sender's verified key (the bus overwrites whatever the message claims).
+      if (!msg || msg.from !== sender.key || ("to" in msg && msg.to !== keyRef.current) || msg.from === keyRef.current) return;
       if (!signalLimit.allow(msg.from)) return;
       // Messages from one participant are handled in order (offer before its ICE, and so on).
       const from = msg.from;
       const prev = chains.get(from) ?? Promise.resolve();
-      const next = prev.then(() => onSignal(msg)).catch(() => {});
+      const next = prev.then(() => onSignal(msg, sender)).catch(() => {});
       chains.set(from, next);
     }, () => {
       send({ type: "who", from: keyRef.current });
       // After a reconnect, announce ourselves again so the others reconnect to us.
       if (joinedRef.current) send({ type: "hello", from: keyRef.current, ...myMeta() });
-    });
+    }, { id: me.id, role: me.role, name: me.name });
+    // The tab's connection key (shared with the other components of the lesson page).
+    if (handle) keyRef.current = handle.key;
     signalRef.current = handle;
 
     const onHide = () => { if (joinedRef.current) send({ type: "bye", from: keyRef.current }); };
@@ -354,7 +362,7 @@ export function useMeshCall({ lessonId, live, me, teacherId }: CallProps): CallE
       for (const tm of timers.values()) clearTimeout(tm);
       timers.clear();
     };
-  }, [live, lessonId, me.id, me.role, teacherId, connect, dropPeer, upsertPeer, myMeta, send, restartIce, attachLocalTracks, t]);
+  }, [live, lessonId, me.id, me.role, me.name, teacherId, connect, dropPeer, upsertPeer, myMeta, send, restartIce, attachLocalTracks, t]);
 
   // Connection quality per connection, and outgoing video that follows it (useMeshStats.ts).
   const { myQuality, relay } = useMeshStats({ joined, pcsRef, adaptRef, countersRef, applyLevel, upsertPeer });

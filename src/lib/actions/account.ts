@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/push/server";
 import { removeUserFiles } from "@/lib/account";
+import { readAll } from "@/lib/data/paged";
 import type { FormState } from "./common";
 
 /**
@@ -29,8 +30,9 @@ export async function deleteAccount(_: FormState, formData: FormData): Promise<F
   const admin = serviceClient();
   if (!admin) return { error: "Ștergerea contului nu este configurată pe server. Scrie-ne și o facem noi." };
 
-  const { data: lessons } = await admin.from("lessons").select("id").eq("teacher_id", userId).limit(20000);
-  await removeUserFiles(admin, userId, (lessons ?? []).map(l => l.id as string));
+  // Every lesson (the Data API answers at most 1000 rows per request, so page through them).
+  const { data: lessons } = await readAll<{ id: string }>((from, to) => admin.from("lessons").select("id").eq("teacher_id", userId).order("id").range(from, to), 500_000);
+  await removeUserFiles(admin, userId, (lessons ?? []).map(l => l.id));
 
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {

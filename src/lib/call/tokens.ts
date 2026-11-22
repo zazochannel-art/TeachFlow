@@ -75,9 +75,26 @@ export const liveKitRoomName = (lessonId: string) => `lesson_${lessonId}`;
 
 const b64url = (v: Buffer | string) => Buffer.from(v).toString("base64url");
 
-/** LiveKit access token (HS256 JWT, https://docs.livekit.io/home/get-started/authentication/). */
+/** What a participant may publish: the camera and microphone, and the screen only when allowed. */
+export type PublishSource = "camera" | "microphone" | "screen_share" | "screen_share_audio";
+export const publishSources = (screen: boolean): PublishSource[] =>
+  screen ? ["camera", "microphone", "screen_share", "screen_share_audio"] : ["camera", "microphone"];
+
+function signJwt(cfg: LiveKitConfig, payload: Record<string, unknown>) {
+  const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(payload));
+  const sig = createHmac("sha256", cfg.apiSecret).update(`${head}.${body}`).digest("base64url");
+  return `${head}.${body}.${sig}`;
+}
+
+/**
+ * LiveKit access token (HS256 JWT, https://docs.livekit.io/home/get-started/authentication/).
+ * `sources` limits what the participant may publish; the LiveKit server enforces it (a student
+ * without the teacher's permission cannot publish a screen share even with a modified browser).
+ */
 export function liveKitToken(cfg: LiveKitConfig, opts: {
   identity: string; name: string; room: string; metadata?: Record<string, unknown>; ttlS?: number; now?: number; maxParticipants?: number;
+  sources?: PublishSource[];
 }): string {
   const iat = Math.floor((opts.now ?? Date.now()) / 1000);
   const payload = {
@@ -94,16 +111,61 @@ export function liveKitToken(cfg: LiveKitConfig, opts: {
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
-      canUpdateOwnMetadata: false
+      canUpdateOwnMetadata: false,
+      ...(opts.sources ? { canPublishSources: opts.sources } : {})
     },
     // Created on first join; closed 5 minutes after the last person leaves.
     roomConfig: { name: opts.room, maxParticipants: opts.maxParticipants ?? 50, emptyTimeout: 300, departureTimeout: 60 }
   };
-  const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = b64url(JSON.stringify(payload));
-  const sig = createHmac("sha256", cfg.apiSecret).update(`${head}.${body}`).digest("base64url");
-  return `${head}.${body}.${sig}`;
+  return signJwt(cfg, payload);
 }
+
+/** Short server-side token for the LiveKit room API (list and update the participants of one room). */
+export function liveKitAdminToken(cfg: LiveKitConfig, room: string, now = Date.now()) {
+  const iat = Math.floor(now / 1000);
+  return signJwt(cfg, { iss: cfg.apiKey, sub: "teachflow-server", nbf: iat - 10, exp: iat + 120, video: { room, roomAdmin: true } });
+}
+
+const TRACK_SOURCE: Record<PublishSource, string> = { camera: "CAMERA", microphone: "MICROPHONE", screen_share: "SCREEN_SHARE", screen_share_audio: "SCREEN_SHARE_AUDIO" };
+
+/**
+ * Applies a new screen-share permission to every connection of `userId` that is in the room now
+ * (the teacher switched it during the call). Uses LiveKit's RoomService (Twirp/JSON):
+ * ListParticipants, then UpdateParticipant for each identity "<userId>:<suffix>". LiveKit stops a
+ * screen share that is no longer allowed. Returns how many connections were updated.
+ */
+export async function syncScreenPermission(cfg: LiveKitConfig, room: string, userId: string, allowScreen: boolean, fetchFn: typeof fetch = fetch): Promise<number> {
+  const base = cfg.url.replace(/^ws/i, "http").replace(/\/$/, "");
+  const call = async (method: string, body: unknown) => {
+    const res = await fetchFn(`${base}/twirp/livekit.RoomService/${method}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${liveKitAdminToken(cfg, room)}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) throw new Error(`LiveKit ${method}: HTTP ${res.status} ${(await res.text().catch(() => "")).slice(0, 200)}`);
+    return res.json() as Promise<{ participants?: Array<{ identity?: string }> }>;
+  };
+  const list = await call("ListParticipants", { room });
+  const mine = (list.participants ?? []).map(p => p.identity ?? "").filter(id => id.startsWith(`${userId}:`));
+  for (const identity of mine) {
+    await call("UpdateParticipant", {
+      room, identity,
+      permission: {
+        canSubscribe: true, canPublish: true, canPublishData: true, canUpdateMetadata: false,
+        canPublishSources: publishSources(allowScreen).map(s => TRACK_SOURCE[s])
+      }
+    });
+  }
+  return mine.length;
+}
+
+/**
+ * The automated call test harness (/dev/call, scripts/rtc-e2e) is on only with RTC_TEST_HARNESS=1,
+ * and never on Vercel (VERCEL is set on every Vercel deployment), whatever the variables say.
+ */
+export const harnessEnabled = (env: NodeJS.ProcessEnv = process.env) => env.RTC_TEST_HARNESS === "1" && !env.VERCEL;
 
 /** Random suffix so the same user can be in the call from two tabs/devices without kicking the other. */
 export const connectionSuffix = () => randomBytes(4).toString("hex");

@@ -3,7 +3,10 @@
   "regions": ["dub1"],
   "crons": [
     { "path": "/api/cron/reminders", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/reminders", "schedule": "40 5 * * *" },
     { "path": "/api/cron/lesson-push", "schedule": "15 5 * * *" },
-    { "path": "/api/cron/parent-reports", "schedule": "0 7 1 * *" }
+    { "path": "/api/cron/parent-reports", "schedule": "0 7 1 * *" },
+    { "path": "/api/cron/parent-reports", "schedule": "0 8 1 * *" },
+    { "path": "/api/cron/parent-reports", "schedule": "0 9 1 * *" }
   ]
 }
