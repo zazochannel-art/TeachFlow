@@ -51,6 +51,16 @@ Decided on the server from the lesson, so everybody in a lesson uses the same on
 - Signalling: private Realtime channel; RLS on `realtime.messages` lets only lesson members read or
   send. Every message is validated and size-limited (`sanitizeCallSignal`) and rate-limited per
   participant (400 signalling / 10 s, 12 chat / 10 s).
+- Signed signalling (migration 0024): RLS decides who is on the channel, but a broadcast message
+  carries no proof of who wrote it. So every browser tab makes its own ECDSA P-256 key (the private
+  half cannot be exported) and registers the public half with `public.register_call_peer()` for its
+  connection key `<user id>:<random>`; the database checks lesson membership and that the key starts
+  with the caller's own id, and stores role and name from the lesson. Every message (call, teacher's
+  screen share, access changes) travels in a signed envelope with a per-sender counter; receivers
+  look the key up with `public.call_peer()` and drop unsigned, forged and replayed messages
+  (`src/lib/call/peer-auth.ts`, `src/lib/board/signal.ts`). Names and roles shown in a P2P call come
+  from the database, and nobody can say "bye" or chat in someone else's name. Before 0024 is applied
+  the old unsigned messages keep working.
 - TURN: `/api/turn?lesson=<id>` hands out credentials only to lesson members, valid 4 hours
   (Cloudflare short-lived credentials, or coturn HMAC credentials bound to the user). No TURN secret
   ever reaches the browser.
@@ -63,8 +73,13 @@ Decided on the server from the lesson, so everybody in a lesson uses the same on
   each student from "Participanți" → "Cine poate partaja ecranul" in the call (table
   `lesson_screen_access`, same rules as `lesson_board_access`). A change is announced on the lesson's
   signalling channel (event `access`) and clients read the list again; a student who loses access
-  stops sharing. This is enforced in the app, not by the media path: a tampered client could still
-  send a screen as its "camera" (as with any virtual camera). Before 0021 everybody can share.
+  stops sharing. In SFU calls the LiveKit server enforces it: a student's token only allows camera and
+  microphone (`canPublishSources`) unless the teacher allowed the screen, and a change during the
+  call is applied to the student's connections at once (`/api/rtc/permissions` → LiveKit
+  `UpdateParticipant`; only the lesson's teacher may call it, the permission is read from the
+  database). In P2P calls the other participants show a screen from a student without access as an
+  ordinary tile, not on the main stage. Any client can still send a screen as its "camera" (as with
+  any virtual camera). Before 0021 everybody can share.
 - Whiteboard (migration 0019): all lesson members see the board; only the teacher draws by default.
   The teacher gives drawing access per student from "Acces elevi" above the board (table
   `lesson_board_access`, one row per lesson and student account; only the lesson's teacher can insert
@@ -138,9 +153,10 @@ may fail with "Nu se poate conecta". Without LiveKit, group lessons use P2P (fin
 
 - Unit: `npm test` (`tests/call-*.test.ts`: tokens, TURN credentials, transport choice, stats
   parsing, quality, adaptive steps, attendance math).
-- Database: migration 0018 was run against PostgreSQL 16 with a Supabase-like auth stub: teacher and
-  student get their identity, a stranger gets nothing and cannot join, direct inserts are refused,
-  a stay without heartbeats is closed at its last heartbeat.
+- Database: `supabase/tests/rls.sql` runs in CI after the migrations (`scripts/check-migrations.sh`)
+  and signs in as teachers and students: among others, a student cannot register a call key in the
+  teacher's name, outsiders cannot look keys up or signal in the lesson, and a student without drawing
+  access cannot send strokes.
 - End-to-end with real media (`scripts/rtc-e2e`). Each participant is a separate Chromium process
   with a fake camera (moving pattern) and microphone (tone); the receiving side checks that video
   frames keep changing and the audio is not silent:
@@ -150,7 +166,7 @@ may fail with "Nu se poate conecta". Without LiveKit, group lessons use P2P (fin
   node scripts/rtc-e2e/relay.mjs &                                   # test signalling relay
   NEXT_PUBLIC_RTC_TEST_BUS=ws://localhost:8787 npm run build
   RTC_TEST_HARNESS=1 npx next start -p 3100 &
-  node scripts/rtc-e2e/run.mjs p2p
+  node scripts/rtc-e2e/run.mjs p2p   # includes: forged, unsigned and replayed messages are ignored
   # SFU: start a LiveKit server (livekit-server --dev) and add
   #   LIVEKIT_URL=ws://127.0.0.1:7880 LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=secret
   # to the next start command, then: node scripts/rtc-e2e/run.mjs sfu

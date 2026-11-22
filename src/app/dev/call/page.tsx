@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import { VideoCall } from "@/components/board/VideoCall";
+import { harnessEnabled } from "@/lib/call/tokens";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Automated call test harness (scripts/rtc-e2e). Exists only when the server runs with
- * RTC_TEST_HARNESS=1, which is never set on Vercel: everywhere else this page is a 404.
+ * RTC_TEST_HARNESS=1 and is not on Vercel: everywhere else this page is a 404.
  */
 export default async function CallHarness({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  if (process.env.RTC_TEST_HARNESS !== "1") notFound();
+  if (!harnessEnabled()) notFound();
   const sp = await searchParams;
   const role = sp.role === "teacher" ? "teacher" : "student";
   const id = (sp.id ?? `${role}-1`).replace(/[^a-z0-9-]/gi, "").slice(0, 40);

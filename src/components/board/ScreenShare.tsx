@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Maximize2, MonitorUp, MonitorX, Users } from "lucide-react";
-import { getIceServers, joinSignal, type SignalHandle } from "@/lib/board/signal";
-import { ICE_SERVERS, sanitizeSignal, userOfKey, type RtcSignal } from "@/lib/board/rtc";
-import { newId } from "@/lib/board/model";
+import { getIceServers, joinSignal, type Sender, type SignalHandle } from "@/lib/board/signal";
+import { ICE_SERVERS, sanitizeSignal, type RtcSignal } from "@/lib/board/rtc";
 import { useT } from "@/lib/i18n/client";
 
 interface Props {
@@ -133,13 +132,14 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
   // ---------- channel ----------
 
   useEffect(() => {
-    keyRef.current = `${me.id}:${newId().slice(0, 8)}`;
+    keyRef.current = `${me.id}:local`;
     if (!live) return;
     const pcs = pcsRef.current;
 
-    const onSignal = async (raw: unknown) => {
+    const onSignal = async (raw: unknown, sender: Sender) => {
       const msg = sanitizeSignal(raw);
-      if (!msg) return;
+      // `from` is the sender's verified key (signed messages, migration 0024).
+      if (!msg || msg.from !== sender.key) return;
       if ("to" in msg && msg.to !== keyRef.current) return;
 
       if (isTeacher) {
@@ -151,8 +151,9 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
           await flushIce(msg.from, pc);
         }
       } else {
-        // Students only accept a share from the lesson's teacher.
-        if (msg.type !== "want" && msg.type !== "ice" && userOfKey(msg.from) !== teacherId) return;
+        // Students only accept a share from the lesson's teacher (checked in the database when signed).
+        const fromTeacher = sender.userId === teacherId && (!sender.verified || sender.role === "teacher");
+        if (msg.type !== "want" && msg.type !== "ice" && !fromTeacher) return;
         if (msg.type === "start") send({ type: "want", from: keyRef.current });
         else if (msg.type === "stop") { closePeer(msg.from); setRemoteStream(null); }
         else if (msg.type === "offer") {
@@ -183,10 +184,11 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
 
     void getIceServers(lessonId).then(servers => { iceRef.current = servers; });
     // A student joining mid-lesson asks for the share; a teacher already sharing re-announces it.
-    const handle = joinSignal(`screen:${lessonId}`, "rtc", payload => { void onSignal(payload).catch(() => {}); }, () => {
+    const handle = joinSignal(`screen:${lessonId}`, "rtc", (payload, sender) => { void onSignal(payload, sender).catch(() => {}); }, () => {
       if (!isTeacher) send({ type: "want", from: keyRef.current });
       else if (streamRef.current) send({ type: "start", from: keyRef.current });
-    });
+    }, { id: me.id, role: me.role });
+    if (handle) keyRef.current = handle.key;
     signalRef.current = handle;
 
     return () => {
@@ -195,7 +197,7 @@ export function ScreenShare({ lessonId, live, me, teacherId }: Props) {
       for (const pc of pcs.values()) pc.close();
       pcs.clear();
     };
-  }, [live, lessonId, me.id, isTeacher, teacherId, offerTo, newPeer, closePeer, send]);
+  }, [live, lessonId, me.id, me.role, isTeacher, teacherId, offerTo, newPeer, closePeer, send]);
 
   // Stop capturing when leaving the page.
   useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()); }, []);

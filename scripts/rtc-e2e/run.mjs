@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
+const RELAY = process.env.RELAY_URL ?? "ws://localhost:8787";
 const which = process.argv[2] ?? "all";
 const LESSON_A = "00000000-0000-4000-8000-0000000000aa";
 const LESSON_B = "00000000-0000-4000-8000-0000000000bb";
@@ -158,6 +159,31 @@ async function p2p() {
     await student.page.getByRole("button", { name: "Trimite" }).click();
     await teacher.page.getByRole("button", { name: "Chat" }).first().click();
     await teacher.page.getByText("Salut, profesore!").waitFor({ timeout: 5000 });
+  });
+  await check("messages in someone else's name are ignored (signed signalling)", async () => {
+    // A third party on the channel: it sees every message, but cannot sign as anybody else.
+    const { WebSocket } = createRequire(import.meta.url)("ws");
+    const spy = new WebSocket(`${RELAY}?topic=${encodeURIComponent(`screen:${LESSON_A}`)}`);
+    const seen = [];
+    spy.on("message", data => { try { seen.push(JSON.parse(String(data))); } catch { /* ignore */ } });
+    await new Promise((resolve, reject) => { spy.on("open", resolve); spy.on("error", reject); });
+    const said = text => seen.find(m => m.event === "call" && m.payload?.d?.includes(text));
+    // The student mutes: a signed "state" message tells us the student's key and gives us something to replay.
+    await student.page.getByRole("button", { name: "Oprește microfonul" }).click();
+    await waitAttr(teacher, "Ana", "mic", "false");
+    await student.page.getByRole("button", { name: "Pornește microfonul" }).click();
+    await waitAttr(teacher, "Ana", "mic", "true");
+    const muted = seen.find(m => m.event === "call" && m.payload?.d?.includes('"type":"state"') && m.payload.d.includes('"mic":false'));
+    if (!muted || !said('"mic":true')) throw new Error("no signed state messages seen on the channel");
+    const key = muted.payload.k;
+    const send = payload => spy.send(JSON.stringify({ event: "call", payload }));
+    send({ type: "bye", from: key });                                                     // unsigned, old style
+    send({ v: 1, k: key, n: 9e15, d: JSON.stringify({ type: "bye", from: key }), s: "A".repeat(86) }); // forged signature
+    send(muted.payload);                                                                  // replay of "microphone off"
+    await new Promise(r => setTimeout(r, 2500));
+    spy.close();
+    await waitAttr(teacher, "Ana", "status", "connected", 1000);
+    await waitAttr(teacher, "Ana", "mic", "true", 1000);
   });
   await check("student reloads the page and rejoins: media flows again", async () => {
     await student.page.reload();
