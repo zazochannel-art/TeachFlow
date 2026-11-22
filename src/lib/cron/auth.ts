@@ -9,3 +9,12 @@ const digest = (s: string) => createHash("sha256").update(s).digest();
 export function hasCronSecret(authorization: string | null, secret: string): boolean {
   return timingSafeEqual(digest(authorization ?? ""), digest(`Bearer ${secret}`));
 }
+
+/**
+ * The key in an `Authorization: Scheduler <key>` header (the database's 5-minute job, migration 0025),
+ * or null for any other header. The key itself is checked in the database.
+ */
+export function schedulerKey(authorization: string | null): string | null {
+  const m = /^Scheduler ([0-9a-f]{32,128})$/.exec(authorization ?? "");
+  return m ? m[1] : null;
+}
