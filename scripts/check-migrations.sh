@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Applies every migration in order to an empty Supabase Postgres. A migration that says it is
 # "safe to run more than once" is applied a second time right away, to hold it to that promise.
+# Then supabase/tests/rls.sql checks the access rules by signing in as teachers and students
+# (rolled back afterwards).
 # Used by CI; locally:
 #   docker run -d --name tfdb -e POSTGRES_PASSWORD=postgres -p 54322:5432 supabase/postgres:15.8.1.085
 #   PGPASSWORD=postgres DATABASE_URL=postgres://postgres@127.0.0.1:54322/postgres \
@@ -24,3 +26,6 @@ for f in supabase/migrations/*.sql; do
   fi
 done
 echo "All migrations applied."
+
+# Behaviour of the access rules. Runs as the image's superuser so it can sign in as any user (SET ROLE).
+run "$ADMIN_DATABASE_URL" supabase/tests/rls.sql

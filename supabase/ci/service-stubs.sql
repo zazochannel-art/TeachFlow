@@ -15,6 +15,7 @@ create or replace function realtime.topic() returns text language sql stable
 as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
 grant usage on schema realtime to anon, authenticated;
 grant select, insert on realtime.messages to authenticated;
+grant usage on all sequences in schema realtime to authenticated;
 
 -- Storage: the image ships an early storage schema; the Storage service adds these columns later.
 alter table storage.buckets add column if not exists public boolean default false;
