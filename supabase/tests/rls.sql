@@ -88,7 +88,9 @@ select pg_temp.ok((select count(*) from public.lessons where teacher_id = 'a0000
 select pg_temp.ok((select count(*) from public.lesson_status_counts where teacher_id = 'a0000000-0000-4000-8000-00000000000a') = 0, 'teacher B reads none of teacher A''s lesson totals');
 select pg_temp.ok(pg_temp.refused($$insert into public.lessons (teacher_id, title, starts_at, ends_at) values ('a0000000-0000-4000-8000-00000000000a', 'x', now(), now())$$), 'teacher B cannot add a lesson to teacher A');
 update public.students set notes = 'changed by B' where id = '5a000000-0000-4000-8000-00000000005a';
-select pg_temp.ok(pg_temp.refused($$update public.subscriptions set plan_code = 'premium'$$), 'a teacher cannot change their own plan');
+-- Supabase grants UPDATE on every table by default; RLS then changes no row (no error). Either way the plan stays.
+select pg_temp.refused($$update public.subscriptions set plan_code = 'premium', status = 'active'$$);
+select pg_temp.ok((select plan_code from public.subscriptions where teacher_id = 'b0000000-0000-4000-8000-00000000000b') = 'free', 'a teacher cannot change their own plan');
 
 select pg_temp.sign_in('a0000000-0000-4000-8000-00000000000a');
 select pg_temp.ok((select notes from public.students where id = '5a000000-0000-4000-8000-00000000005a') = 'private note of A', 'teacher B could not change teacher A''s student');
@@ -165,7 +167,8 @@ select pg_temp.ok(pg_temp.refused($$insert into realtime.messages (topic, extens
 select pg_temp.sign_in('a0000000-0000-4000-8000-00000000000a');
 select pg_temp.ok((public.consume_ai_quota(10) ->> 'allowed')::boolean, 'a Free teacher may spend 10 units');
 select pg_temp.ok(not (public.consume_ai_quota(1) ->> 'allowed')::boolean, 'the 11th unit of the day is refused');
-select pg_temp.ok(pg_temp.refused($$update public.ai_usage set units = 0$$), 'a teacher cannot reset their own counter');
+select pg_temp.refused($$update public.ai_usage set units = 0$$);
+select pg_temp.ok((select units from public.ai_usage where teacher_id = 'a0000000-0000-4000-8000-00000000000a') = 10, 'a teacher cannot reset their own counter');
 select pg_temp.sign_in('c0000000-0000-4000-8000-00000000000c');
 select pg_temp.ok(pg_temp.refused($$select public.consume_ai_quota(1)$$), 'students have no AI quota');
 
